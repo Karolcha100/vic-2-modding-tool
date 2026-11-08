@@ -11,18 +11,13 @@ from __future__ import annotations
 
 import tomllib
 from collections import Counter
-from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
 from vic2toolmod.project.layout import Project, ProjectFile
-from vic2toolmod.project.registries import Registries, build_registries
-from vic2toolmod.schema.loader import default_schema
 from vic2toolmod.schema.model import Schema
-from vic2toolmod.schema.validator import Validator, file_type_for
 from vic2toolmod.script.cst import Document
 from vic2toolmod.script.diagnostics import Diagnostic
-from vic2toolmod.script.parser import parse_file
 
 
 @dataclass(frozen=True)
@@ -46,38 +41,19 @@ def check_project(
     project: Project,
     *,
     schema: Schema | None = None,
-    registries: Registries | None = None,
     only_mod: bool = True,
-) -> Iterator[FileReport]:
-    """Check every script file of a project.
+) -> list[FileReport]:
+    """Check every script file of a project (see `vic2toolmod.workspace.Workspace.check`).
 
     Args:
         project: Game + mod.
         schema: Schema to use (default: the packaged one).
-        registries: Names (default: built from the project).
         only_mod: Report only files that come from the mod (vanilla files are
             still read to know their names).
     """
-    schema = schema or default_schema()
-    ignore = load_ignore_rules(project.mod_dir)
-    cache: dict[str, Document] = {}
-    registries = registries or build_registries(project, cache)
-    validator = Validator(schema, registries.has)
-    for low, f in sorted(project.files().items()):
-        if only_mod and project.mod_dir is not None and f.origin != "mod":
-            continue
-        if not low.endswith((".txt", ".gfx", ".gui")):
-            continue
-        doc = cache.get(f.rel)
-        if doc is None:
-            doc, _ = parse_file(f.path)
-        ft = file_type_for(f.rel, schema)
-        diags = list(doc.diagnostics)
-        if ft is not None:
-            diags += validator.validate(doc, ft.rule, ft.scope)
-            diags.sort(key=lambda d: d.start)
-        diags = [d for d in diags if not ignore.ignored(d)]
-        yield FileReport(f, doc, ft.name if ft else None, diags)
+    from vic2toolmod.workspace import Workspace
+
+    return Workspace(project, schema).check(only_mod=only_mod)
 
 
 @dataclass(frozen=True)

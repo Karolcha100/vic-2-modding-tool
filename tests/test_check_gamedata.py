@@ -15,6 +15,14 @@ KNOWN = {
     ("history/units/v2dd2.txt", "schema.wrong-operator"),
     ("history/units/v2dd2.txt", "syntax.operator-without-key"),
     ("interface/credits.txt", "syntax.operator-without-key"),  # plain text
+    # flags used but never set: Host1O0lympiad (typo), botanical_expedition_in_progress
+    # (set as a global flag, tested as a country flag), congo_reform_association_active,
+    # yes_meeting_promised
+    ("decisions/GreatPowers.txt", "ref.flag-never-set"),
+    ("events/GreatPowers.txt", "ref.flag-never-set"),
+    ("events/Olympics.txt", "ref.flag-never-set"),
+    ("events/ReformJealousy.txt", "ref.flag-never-set"),
+    ("events/Arabia event.txt", "loc.missing"),  # EVTDESC111011928_NEWS_* not defined
 }
 
 

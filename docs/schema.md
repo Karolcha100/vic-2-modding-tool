@@ -142,6 +142,8 @@ not described yet: interface, some map files, units' stats).
 | `schema.wrong-operator` | warning | Victoria 2 only understands `=` |
 | `schema.unexpected-value` | warning | loose value or block where none is allowed |
 | `ref.unknown-name` | warning | a name that is not defined in the mod or the game |
+| `ref.flag-never-set` | warning | a flag / variable used (tested, cleared) but never set anywhere (K28) |
+| `loc.missing` | warning | a localisation key without a definition (values that do not look like keys, e.g. `"Unacceptable!"`, are shown literally by the game and not reported) |
 
 Per mod, codes or messages can be ignored in `vic2toolmod.toml` in the mod
 folder (see `vic2toolmod.check`).
@@ -153,6 +155,9 @@ folder (see `vic2toolmod.check`).
 - `news/`, `tutorial/`, `battleplans/`, `launcher/` files have no file type.
 - Scopes come from CWTools plus vanilla usage; the game is lenient and some
   combinations it accepts may still be reported as `schema.wrong-scope`.
-- Five vanilla problems are real and stay reported: event `11108` does not
-  exist (`decisions/NationalUnification.txt`), `history/units/v2dd2.txt` and
-  `interface/credits.txt` are not script files.
+- Vanilla's own real problems stay reported (`tests/test_check_gamedata.py`):
+  event `11108` does not exist (`decisions/NationalUnification.txt`);
+  `history/units/v2dd2.txt` and `interface/credits.txt` are not script files;
+  flags used but never set - `Host1O0lympiad` (a typo: letter O instead of a zero), `botanical_expedition_in_progress` (set as a global flag, tested as a
+  country flag), `congo_reform_association_active`, `yes_meeting_promised`;
+  missing localisation `EVTDESC111011928_NEWS_*`.

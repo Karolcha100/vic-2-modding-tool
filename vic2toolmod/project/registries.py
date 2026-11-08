@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 from vic2toolmod.project.layout import Project, ProjectFile
+from vic2toolmod.project.localisation import Localisation, load_localisation
 from vic2toolmod.script.cst import Assignment, Block, Document, Node
 from vic2toolmod.script.parser import parse_file
 
@@ -38,13 +39,26 @@ class Registries:
 
     Attributes:
         names: Registry name -> lower-case name -> definition.
+        tested: Flags tested somewhere (``has_country_flag = x``), first use.
+        localisation: The project's localisation (keys are also in ``names``).
+        duplicates: Registry name -> later definitions of names already defined
+            (only meaningful for registries where duplicates are mistakes,
+            such as event ids).
     """
 
     names: dict[str, dict[str, Definition]] = field(default_factory=dict)
+    duplicates: dict[str, list[Definition]] = field(default_factory=dict)
+    tested: dict[str, dict[str, Definition]] = field(default_factory=dict)
+    localisation: Localisation | None = None
 
     def add(self, registry: str, name: str, file: str, line: int = 0) -> None:
-        """Register a name (the first definition wins)."""
-        self.names.setdefault(registry, {}).setdefault(name.lower(), Definition(name, file, line))
+        """Register a name (the first definition wins, later ones go to `duplicates`)."""
+        reg = self.names.setdefault(registry, {})
+        low = name.lower()
+        if low in reg:
+            self.duplicates.setdefault(registry, []).append(Definition(name, file, line))
+        else:
+            reg[low] = Definition(name, file, line)
 
     def has(self, registry: str, name: str) -> bool | None:
         """Whether ``name`` exists; ``None`` if the registry is not known at all."""
@@ -195,6 +209,60 @@ def _modifiers(reg: Registries, project: Project, cache: _DocCache) -> None:
         _top(reg, "modifier", project, pattern, cache)
 
 
+#: Effects that create a flag / variable and triggers that test it.
+FLAG_SETTERS = {
+    "set_country_flag": "country_flag",
+    "set_global_flag": "global_flag",
+    "set_province_flag": "province_flag",
+}
+FLAG_TESTERS = {
+    "has_country_flag": "country_flag",
+    "has_global_flag": "global_flag",
+    "has_province_flag": "province_flag",
+}
+
+
+def _flags(reg: Registries, project: Project, cache: _DocCache) -> None:
+    """Flags and variables are defined by being set (K28); tests are recorded as uses."""
+    for pattern in (
+        "events/*.txt",
+        "decisions/*.txt",
+        "history/*/*.txt",
+        "common/*.txt",
+        "history/*/*/*.txt",
+    ):
+        for f, doc in _docs(project, pattern, cache):
+            for node in doc.walk():
+                if not isinstance(node, Assignment) or node.value is None:
+                    continue
+                key = node.key_text.lower()
+                if key in FLAG_SETTERS and not isinstance(node.value, Block):
+                    reg.add(FLAG_SETTERS[key], node.value.value, f.rel, doc.position(node.start)[0])
+                elif key in ("set_variable", "change_variable") and isinstance(node.value, Block):
+                    which = node.value.find("which")
+                    if (
+                        which is not None
+                        and which.value is not None
+                        and not isinstance(which.value, Block)
+                    ):
+                        reg.add("variable", which.value.value, f.rel, doc.position(node.start)[0])
+                elif key in FLAG_TESTERS and not isinstance(node.value, Block):
+                    reg.tested.setdefault(FLAG_TESTERS[key], {}).setdefault(
+                        node.value.value.lower(),
+                        Definition(node.value.value, f.rel, doc.position(node.start)[0]),
+                    )
+    for registry in ("country_flag", "global_flag", "province_flag", "variable"):
+        reg.names.setdefault(registry, {})
+
+
+def _localisation(reg: Registries, project: Project, cache: _DocCache) -> None:
+    loc = load_localisation(project)
+    reg.localisation = loc
+    reg.names["localisation"] = {
+        k: Definition(e.key, e.file, e.line) for k, e in loc.entries.items()
+    }
+
+
 _Extractor = Callable[[Registries, Project, _DocCache], None]
 
 EXTRACTORS: dict[str, _Extractor] = {
@@ -232,6 +300,8 @@ EXTRACTORS: dict[str, _Extractor] = {
     "event": _events,
     "decision": _decisions,
     "terrain": _terrain,
+    "flags": _flags,
+    "localisation": _localisation,
     "production_type": lambda r, p, c: _top(
         r, "production_type", p, "common/production_types.txt", c
     ),

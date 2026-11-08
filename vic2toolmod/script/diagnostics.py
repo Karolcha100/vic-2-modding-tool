@@ -54,6 +54,10 @@ class LineIndex:
         line = bisect.bisect_right(self._starts, offset) - 1
         return line + 1, offset - self._starts[line] + 1
 
+    def line_start(self, line: int) -> int:
+        """Offset of the first character of a 1-based line (clamped to the file)."""
+        return self._starts[max(0, min(line, len(self._starts)) - 1)]
+
     @property
     def line_count(self) -> int:
         """Number of lines (a trailing line break starts an empty last line)."""

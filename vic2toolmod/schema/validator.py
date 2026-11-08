@@ -48,6 +48,13 @@ from vic2toolmod.script.tokens import Token
 _INT_KEY = re.compile(r"\d+")
 _DATE_KEY = re.compile(r"\d{1,4}\.\d{1,2}\.\d{1,2}")
 _FLOAT_KEY = re.compile(r"-?\d*\.?\d+")
+_LOC_KEY = re.compile(r"[A-Za-z0-9_.\-]+")
+_FLAG_SETTER = {
+    "country_flag": "set_country_flag",
+    "global_flag": "set_global_flag",
+    "province_flag": "set_province_flag",
+    "variable": "set_variable",
+}
 
 
 @dataclass
@@ -90,6 +97,10 @@ class Validator:
     def __init__(self, schema: Schema, names: Names | None = None) -> None:
         self.schema = schema
         self.names = names
+        #: ``(registry, name, token)`` of every reference to a named thing found
+        #: by the last `validate` call (values such as ``ref:culture`` and
+        #: dynamic keys such as ``ENG = { }``); used for "find usages".
+        self.references: list[tuple[str, str, Token]] = []
         self._out: list[Diagnostic] = []
         self._stack: list[_Frame] = []
 
@@ -101,6 +112,7 @@ class Validator:
             Diagnostics sorted by position.
         """
         self._out = []
+        self.references = []
         root = self.schema.rules[rule]
         self._stack = [_Frame(doc.items, doc.eof, scope, rule=root)]
         while self._stack:
@@ -231,6 +243,9 @@ class Validator:
                 return
             for dyn in self.schema.dynamic:
                 if context in dyn.contexts and self._dynamic_matches(raw, dyn.key):
+                    registry = "country" if dyn.key == "tag" else dyn.key.removeprefix("ref:")
+                    if dyn.key != "int":
+                        self.references.append((registry, raw, item.key))
                     scope_inside = dyn.push_scope or scope
                     if dyn.value is None:
                         if isinstance(item.value, Block):
@@ -293,8 +308,14 @@ class Validator:
                     f"'{item.key_text}' expects {problem}, got '{value.text}'",
                     value,
                 )
-            elif spec.name == "ref" and spec.arg and self.names is not None:
-                self._check_name(spec.arg, value)
+            elif spec.name == "ref" and spec.arg:
+                self.references.append((spec.arg, value.value, value.token))
+                if self.names is not None:
+                    self._check_name(spec.arg, value)
+            elif spec.name == "localisation":
+                self.references.append(("localisation", value.value, value.token))
+                if self.names is not None:
+                    self._check_localisation(value)
             return
         if not isinstance(value, Block):
             self._report(
@@ -339,12 +360,27 @@ class Validator:
         if name.lower() in SCOPE_KEYWORDS or self.names is None:
             return
         if self.names(registry, name) is False:
-            self._report(
-                Severity.WARNING,
-                "ref.unknown-name",
-                f"unknown {registry.replace('_', ' ')} '{name}'",
-                value,
-            )
+            if registry in _FLAG_SETTER:
+                message = (
+                    f"{registry.replace('_', ' ')} '{name}' is used but never set "
+                    f"({_FLAG_SETTER[registry]})"
+                )
+                code = "ref.flag-never-set"
+            else:
+                message = f"unknown {registry.replace('_', ' ')} '{name}'"
+                code = "ref.unknown-name"
+            self._report(Severity.WARNING, code, message, value)
+
+    def _check_localisation(self, value: Scalar) -> None:
+        key = value.value
+        # The game shows a value that is no key literally ("Unacceptable!"), so
+        # only values that look like keys are reported.
+        if self.names is None or not _LOC_KEY.fullmatch(key):
+            return
+        if not (key.isupper() or "_" in key or any(c.isdigit() for c in key)):
+            return
+        if self.names("localisation", key) is False:
+            self._report(Severity.WARNING, "loc.missing", f"no localisation for '{key}'", value)
 
     def _dynamic_matches(self, raw: str, key: str) -> bool:
         if key == "int":
