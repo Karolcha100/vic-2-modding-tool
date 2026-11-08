@@ -1,0 +1,2 @@
+# Fixtures parsera: bajty bez konwersji końców linii (testy porównują bajt w bajt)
+tests/fixtures/** -text

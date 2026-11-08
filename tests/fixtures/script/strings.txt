@@ -1,0 +1,4 @@
+name = "multi
+line"
+"quoted key" = value
+hash = "#2 not a comment"

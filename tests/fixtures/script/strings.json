@@ -1,0 +1,32 @@
+{
+ "items": [
+  {
+   "type": "assignment",
+   "key": "name",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "\"multi\nline\""
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "\"quoted key\"",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "value"
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "hash",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "\"#2 not a comment\""
+   }
+  }
+ ],
+ "diagnostics": []
+}

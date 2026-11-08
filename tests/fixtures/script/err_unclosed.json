@@ -1,0 +1,76 @@
+{
+ "items": [
+  {
+   "type": "assignment",
+   "key": "army",
+   "op": "=",
+   "value": {
+    "type": "block",
+    "items": [
+     {
+      "type": "assignment",
+      "key": "name",
+      "op": "=",
+      "value": {
+       "type": "scalar",
+       "text": "x"
+      }
+     },
+     {
+      "type": "assignment",
+      "key": "regiment",
+      "op": "=",
+      "value": {
+       "type": "block",
+       "items": [
+        {
+         "type": "assignment",
+         "key": "type",
+         "op": "=",
+         "value": {
+          "type": "scalar",
+          "text": "infantry"
+         }
+        },
+        {
+         "type": "assignment",
+         "key": "regiment",
+         "op": "=",
+         "value": {
+          "type": "block",
+          "items": [
+           {
+            "type": "assignment",
+            "key": "type",
+            "op": "=",
+            "value": {
+             "type": "scalar",
+             "text": "cavalry"
+            }
+           }
+          ]
+         }
+        }
+       ]
+      }
+     }
+    ],
+    "closed": false
+   }
+  }
+ ],
+ "diagnostics": [
+  {
+   "severity": "error",
+   "code": "syntax.unclosed-brace",
+   "line": 1,
+   "column": 8
+  },
+  {
+   "severity": "warning",
+   "code": "syntax.brace-indentation",
+   "line": 3,
+   "column": 2
+  }
+ ]
+}

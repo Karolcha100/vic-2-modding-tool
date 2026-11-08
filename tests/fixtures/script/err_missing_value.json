@@ -1,0 +1,64 @@
+{
+ "items": [
+  {
+   "type": "assignment",
+   "key": "a",
+   "op": "=",
+   "value": null
+  },
+  {
+   "type": "error",
+   "tokens": [
+    "}"
+   ]
+  },
+  {
+   "type": "assignment",
+   "key": "b",
+   "op": "=",
+   "value": {
+    "type": "block",
+    "items": [
+     {
+      "type": "assignment",
+      "key": "c",
+      "op": "=",
+      "value": null
+     }
+    ]
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "d",
+   "op": "=",
+   "value": null
+  }
+ ],
+ "diagnostics": [
+  {
+   "severity": "error",
+   "code": "syntax.missing-value",
+   "line": 1,
+   "column": 1
+  },
+  {
+   "severity": "error",
+   "code": "syntax.unmatched-close-brace",
+   "line": 2,
+   "column": 1
+  },
+  {
+   "severity": "error",
+   "code": "syntax.missing-value",
+   "line": 3,
+   "column": 7
+  },
+  {
+   "severity": "error",
+   "code": "syntax.missing-value",
+   "line": 4,
+   "column": 1
+  }
+ ]
+}

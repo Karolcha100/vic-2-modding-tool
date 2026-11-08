@@ -1,0 +1,61 @@
+{
+ "items": [
+  {
+   "type": "assignment",
+   "key": "points",
+   "op": "=",
+   "value": {
+    "type": "block",
+    "items": [
+     {
+      "type": "block",
+      "items": [
+       {
+        "type": "assignment",
+        "key": "x",
+        "op": "=",
+        "value": {
+         "type": "scalar",
+         "text": "1"
+        }
+       },
+       {
+        "type": "assignment",
+        "key": "y",
+        "op": "=",
+        "value": {
+         "type": "scalar",
+         "text": "2"
+        }
+       }
+      ]
+     },
+     {
+      "type": "block",
+      "items": [
+       {
+        "type": "assignment",
+        "key": "x",
+        "op": "=",
+        "value": {
+         "type": "scalar",
+         "text": "3"
+        }
+       },
+       {
+        "type": "assignment",
+        "key": "y",
+        "op": "=",
+        "value": {
+         "type": "scalar",
+         "text": "4"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "diagnostics": []
+}

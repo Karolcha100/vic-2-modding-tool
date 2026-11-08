@@ -1,0 +1,72 @@
+{
+ "items": [
+  {
+   "type": "assignment",
+   "key": "country_event",
+   "op": "=",
+   "value": {
+    "type": "block",
+    "items": [
+     {
+      "type": "assignment",
+      "key": "trigger",
+      "op": "=",
+      "value": {
+       "type": "block",
+       "items": [
+        {
+         "type": "assignment",
+         "key": "tag",
+         "op": "=",
+         "value": {
+          "type": "scalar",
+          "text": "USA"
+         }
+        },
+        {
+         "type": "assignment",
+         "key": "NOT",
+         "op": "=",
+         "value": {
+          "type": "block",
+          "items": [
+           {
+            "type": "assignment",
+            "key": "government",
+            "op": "=",
+            "value": {
+             "type": "scalar",
+             "text": "democracy"
+            }
+           }
+          ]
+         }
+        }
+       ]
+      }
+     },
+     {
+      "type": "assignment",
+      "key": "option",
+      "op": "=",
+      "value": {
+       "type": "block",
+       "items": [
+        {
+         "type": "assignment",
+         "key": "name",
+         "op": "=",
+         "value": {
+          "type": "scalar",
+          "text": "\"Unacceptable!\""
+         }
+        }
+       ]
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "diagnostics": []
+}

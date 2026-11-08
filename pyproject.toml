@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vic2toolmod"
+version = "0.1.0"
+description = "Engine (and later GUI) for modding Victoria 2: lossless script parser, schema, mod index."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "mypy"]
+
+[project.scripts]
+vic2toolmod = "vic2toolmod.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["vic2toolmod*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# tests/test_agents_board.py belongs to the local agents tooling, not to this project
+addopts = "--ignore=tests/test_agents_board.py"
+markers = ["gamedata: needs the Victoria 2 game / mod folders (see vic2toolmod.config)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "D"]
+ignore = ["D105", "D107", "D203", "D213"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["vic2toolmod"]

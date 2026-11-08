@@ -1,0 +1,5 @@
+start = 1836.1.1
+factor = -0.5
+frac = .01
+size = 1.2e3
+123 = { owner = ENG }

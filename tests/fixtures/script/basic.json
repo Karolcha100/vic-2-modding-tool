@@ -1,0 +1,32 @@
+{
+ "items": [
+  {
+   "type": "assignment",
+   "key": "id",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "95260"
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "title",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "\"EVTNAME95260\""
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "news",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "yes"
+   }
+  }
+ ],
+ "diagnostics": []
+}

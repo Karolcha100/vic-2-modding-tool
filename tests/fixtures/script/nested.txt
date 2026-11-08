@@ -1,0 +1,7 @@
+country_event = {
+	trigger = {
+		tag = USA
+		NOT = { government = democracy }
+	}
+	option = { name = "Unacceptable!" }
+}

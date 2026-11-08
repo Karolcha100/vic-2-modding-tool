@@ -1,0 +1,47 @@
+{
+ "items": [
+  {
+   "type": "error",
+   "tokens": [
+    "="
+   ]
+  },
+  {
+   "type": "scalar",
+   "text": "5"
+  },
+  {
+   "type": "assignment",
+   "key": "a",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "1"
+   }
+  },
+  {
+   "type": "error",
+   "tokens": [
+    "="
+   ]
+  },
+  {
+   "type": "scalar",
+   "text": "2"
+  }
+ ],
+ "diagnostics": [
+  {
+   "severity": "error",
+   "code": "syntax.operator-without-key",
+   "line": 1,
+   "column": 1
+  },
+  {
+   "severity": "error",
+   "code": "syntax.operator-without-key",
+   "line": 2,
+   "column": 7
+  }
+ ]
+}

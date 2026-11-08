@@ -1,0 +1,54 @@
+{
+ "items": [
+  {
+   "type": "assignment",
+   "key": "color",
+   "op": "=",
+   "value": {
+    "type": "block",
+    "items": [
+     {
+      "type": "scalar",
+      "text": "120"
+     },
+     {
+      "type": "scalar",
+      "text": "30"
+     },
+     {
+      "type": "scalar",
+      "text": "200"
+     }
+    ]
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "cores",
+   "op": "=",
+   "value": {
+    "type": "block",
+    "items": [
+     {
+      "type": "scalar",
+      "text": "GER"
+     },
+     {
+      "type": "scalar",
+      "text": "AUS"
+     }
+    ]
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "empty",
+   "op": "=",
+   "value": {
+    "type": "block",
+    "items": []
+   }
+  }
+ ],
+ "diagnostics": []
+}

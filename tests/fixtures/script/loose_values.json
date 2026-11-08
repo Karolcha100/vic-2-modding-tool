@@ -1,0 +1,17 @@
+{
+ "items": [
+  {
+   "type": "scalar",
+   "text": "yes"
+  },
+  {
+   "type": "scalar",
+   "text": "no"
+  },
+  {
+   "type": "scalar",
+   "text": "3"
+  }
+ ],
+ "diagnostics": []
+}

@@ -1,0 +1,33 @@
+{
+ "items": [
+  {
+   "type": "assignment",
+   "key": "a",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "1"
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "b",
+   "op": "=",
+   "value": {
+    "type": "block",
+    "items": [
+     {
+      "type": "assignment",
+      "key": "c",
+      "op": "=",
+      "value": {
+       "type": "scalar",
+       "text": "2"
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "diagnostics": []
+}

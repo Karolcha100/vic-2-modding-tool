@@ -1,0 +1,60 @@
+{
+ "items": [
+  {
+   "type": "assignment",
+   "key": "start",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "1836.1.1"
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "factor",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "-0.5"
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "frac",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": ".01"
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "size",
+   "op": "=",
+   "value": {
+    "type": "scalar",
+    "text": "1.2e3"
+   }
+  },
+  {
+   "type": "assignment",
+   "key": "123",
+   "op": "=",
+   "value": {
+    "type": "block",
+    "items": [
+     {
+      "type": "assignment",
+      "key": "owner",
+      "op": "=",
+      "value": {
+       "type": "scalar",
+       "text": "ENG"
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "diagnostics": []
+}
