@@ -1,0 +1,383 @@
+# Imported from cwtools-vic2-config (MIT) by tools/import_cwtools.py, then curated.
+effect:
+  RGO_size:
+    scopes: [province]
+    source: cwtools
+    value: int
+  activate_technology:
+    scopes: [country]
+    source: cwtools
+    value: ref:technology
+  add_accepted_culture:
+    scopes: [country]
+    source: cwtools
+    value: ref:culture
+  add_casus_belli:
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {months: int, target: 'ref:country', type: 'ref:cb_type'}
+  add_core:
+    scopes: [province]
+    source: cwtools
+    value: ref:country
+  add_country_modifier:
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {duration: int, name: 'ref:modifier'}
+  add_crisis_interest:
+    scopes: [country]
+    source: cwtools
+    value: bool
+  add_crisis_temperature:
+    scopes: [country]
+    source: cwtools
+    value: int
+  add_province_modifier:
+    scopes: [province]
+    source: cwtools
+    value:
+      fields: {duration: int, name: scalar}
+  add_tax_relative_income:
+    scopes: [country]
+    source: cwtools
+    value: float
+  annex_to:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  assimilate:
+    scopes: [pop]
+    source: cwtools
+    value: bool
+  badboy:
+    scopes: [country]
+    source: cwtools
+    value: int
+  capital:
+    scopes: [country]
+    source: cwtools
+    value: ref:province
+  casus_belli:
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {months: int, target: 'ref:country', type: 'ref:cb_type'}
+  change_controller:
+    scopes: [province]
+    source: cwtools
+    value: ref:country
+  change_province_name:
+    scopes: [province]
+    source: cwtools
+    value: scalar
+  change_region_name:
+    scopes: [state]
+    source: cwtools
+    value: scalar
+  change_tag:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  change_tag_no_core_switch:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  change_variable:
+    scopes: [country]
+    source: cwtools
+    value: ref:variable
+  civilized:
+    scopes: [country]
+    source: cwtools
+    value: bool
+  clr_country_flag:
+    scopes: [country]
+    source: cwtools
+    value: ref:country_flag
+  clr_global_flag:
+    scopes: [any]
+    source: cwtools
+    value: ref:global_flag
+  clr_province_flag:
+    scopes: [province]
+    source: cwtools
+    value: ref:province_flag
+  consciousness:
+    scopes: [pop]
+    source: cwtools
+    value: float
+  country_event:
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {days: int, id: 'ref:event'}
+  create_alliance:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  create_vassal:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  define_general:
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {background: 'ref:trait', name: scalar, personality: 'ref:trait'}
+  diplomatic_influence:
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {value: int, who: 'ref:country'}
+  dominant_issue:
+    scopes: [pop]
+    source: cwtools
+    value:
+      fields: {factor: int, value: 'ref:issue_option'}
+  economic_reform:
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  election:
+    scopes: [country]
+    source: cwtools
+    value: bool
+  enable_ideology:
+    scopes: [country]
+    source: cwtools
+    value: ref:ideology
+  end_military_access:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  end_war:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  flashpoint_tension:
+    scopes: [state]
+    source: cwtools
+    value: int
+  fort:
+    scopes: [province]
+    source: cwtools
+    value: int
+  government:
+    scopes: [country]
+    source: cwtools
+    value: ref:government
+  ideology:
+    scopes: [pop]
+    source: cwtools
+    value:
+      fields: {factor: int, value: 'ref:ideology'}
+  infrastructure:
+    scopes: [province]
+    source: cwtools
+    value: int
+  inherit:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  is_slave:
+    scopes: [country]
+    source: cwtools
+    value: bool
+  kill_leader:
+    scopes: [country]
+    source: cwtools
+    value: ref:leader
+  leave_alliance:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  life_rating:
+    scopes: [province]
+    source: cwtools
+    value: int
+  literacy:
+    scopes: [pop]
+    source: cwtools
+    value: float
+  militancy:
+    scopes: [pop]
+    source: cwtools
+    value: float
+  military_access:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  military_reform:
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  money:
+    scopes: [pop]
+    source: cwtools
+    value: int
+  move_issue_percentage:
+    scopes: [pop]
+    source: cwtools
+    value:
+      fields: {from: 'ref:issue_option', to: 'ref:issue_option', value: float}
+  move_pop:
+    scopes: [pop]
+    source: cwtools
+    value: ref:province
+  nationalize:
+    scopes: [country]
+    source: cwtools
+    value: bool
+  nationalvalue:
+    scopes: [country]
+    source: cwtools
+    value: ref:national_value
+  naval_base:
+    scopes: [province]
+    source: cwtools
+    value: int
+  neutrality:
+    scopes: [country]
+    source: cwtools
+    value: bool
+  plurality:
+    scopes: [country]
+    source: cwtools
+    value: float
+  political_reform:
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  pop_type:
+    scopes: [pop]
+    source: cwtools
+    value: ref:pop_type
+  prestige:
+    scopes: [country]
+    source: cwtools
+    value: float
+  prestige_factor:
+    scopes: [country]
+    source: cwtools
+    value: int
+  primary_culture:
+    scopes: [country]
+    source: cwtools
+    value: ref:culture
+  province_event:
+    scopes: [province]
+    source: cwtools
+    value:
+      fields: {days: int, id: 'ref:event'}
+  reduce_pop:
+    scopes: [pop]
+    source: cwtools
+    value: float
+  relation:
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {value: int, who: 'ref:country'}
+  release:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  release_vassal:
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  religion:
+    scopes: [country]
+    source: cwtools
+    value: ref:religion
+  remove_accepted_culture:
+    scopes: [country]
+    source: cwtools
+    value: ref:culture
+  remove_core:
+    scopes: [province]
+    source: cwtools
+    value: ref:country
+  remove_country_modifier:
+    scopes: [country]
+    source: cwtools
+    value: ref:modifier
+  remove_province_modifier:
+    scopes: [province]
+    source: cwtools
+    value: ref:modifier
+  research_points:
+    scopes: [country]
+    source: cwtools
+    value: int
+  ruling_party_ideology:
+    scopes: [country]
+    source: cwtools
+    value: ref:ideology
+  scaled_consciousness:
+    scopes: [pop]
+    source: cwtools
+    value:
+      fields: {factor: scalar, ideology: 'ref:ideology', issue: 'ref:issue_option'}
+  scaled_militancy:
+    scopes: [pop]
+    source: cwtools
+    value: float
+  secede_province:
+    scopes: [province]
+    source: cwtools
+    value: ref:country
+  set_country_flag:
+    scopes: [country]
+    source: cwtools
+    value: ref:country_flag
+  set_global_flag:
+    scopes: [any]
+    source: cwtools
+    value: ref:global_flag
+  set_province_flag:
+    scopes: [province]
+    source: cwtools
+    value: ref:province_flag
+  set_variable:
+    scopes: [any]
+    source: cwtools
+    value: ref:variable
+  social_reform:
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  trade_goods:
+    scopes: [province]
+    source: cwtools
+    value: ref:goods
+  treasury:
+    scopes: [country]
+    source: cwtools
+    value: int
+  upper_house:
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {ideology: 'ref:ideology', value: float}
+  war:
+    scopes: [country]
+    source: cwtools
+    value:
+      fields:
+        attacker_goal:
+          fields: {casus_belli: 'ref:cb_type'}
+        call_ally: bool
+        defender_goal:
+          fields: {casus_belli: 'ref:cb_type'}
+        target: ref:country
+  war_exhaustion:
+    scopes: [country]
+    source: cwtools
+    value: float
+  years_of_research:
+    scopes: [country]
+    source: cwtools
+    value: int

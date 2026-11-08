@@ -1,0 +1,1085 @@
+# Imported from cwtools-vic2-config (MIT) by tools/import_cwtools.py, then curated.
+trigger:
+  administration_spending:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  ai:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  alliance_with:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  allow_multiple_instances:
+    compare: eq
+    scopes: [any]
+    source: cwtools
+    value: bool
+  average_consciousness:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [province]
+    source: cwtools
+    value: float
+  average_militancy:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [province]
+    source: cwtools
+    value: float
+  badboy:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  blockade:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  brigades_compare:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  can_build_factory:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  can_create_vassals:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  can_nationalize:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  capital:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:province
+  cash_reserves:
+    compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: int
+  casus_belli:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  check_variable:
+    compare: block
+    scopes: [any]
+    source: cwtools
+    value:
+      fields: {value: float, which: 'ref:variable'}
+  citizenship_policy:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  civilization_progress:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  civilized:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  colonial_nation:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  consciousness:
+    compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: float
+  constructing_cb_progress:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  constructing_cb_type:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:cb_type
+  continent:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:continent
+  controlled_by:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:country
+  controlled_by_rebels:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  controls:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:province
+  country_units_in_province:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:country
+  crime_fighting:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [province]
+    source: cwtools
+    value: float
+  crisis_exist:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  culture:
+    compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: ref:culture
+  diplomatic_influence:
+    compare: block
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {value: float, who: 'ref:country'}
+  economic_policy:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  economic_reform:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  education_spending:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [province]
+    source: cwtools
+    value: float
+  election:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  empty:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  everyday_needs:
+    compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: float
+  exists:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  fire_only_once:
+    compare: eq
+    scopes: [any]
+    source: cwtools
+    value: bool
+  flashpoint_tension:
+    compare: gte
+    scopes: [province]
+    source: cwtools
+    value: int
+  government:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:government
+  great_wars_enabled:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  has_building:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:building
+  has_country_flag:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  has_country_modifier:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:modifier
+  has_cultural_sphere:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  has_culture_core:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  has_empty_adjacent_province:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  has_empty_adjacent_state:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  has_factories:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  has_global_flag:
+    compare: eq
+    scopes: [any]
+    source: cwtools
+    value: scalar
+  has_leader:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: scalar
+  has_national_minority:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  has_pop_culture:
+    compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: ref:culture
+  has_pop_religion:
+    compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: ref:religion
+  has_pop_type:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:pop_type
+  has_province_flag:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:province_flag
+  has_province_modifier:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:modifier
+  has_recent_imigration:
+    compare: gte
+    scopes: [province]
+    source: cwtools
+    value: int
+  has_recently_lost_war:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  has_unclaimed_cores:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  have_core_in:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  ideology:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:ideology
+  immediate:
+    compare: block
+    scopes: [any]
+    source: cwtools
+    value: {block: effect}
+  in_sphere:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  industrial_score:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  invention:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:invention
+  involved_in_crisis:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  is_accepted_culture:
+  - compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  - compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: bool
+  is_blockaded:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  is_canal_enabled:
+    compare: gte
+    scopes: [any]
+    source: cwtools
+    value: int[0..3]
+  is_capital:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  is_claim_crisis:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  is_coastal:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  is_colonial:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  is_core:
+  - compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:province
+  - compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:country
+  is_cultural_union:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  is_culture_group:
+  - compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  - compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: ref:culture_group
+  is_disarmed:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  is_greater_power:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  is_ideology_enabled:
+  - compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:ideology
+  - compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:ideology
+  is_independant:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  is_liberation_crisis:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  is_mobilised:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  is_our_vassal:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  is_overseas:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  is_possible_vassal:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  is_primary_culture:
+  - compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  - compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: bool
+  is_secondary_power:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  is_sphere_leader_of:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  is_state_capital:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  is_state_religion:
+  - compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  - compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: bool
+  is_substate:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  is_triggered_only:
+    compare: eq
+    scopes: [any]
+    source: cwtools
+    value: bool
+  is_vassal:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  life_needs:
+    compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: float
+  life_rating:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  literacy:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [province]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: float
+  lost_national:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  luxury_needs:
+    compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: float
+  major:
+    compare: eq
+    scopes: [any]
+    source: cwtools
+    value: bool
+  middle_strata_everyday_needs:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  middle_strata_life_needs:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  middle_strata_luxury_needs:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  middle_tax:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  militancy:
+    compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: float
+  military_access:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  military_reform:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  military_score:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  military_spending:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [province]
+    source: cwtools
+    value: float
+  minorities:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  money:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  - compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: int
+  month:
+    compare: gte
+    scopes: [any]
+    source: cwtools
+    value: int
+  national_provinces_occupied:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  nationalvalue:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:national_value
+  neighbour:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  num_of_allies:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  num_of_cities:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  num_of_ports:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  num_of_revolts:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  num_of_substates:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  num_of_vassals:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  num_of_vassals_no_substates:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  number_of_states:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  owned_by:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:country
+  owns:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:province
+  part_of_sphere:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  political_movement:
+    compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: bool
+  political_movement_strength:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  political_reform:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  political_reform_want:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: float
+  poor_strata_everyday_needs:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  poor_strata_life_needs:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  poor_strata_luxury_needs:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  poor_tax:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  pop_majority_culture:
+  - compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:culture
+  - compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: ref:culture
+  pop_majority_ideology:
+  - compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:ideology
+  - compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: ref:ideology
+  pop_majority_religion:
+  - compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:religion
+  - compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: ref:religion
+  pop_militancy:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [province]
+    source: cwtools
+    value: float
+  port:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: bool
+  prestige:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  primary_culture:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:culture
+  produces:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:goods
+  province_control_days:
+    compare: gte
+    scopes: [province]
+    source: cwtools
+    value: int
+  province_id:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:province
+  rank:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  region:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:region
+  relation:
+    compare: block
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {value: int, who: 'ref:country'}
+  religion:
+    compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: ref:religion
+  religious_policy:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  revolt_percentage:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  rich_strata_everyday_needs:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  rich_strata_life_needs:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  rich_strata_luxury_needs:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  rich_tax:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  ruling_party:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  ruling_party_ideology:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:ideology
+  slavery:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  social_movement:
+    compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: bool
+  social_movement_strength:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  social_reform:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  social_reform_want:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: float
+  social_spending:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  state_id:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:province
+  strata:
+    compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: enum:strata
+  stronger_army_than:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  substate_of:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  tag:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  terrain:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:terrain
+  this_culture_union:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  total_amount_of_divisions:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  total_amount_of_ships:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  total_defensives:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  total_num_of_ports:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  total_of_ours_sunk:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  total_offensives:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  total_pops:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  - compare: gte
+    scopes: [province]
+    source: cwtools
+    value: int
+  total_sea_battles:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  total_sunk_by_us:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: int
+  trade_goods:
+    compare: eq
+    scopes: [province]
+    source: cwtools
+    value: ref:goods
+  trade_policy:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  truce_with:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  type:
+    compare: eq
+    scopes: [pop]
+    source: cwtools
+    value: ref:pop_type
+  unemployment:
+  - compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [province]
+    source: cwtools
+    value: float
+  - compare: gte
+    scopes: [pop]
+    source: cwtools
+    value: float
+  unemployment_by_type:
+    compare: block
+    scopes: [province]
+    source: cwtools
+    value:
+      fields: {type: 'ref:pop_type', value: float}
+  unit_has_leader:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  unit_in_battle:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  units_in_province:
+    compare: gte
+    scopes: [province]
+    source: cwtools
+    value: int
+  upper_house:
+    compare: block
+    scopes: [country]
+    source: cwtools
+    value:
+      fields: {ideology: 'ref:ideology', value: float}
+  vassal_of:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  war:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: bool
+  war_exhaustion:
+    compare: gte
+    scopes: [country]
+    source: cwtools
+    value: float
+  war_policy:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:issue_option
+  war_with:
+    compare: eq
+    scopes: [country]
+    source: cwtools
+    value: ref:country
+  work_available:
+    compare: block
+    scopes: [province]
+    source: cwtools
+    value:
+      fields: {worker: 'ref:pop_type'}
+  year:
+    compare: gte
+    scopes: [any]
+    source: cwtools
+    value: int

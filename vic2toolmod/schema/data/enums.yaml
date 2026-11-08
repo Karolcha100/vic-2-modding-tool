@@ -1,0 +1,5 @@
+# Imported from cwtools-vic2-config (MIT) by tools/import_cwtools.py, then curated.
+enums:
+  building_type: [factory, fort, naval_base, infrastructure]
+  leaders: [european, southamerican, russian, arab, asian, indian, nativeamerican, african, polar_bear]
+  strata: [poor, middle, rich]

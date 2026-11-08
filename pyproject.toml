@@ -8,16 +8,19 @@ version = "0.1.0"
 description = "Engine (and later GUI) for modding Victoria 2: lossless script parser, schema, mod index."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["PyYAML>=6"]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff", "mypy"]
+dev = ["pytest", "ruff", "mypy", "types-PyYAML"]
 
 [project.scripts]
 vic2toolmod = "vic2toolmod.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["vic2toolmod*"]
+
+[tool.setuptools.package-data]
+vic2toolmod = ["schema/data/*.yaml", "schema/data/*/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
