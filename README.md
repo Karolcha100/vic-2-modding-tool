@@ -15,7 +15,10 @@ Status:
   flags, duplicate / free event ids, definitions and usages (`Workspace`).
 - **Phase 4 done** — editing through the tree with undo/redo, completion, hover, go to
   definition, find usages, rename.
-- Next: the GUI (TypeScript + React + Monaco) on top of a local HTTP API.
+- **Tools**: event chains, pop type analysis and promotion graph, party generator,
+  trigger tester, mod-vs-vanilla diff, start statistics (`docs/tools.md`).
+- **GUI backend** done (local HTTP JSON API, `gui` command); the frontend
+  (TypeScript + React + Monaco) comes next.
 
 ## Setup
 
@@ -67,7 +70,8 @@ assert doc.to_text() == doc.text
 
 Documentation: [`docs/architecture.md`](docs/architecture.md),
 [`docs/script-syntax.md`](docs/script-syntax.md), [`docs/schema.md`](docs/schema.md),
-[`docs/index.md`](docs/index.md), [`docs/editing.md`](docs/editing.md).
+[`docs/index.md`](docs/index.md), [`docs/editing.md`](docs/editing.md),
+[`docs/tools.md`](docs/tools.md).
 
 The schema uses data from [cwtools-vic2-config](https://github.com/cwtools/cwtools-vic2-config)
 (MIT licence) and the [Victoria 2 wiki](https://vic2.paradoxwikis.com/Modifier_effects).
