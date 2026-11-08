@@ -1,4 +1,5 @@
 # Imported from cwtools-vic2-config (MIT) by tools/import_cwtools.py, then curated.
+# Removed (event fields, not triggers): allow_multiple_instances, fire_only_once, is_triggered_only, major, immediate
 trigger:
   administration_spending:
     compare: gte
@@ -15,44 +16,43 @@ trigger:
     scopes: [country]
     source: cwtools
     value: ref:country
-  allow_multiple_instances:
-    compare: eq
-    scopes: [any]
-    source: cwtools
-    value: bool
   average_consciousness:
   - compare: gte
     scopes: [country]
     source: cwtools
     value: float
+    vanilla_scopes: [state]
   - compare: gte
     scopes: [province]
     source: cwtools
     value: float
+    vanilla_scopes: [state]
   average_militancy:
   - compare: gte
     scopes: [country]
     source: cwtools
     value: float
+    vanilla_scopes: [state]
   - compare: gte
     scopes: [province]
     source: cwtools
     value: float
+    vanilla_scopes: [state]
   badboy:
     compare: gte
     scopes: [country]
     source: cwtools
     value: float
   blockade:
-    compare: eq
+    compare: gte
     scopes: [country]
     source: cwtools
-    value: bool
+    value: float
   brigades_compare:
-    compare: eq
+    compare: gte
     scopes: [country]
     source: cwtools
-    value: bool
+    value: float
   can_build_factory:
     compare: eq
     scopes: [province]
@@ -104,6 +104,7 @@ trigger:
     scopes: [country]
     source: cwtools
     value: bool
+    vanilla_scopes: [province]
   colonial_nation:
     compare: eq
     scopes: [country]
@@ -114,6 +115,7 @@ trigger:
     scopes: [pop]
     source: cwtools
     value: float
+    vanilla_scopes: [country]
   constructing_cb_progress:
     compare: gte
     scopes: [country]
@@ -129,6 +131,7 @@ trigger:
     scopes: [province]
     source: cwtools
     value: ref:continent
+    vanilla_scopes: [country]
   controlled_by:
     compare: eq
     scopes: [province]
@@ -168,6 +171,7 @@ trigger:
     scopes: [pop]
     source: cwtools
     value: ref:culture
+    vanilla_scopes: [province]
   diplomatic_influence:
     compare: block
     scopes: [country]
@@ -212,17 +216,13 @@ trigger:
     compare: eq
     scopes: [country]
     source: cwtools
-    value: ref:country
-  fire_only_once:
-    compare: eq
-    scopes: [any]
-    source: cwtools
-    value: bool
+    value: [bool, 'ref:country']
   flashpoint_tension:
     compare: gte
     scopes: [province]
     source: cwtools
     value: int
+    vanilla_scopes: [state]
   government:
     compare: eq
     scopes: [country]
@@ -237,17 +237,20 @@ trigger:
     compare: eq
     scopes: [province]
     source: cwtools
-    value: ref:building
+    value: ['enum:building_type', 'ref:building']
+    vanilla_scopes: [state]
   has_country_flag:
     compare: eq
     scopes: [country]
     source: cwtools
-    value: ref:country
+    value: ref:country_flag
+    vanilla_scopes: [province]
   has_country_modifier:
     compare: eq
     scopes: [country]
     source: cwtools
     value: ref:modifier
+    vanilla_scopes: [province]
   has_cultural_sphere:
     compare: eq
     scopes: [country]
@@ -277,7 +280,7 @@ trigger:
     compare: eq
     scopes: [any]
     source: cwtools
-    value: scalar
+    value: ref:global_flag
   has_leader:
     compare: eq
     scopes: [country]
@@ -293,6 +296,7 @@ trigger:
     scopes: [pop]
     source: cwtools
     value: ref:culture
+    vanilla_scopes: [province]
   has_pop_religion:
     compare: eq
     scopes: [pop]
@@ -303,6 +307,7 @@ trigger:
     scopes: [province]
     source: cwtools
     value: ref:pop_type
+    vanilla_scopes: [country, state]
   has_province_flag:
     compare: eq
     scopes: [province]
@@ -338,11 +343,6 @@ trigger:
     scopes: [country]
     source: cwtools
     value: ref:ideology
-  immediate:
-    compare: block
-    scopes: [any]
-    source: cwtools
-    value: {block: effect}
   in_sphere:
     compare: eq
     scopes: [country]
@@ -402,6 +402,7 @@ trigger:
     scopes: [province]
     source: cwtools
     value: bool
+    vanilla_scopes: [state]
   is_core:
   - compare: eq
     scopes: [country]
@@ -415,12 +416,12 @@ trigger:
     compare: eq
     scopes: [country]
     source: cwtools
-    value: ref:country
+    value: [bool, 'ref:country']
   is_culture_group:
   - compare: eq
     scopes: [country]
     source: cwtools
-    value: ref:country
+    value: ['ref:culture_group', 'ref:country']
   - compare: eq
     scopes: [pop]
     source: cwtools
@@ -435,6 +436,7 @@ trigger:
     scopes: [country]
     source: cwtools
     value: bool
+    vanilla_scopes: [province]
   is_ideology_enabled:
   - compare: eq
     scopes: [country]
@@ -512,11 +514,6 @@ trigger:
     scopes: [country]
     source: cwtools
     value: bool
-  is_triggered_only:
-    compare: eq
-    scopes: [any]
-    source: cwtools
-    value: bool
   is_vassal:
     compare: eq
     scopes: [country]
@@ -528,10 +525,10 @@ trigger:
     source: cwtools
     value: float
   life_rating:
-    compare: eq
+    compare: gte
     scopes: [province]
     source: cwtools
-    value: bool
+    value: int
   literacy:
   - compare: gte
     scopes: [country]
@@ -555,16 +552,12 @@ trigger:
     scopes: [pop]
     source: cwtools
     value: float
-  major:
-    compare: eq
-    scopes: [any]
-    source: cwtools
-    value: bool
   middle_strata_everyday_needs:
     compare: gte
     scopes: [country]
     source: cwtools
     value: float
+    vanilla_scopes: [province]
   middle_strata_life_needs:
     compare: gte
     scopes: [country]
@@ -585,6 +578,7 @@ trigger:
     scopes: [pop]
     source: cwtools
     value: float
+    vanilla_scopes: [country]
   military_access:
     compare: eq
     scopes: [country]
@@ -638,6 +632,7 @@ trigger:
     scopes: [country]
     source: cwtools
     value: ref:national_value
+    vanilla_scopes: [province]
   neighbour:
     compare: eq
     scopes: [country]
@@ -727,11 +722,13 @@ trigger:
     scopes: [country]
     source: cwtools
     value: float
+    vanilla_scopes: [province]
   poor_strata_life_needs:
     compare: gte
     scopes: [country]
     source: cwtools
     value: float
+    vanilla_scopes: [province]
   poor_strata_luxury_needs:
     compare: gte
     scopes: [country]
@@ -747,10 +744,12 @@ trigger:
     scopes: [country]
     source: cwtools
     value: ref:culture
+    vanilla_scopes: [province]
   - compare: eq
     scopes: [pop]
     source: cwtools
     value: ref:culture
+    vanilla_scopes: [province]
   pop_majority_ideology:
   - compare: eq
     scopes: [country]
@@ -798,6 +797,7 @@ trigger:
     scopes: [country]
     source: cwtools
     value: ref:goods
+    vanilla_scopes: [province, state]
   province_control_days:
     compare: gte
     scopes: [province]
@@ -823,17 +823,20 @@ trigger:
     scopes: [country]
     source: cwtools
     value:
-      fields: {value: int, who: 'ref:country'}
+      fields: {value: float, who: 'ref:country'}
+    vanilla_scopes: [province]
   religion:
     compare: eq
     scopes: [pop]
     source: cwtools
     value: ref:religion
+    vanilla_scopes: [country]
   religious_policy:
     compare: eq
     scopes: [country]
     source: cwtools
     value: ref:issue_option
+    vanilla_scopes: [province]
   revolt_percentage:
     compare: gte
     scopes: [country]
@@ -873,7 +876,7 @@ trigger:
     compare: eq
     scopes: [country]
     source: cwtools
-    value: bool
+    value: ref:issue_option
   social_movement:
     compare: eq
     scopes: [pop]
@@ -1062,11 +1065,13 @@ trigger:
     scopes: [country]
     source: cwtools
     value: float
+    vanilla_scopes: [province]
   war_policy:
     compare: eq
     scopes: [country]
     source: cwtools
     value: ref:issue_option
+    vanilla_scopes: [province]
   war_with:
     compare: eq
     scopes: [country]

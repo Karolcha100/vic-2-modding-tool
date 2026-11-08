@@ -1,0 +1,24 @@
+file_types:
+  decisions: {paths: ["decisions/*.txt"], rule: decisions_file, scope: country}
+
+rules:
+  decisions_file:
+    fields:
+      political_decisions: {rule: decision_group, multiple: true}
+  decision_group:
+    patterns:
+      - {key: any, rule: decision}
+  decision:
+    doc: "A decision: when it is shown (potential), when it can be taken (allow), what it does."
+    fields:
+      potential: {block: trigger}
+      allow: {block: trigger}
+      effect: {block: effect}
+      ai_will_do: {rule: weight}
+      picture: scalar
+      alert: bool
+      news: bool
+      news_title: localisation
+      news_desc_long: localisation
+      news_desc_medium: localisation
+      news_desc_short: localisation

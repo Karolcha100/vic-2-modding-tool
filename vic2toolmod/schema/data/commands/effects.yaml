@@ -11,7 +11,7 @@ effect:
   add_accepted_culture:
     scopes: [country]
     source: cwtools
-    value: ref:culture
+    value: ['enum:culture_keyword', 'ref:culture']
   add_casus_belli:
     scopes: [country]
     source: cwtools
@@ -21,11 +21,13 @@ effect:
     scopes: [province]
     source: cwtools
     value: ref:country
+    vanilla_scopes: [state]
   add_country_modifier:
     scopes: [country]
     source: cwtools
     value:
       fields: {duration: int, name: 'ref:modifier'}
+    vanilla_scopes: [province]
   add_crisis_interest:
     scopes: [country]
     source: cwtools
@@ -51,6 +53,7 @@ effect:
     scopes: [pop]
     source: cwtools
     value: bool
+    vanilla_scopes: [state]
   badboy:
     scopes: [country]
     source: cwtools
@@ -79,7 +82,7 @@ effect:
   change_tag:
     scopes: [country]
     source: cwtools
-    value: ref:country
+    value: ['enum:change_tag_keyword', 'ref:country']
   change_tag_no_core_switch:
     scopes: [country]
     source: cwtools
@@ -92,6 +95,7 @@ effect:
     scopes: [country]
     source: cwtools
     value: bool
+    vanilla_scopes: [province]
   clr_country_flag:
     scopes: [country]
     source: cwtools
@@ -108,6 +112,7 @@ effect:
     scopes: [pop]
     source: cwtools
     value: float
+    vanilla_scopes: [country]
   country_event:
     scopes: [country]
     source: cwtools
@@ -130,12 +135,13 @@ effect:
     scopes: [country]
     source: cwtools
     value:
-      fields: {value: int, who: 'ref:country'}
+      fields: {value: float, who: 'ref:country'}
   dominant_issue:
     scopes: [pop]
     source: cwtools
     value:
-      fields: {factor: int, value: 'ref:issue_option'}
+      fields: {factor: float, value: 'ref:issue_option'}
+    vanilla_scopes: [country]
   economic_reform:
     scopes: [country]
     source: cwtools
@@ -172,7 +178,7 @@ effect:
     scopes: [pop]
     source: cwtools
     value:
-      fields: {factor: int, value: 'ref:ideology'}
+      fields: {factor: float, value: 'ref:ideology'}
   infrastructure:
     scopes: [province]
     source: cwtools
@@ -205,6 +211,7 @@ effect:
     scopes: [pop]
     source: cwtools
     value: float
+    vanilla_scopes: [country]
   military_access:
     scopes: [country]
     source: cwtools
@@ -214,9 +221,9 @@ effect:
     source: cwtools
     value: ref:issue_option
   money:
-    scopes: [pop]
+    scopes: [country, pop]
     source: cwtools
-    value: int
+    value: float
   move_issue_percentage:
     scopes: [pop]
     source: cwtools
@@ -234,6 +241,7 @@ effect:
     scopes: [country]
     source: cwtools
     value: ref:national_value
+    vanilla_scopes: [province]
   naval_base:
     scopes: [province]
     source: cwtools
@@ -261,7 +269,7 @@ effect:
   prestige_factor:
     scopes: [country]
     source: cwtools
-    value: int
+    value: float
   primary_culture:
     scopes: [country]
     source: cwtools
@@ -279,7 +287,8 @@ effect:
     scopes: [country]
     source: cwtools
     value:
-      fields: {value: int, who: 'ref:country'}
+      fields: {value: float, who: 'ref:country'}
+    vanilla_scopes: [province]
   release:
     scopes: [country]
     source: cwtools
@@ -299,7 +308,8 @@ effect:
   remove_core:
     scopes: [province]
     source: cwtools
-    value: ref:country
+    value: ['ref:country', 'ref:province']
+    vanilla_scopes: [country, state]
   remove_country_modifier:
     scopes: [country]
     source: cwtools
@@ -329,10 +339,12 @@ effect:
     scopes: [province]
     source: cwtools
     value: ref:country
+    vanilla_scopes: [state]
   set_country_flag:
     scopes: [country]
     source: cwtools
     value: ref:country_flag
+    vanilla_scopes: [province]
   set_global_flag:
     scopes: [any]
     source: cwtools
@@ -357,6 +369,7 @@ effect:
     scopes: [country]
     source: cwtools
     value: int
+    vanilla_scopes: [province]
   upper_house:
     scopes: [country]
     source: cwtools
@@ -377,7 +390,8 @@ effect:
     scopes: [country]
     source: cwtools
     value: float
+    vanilla_scopes: [province]
   years_of_research:
     scopes: [country]
     source: cwtools
-    value: int
+    value: float

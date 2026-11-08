@@ -1,0 +1,237 @@
+# Core commands written by hand (not in CWTools or wrong there): logic, scope
+# changes, random effects, event calls. source: manual.
+both:
+  all_core:
+    push_scope: province
+    scopes: [country]
+    value: {block: same}
+  any_core:
+    scopes: [country, province]
+    value: {block: same}
+  any_country:
+    push_scope: country
+    value: {block: same}
+  any_empty_neighbor_province:
+    push_scope: province
+    scopes: [province]
+    value: {block: same}
+  any_greater_power:
+    push_scope: country
+    value: {block: same}
+  any_neighbor_country:
+    push_scope: country
+    scopes: [country]
+    value: {block: same}
+  any_neighbor_province:
+    push_scope: province
+    scopes: [province]
+    value: {block: same}
+  any_owned:
+    push_scope: province
+    scopes: [country, state]
+    value: {block: same}
+  any_owned_province:
+    push_scope: province
+    scopes: [country, state]
+    value: {block: same}
+  any_pop:
+    push_scope: pop
+    scopes: [country, state, province]
+    value: {block: same}
+  any_sphere_member:
+    push_scope: country
+    scopes: [country]
+    value: {block: same}
+  any_state:
+    push_scope: state
+    scopes: [country]
+    value: {block: same}
+  any_substate:
+    push_scope: country
+    scopes: [country]
+    value: {block: same}
+  capital_scope:
+    push_scope: province
+    scopes: [country]
+    value: {block: same}
+  controller:
+    push_scope: country
+    scopes: [province]
+    value: {block: same}
+  country:
+    push_scope: country
+    scopes: [pop, state, province]
+    value: {block: same}
+    vanilla_scopes: [country]
+  crisis_state_scope:
+    push_scope: state
+    value: {block: same}
+  cultural_union:
+    push_scope: country
+    scopes: [country, pop]
+    value: {block: same}
+  independence:
+    push_scope: country
+    value: {block: same}
+  location:
+    push_scope: province
+    scopes: [pop]
+    value: {block: same}
+  middle_strata:
+    doc: Pops of the middle strata.
+    push_scope: pop
+    scopes: [country, state, province]
+    value: {block: same}
+  overlord:
+    push_scope: country
+    scopes: [country]
+    value: {block: same}
+  owner:
+    push_scope: country
+    scopes: [province, state]
+    value: {block: same}
+  poor_strata:
+    doc: Pops of the poor strata.
+    push_scope: pop
+    scopes: [country, state, province]
+    value: {block: same}
+  random_country:
+    push_scope: country
+    value: {block: same}
+  random_neighbor_country:
+    push_scope: country
+    scopes: [country]
+    value: {block: same}
+  random_neighbor_province:
+    push_scope: province
+    scopes: [province]
+    value: {block: same}
+  random_owned:
+    push_scope: province
+    scopes: [country, state]
+    value: {block: same}
+  random_pop:
+    push_scope: pop
+    scopes: [country, state, province]
+    value: {block: same}
+  random_province:
+    push_scope: province
+    scopes: [country, state]
+    value: {block: same}
+  random_state:
+    push_scope: state
+    scopes: [country]
+    value: {block: same}
+  rich_strata:
+    doc: Pops of the rich strata.
+    push_scope: pop
+    scopes: [country, state, province]
+    value: {block: same}
+  sea_zone:
+    push_scope: province
+    scopes: [province]
+    value: {block: same}
+  sphere_owner:
+    push_scope: country
+    scopes: [country]
+    value: {block: same}
+  state_scope:
+    push_scope: state
+    scopes: [province]
+    value: {block: same}
+  war_countries:
+    push_scope: country
+    scopes: [country]
+    value: {block: same}
+dynamic:
+- {doc: Scope to the country with this tag., key: tag, push_scope: country}
+- {doc: Scope to the province with this id., key: int, push_scope: province}
+- {doc: Scope to the state of this region., key: 'ref:region', push_scope: state}
+- {doc: Pops of this type in the current scope., key: 'ref:pop_type', push_scope: pop}
+- contexts: [trigger, effect]
+  doc: 'Goods in the national stockpile (trigger: at least; effect: add).'
+  key: ref:goods
+  value: float
+- contexts: [trigger]
+  doc: Current option of a party issue / reform.
+  key: ref:issue
+  value: ref:issue_option
+- contexts: [trigger]
+  doc: Ideology support of the pops in scope.
+  key: ref:ideology
+  value: float
+- contexts: [trigger]
+  doc: Technology researched.
+  key: ref:technology
+  value: int
+- contexts: [trigger]
+  doc: Invention discovered.
+  key: ref:invention
+  value: bool
+- contexts: [trigger]
+  doc: Share of pops of this culture.
+  key: ref:culture
+  value: float
+- contexts: [trigger]
+  doc: Share of pops of this religion.
+  key: ref:religion
+  value: float
+- contexts: [trigger]
+  doc: Support of an issue option among the pops in scope (0..1 or %).
+  key: ref:issue_option
+  value: float
+effect:
+  country_event:
+  - doc: Fire a country event.
+    scopes: [country]
+    value: ref:event
+  - scopes: [country]
+    value:
+      fields:
+        days: int
+        id: {required: true, value: 'ref:event'}
+  hidden_tab:
+    doc: Effects not shown in the tooltip.
+    value: {block: effect}
+  limit:
+    doc: Apply the surrounding scope only where the conditions are true.
+    value: {block: trigger}
+  province_event:
+  - doc: Fire a province event.
+    scopes: [province]
+    value: ref:event
+  - scopes: [province]
+    value:
+      fields:
+        days: int
+        id: {required: true, value: 'ref:event'}
+  random:
+    doc: Run the effects with the given chance (%).
+    value:
+      fields:
+        chance: {required: true, value: 'int[0..100]'}
+      other: effect
+  random_list:
+    doc: Pick one block at random, weighted by its number.
+    value: {rule: random_list}
+  scaled_consciousness:
+    doc: Change consciousness scaled by ideology / issue support or unemployment.
+    value:
+      fields: {factor: float, ideology: 'ref:ideology', issue: 'ref:issue_option', unemployment: float}
+  scaled_militancy:
+    doc: Change militancy scaled by ideology / issue support or unemployment.
+    value:
+      fields: {factor: float, ideology: 'ref:ideology', issue: 'ref:issue_option', unemployment: float}
+trigger:
+  AND:
+    compare: block
+    doc: All conditions inside are true.
+    value: {block: trigger}
+  NOT:
+    compare: block
+    doc: None of the conditions inside is true.
+    value: {block: trigger}
+  OR:
+    compare: block
+    doc: At least one condition inside is true.
+    value: {block: trigger}

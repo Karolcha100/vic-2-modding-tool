@@ -15,6 +15,7 @@ from vic2toolmod.schema.model import (
     BlockSpec,
     Command,
     Context,
+    DynamicKey,
     Field,
     FieldsSpec,
     FileType,
@@ -94,6 +95,8 @@ class _Builder:
         if "one_of" in raw:
             return OneOf(tuple(self.spec(r) for r in raw["one_of"]))
         if "block" in raw:
+            if raw["block"] == "same":
+                return BlockSpec(None)
             try:
                 return BlockSpec(Context(raw["block"]))
             except ValueError:
@@ -136,6 +139,8 @@ class _Builder:
 
     # -- files -------------------------------------------------------------
     def add_commands(self, data: dict[str, Any]) -> None:
+        for raw in data.pop("dynamic", None) or []:
+            self.add_dynamic(raw)
         for section, entries in data.items():
             if section not in ("trigger", "effect", "both"):
                 self.fail(f"unknown section {section!r} (use trigger / effect / both)")
@@ -149,6 +154,24 @@ class _Builder:
                     for context in contexts:
                         self.add_command(str(name), context, alt)
 
+    def add_dynamic(self, raw: dict[str, Any]) -> None:
+        key = str(raw.get("key", ""))
+        if key not in ("tag", "int") and not key.startswith("ref:"):
+            self.fail(f"bad dynamic key {key!r}")
+        contexts = raw.get("contexts", ["trigger", "effect"])
+        push = raw.get("push_scope")
+        if push is not None and push not in SCOPES:
+            self.fail(f"bad push_scope {push!r}")
+        self.schema.dynamic.append(
+            DynamicKey(
+                key=key,
+                contexts=tuple(Context(c) for c in contexts),
+                push_scope=push,
+                value=self.spec(raw["value"]) if "value" in raw else None,
+                doc=str(raw.get("doc", "")),
+            )
+        )
+
     def add_command(self, name: str, context: Context, raw: Any) -> None:
         old_where = self.where
         self.where = f"{old_where}: {name}"
@@ -161,9 +184,20 @@ class _Builder:
             if s != "any" and s not in SCOPES:
                 self.fail(f"bad scope {s!r}")
         push = raw.get("push_scope")
-        if push is not None and push not in (*SCOPES, "any"):
+        if isinstance(push, dict):
+            for a, b in push.items():
+                if a not in SCOPES or b not in SCOPES:
+                    self.fail(f"bad push_scope mapping {a!r}: {b!r}")
+            push = {str(a): str(b) for a, b in push.items()}
+        elif push is not None and push not in (*SCOPES, "any"):
             self.fail(f"bad push_scope {push!r}")
-        known = {"value", "scopes", "push_scope", "compare", "doc", "source"}
+        extra = raw.get("vanilla_scopes", [])
+        for s_ in extra:
+            if s_ not in SCOPES:
+                self.fail(f"bad vanilla scope {s_!r}")
+        if "any" not in scopes:
+            scopes = [*scopes, *(s_ for s_ in extra if s_ not in scopes)]
+        known = {"value", "scopes", "vanilla_scopes", "push_scope", "compare", "doc", "source"}
         if set(raw) - known:
             self.fail(f"unknown command properties {sorted(set(raw) - known)}")
         command = Command(

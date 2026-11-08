@@ -59,9 +59,9 @@ class TypeSpec:
 
 @dataclass(frozen=True)
 class BlockSpec:
-    """A block of commands of a context (``{block: trigger}``)."""
+    """A block of commands (``{block: trigger}``; ``{block: same}`` = the current context)."""
 
-    context: Context
+    context: Context | None
 
 
 @dataclass(frozen=True)
@@ -166,7 +166,8 @@ class Command:
         name: Command name (lower case).
         context: Where it may be used.
         scopes: Scopes it may be used in; empty = any scope.
-        push_scope: Scope inside its block (for scope changes).
+        push_scope: Scope inside its block (for scope changes); a mapping
+            ``{current scope: new scope}`` when it depends on the current scope.
         value: What may stand after ``=``.
         compare: How a trigger compares its value: ``eq``, ``gte``, ``lte`` or
             ``block`` (for the future trigger tester, K53).
@@ -178,7 +179,7 @@ class Command:
     context: Context
     scopes: tuple[str, ...]
     value: ValueSpec
-    push_scope: str | None = None
+    push_scope: str | dict[str, str] | None = None
     compare: str | None = None
     doc: str = ""
     source: str = "manual"
@@ -201,6 +202,25 @@ class FileType:
     scope: str | None = None
 
 
+@dataclass(frozen=True)
+class DynamicKey:
+    """A command key that is a name from the mod (``ENG = { }``, ``aristocrats = { }``).
+
+    Attributes:
+        key: ``tag``, ``int`` or ``ref:NAME``.
+        contexts: Contexts where it applies.
+        push_scope: Scope inside the block (``None`` = unchanged).
+        value: Value specification; a same-context block when ``None``.
+        doc: Description.
+    """
+
+    key: str
+    contexts: tuple[Context, ...]
+    push_scope: str | None = None
+    value: ValueSpec | None = None
+    doc: str = ""
+
+
 @dataclass
 class Schema:
     """The whole schema.
@@ -211,6 +231,7 @@ class Schema:
         enums: Enum name -> allowed values (lower case).
         rules: Rule name -> rule.
         file_types: File types in matching order.
+        dynamic: Dynamic command keys, tried in order when a key is no command.
     """
 
     commands: dict[tuple[Context, str], list[Command]] = field(default_factory=dict)
@@ -218,6 +239,15 @@ class Schema:
     enums: dict[str, frozenset[str]] = field(default_factory=dict)
     rules: dict[str, Rule] = field(default_factory=dict)
     file_types: list[FileType] = field(default_factory=list)
+    dynamic: list[DynamicKey] = field(default_factory=list)
+
+    @staticmethod
+    def pushed(command: Command, scope: str | None) -> str | None:
+        """Scope inside a command's block when used in ``scope``."""
+        push = command.push_scope
+        if isinstance(push, dict):
+            return push.get(scope or "", None) if scope else None
+        return push or scope
 
     def command(self, context: Context, name: str) -> list[Command]:
         """Alternatives of a command (empty list if unknown); ``name`` any case."""

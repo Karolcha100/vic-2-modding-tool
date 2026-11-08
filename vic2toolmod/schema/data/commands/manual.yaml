@@ -1,0 +1,97 @@
+# Commands added by hand: missing in CWTools, found by checking vanilla 3.04
+# (tools/widen_scopes.py and `vic2toolmod check` on the game folder).
+effect:
+  add_crime:
+    doc: Add a crime (from common/crime.txt) to the province.
+    scopes: [province]
+    source: vanilla
+    value: scalar
+  enable_canal: {doc: 'Open canal number N (1 Kiel, 2 Suez, 3 Panama).', source: vanilla, value: int}
+  great_wars_enabled: {doc: Enable great wars., source: vanilla, value: bool}
+  leadership:
+    doc: Add leadership points.
+    scopes: [country]
+    source: vanilla
+    value: float
+  sub_unit:
+    doc: Add a unit in the province.
+    scopes: [province]
+    source: vanilla
+    value:
+      fields: {type: 'ref:unit', value: scalar}
+      other: any
+  tech_school:
+    doc: Set the technology school.
+    scopes: [country]
+    source: vanilla
+    value: scalar
+  world_wars_enabled: {doc: Enable world wars., source: vanilla, value: bool}
+trigger:
+  can_build_in_province:
+    compare: block
+    scopes: [province]
+    source: vanilla
+    value:
+      fields: {building: 'ref:building', limit_to_world_greatest_level: bool, limit_to_world_market: bool}
+  culture_has_union_tag:
+    compare: eq
+    doc: The primary culture has a cultural union tag.
+    scopes: [country]
+    source: vanilla
+    value: bool
+  has_crime:
+    compare: eq
+    scopes: [province]
+    source: vanilla
+    value: scalar
+  has_flashpoint:
+    compare: eq
+    doc: The state has a crisis flashpoint.
+    scopes: [province, state]
+    source: vanilla
+    value: bool
+  is_slave:
+    compare: eq
+    doc: Pops are slaves / slavery allowed in the state.
+    scopes: [pop, state, province]
+    source: vanilla
+    value: bool
+  middle_strata_militancy:
+    compare: gte
+    scopes: [country]
+    source: vanilla
+    value: float
+  plurality:
+    compare: gte
+    doc: Plurality (%) of the country.
+    scopes: [country]
+    source: vanilla
+    value: float
+  poor_strata_militancy:
+    compare: gte
+    scopes: [country]
+    source: vanilla
+    value: float
+  pop_type:
+    compare: eq
+    scopes: [pop]
+    source: vanilla
+    value: ref:pop_type
+  rich_strata_militancy:
+    compare: gte
+    scopes: [country]
+    source: vanilla
+    value: float
+  tech_school:
+    compare: eq
+    doc: Current technology school.
+    scopes: [country]
+    source: vanilla
+    value: scalar
+  treasury:
+    compare: gte
+    doc: Money in the treasury is at least this.
+    scopes: [country]
+    source: vanilla
+    value: float
+  world_wars_enabled: {compare: eq, source: vanilla, value: bool}

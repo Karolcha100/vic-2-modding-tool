@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import fnmatch
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
@@ -39,7 +40,7 @@ from vic2toolmod.schema.model import (
     TypeSpec,
     ValueSpec,
 )
-from vic2toolmod.schema.values import check_scalar, is_tag
+from vic2toolmod.schema.values import SCOPE_KEYWORDS, check_scalar, is_tag
 from vic2toolmod.script.cst import Assignment, Block, Document, ErrorNode, Node, Scalar
 from vic2toolmod.script.diagnostics import Diagnostic, Severity
 from vic2toolmod.script.tokens import Token
@@ -72,11 +73,23 @@ def file_type_for(path: str, schema: Schema) -> FileType | None:
     return None
 
 
-class Validator:
-    """Checks documents against a schema."""
+Names = Callable[[str, str], "bool | None"]
+"""``names(registry, name)`` -> exists? (``None`` = registry unknown)."""
 
-    def __init__(self, schema: Schema) -> None:
+
+class Validator:
+    """Checks documents against a schema.
+
+    Args:
+        schema: The schema.
+        names: Optional lookup of names from the mod (Phase 3 registries). With
+            it, dynamic keys such as ``aristocrats = { }`` are recognised and
+            ``ref:`` values are checked (``ref.unknown-name`` warnings).
+    """
+
+    def __init__(self, schema: Schema, names: Names | None = None) -> None:
         self.schema = schema
+        self.names = names
         self._out: list[Diagnostic] = []
         self._stack: list[_Frame] = []
 
@@ -181,7 +194,7 @@ class Validator:
             return
         if frame.rule is not None:
             for pattern in frame.rule.patterns:
-                if _key_matches(item.key_text, pattern.key):
+                if self._pattern_matches(item.key_text, pattern.key):
                     self._value(
                         item, pattern.field.value, pattern.field.push_scope or frame.scope, None
                     )
@@ -213,17 +226,18 @@ class Validator:
         alternatives = self.schema.command(context, key)
         if not alternatives:
             raw = item.key_text
-            if isinstance(item.value, Block):
-                if _INT_KEY.fullmatch(raw):
-                    self._push_block(item.value, item, "province", context=context)
-                    return
-                if key in ("this", "from") or (is_tag(raw) and raw.isupper()):
-                    self._push_block(
-                        item.value,
-                        item,
-                        None if key in ("this", "from") else "country",
-                        context=context,
-                    )
+            if key in ("this", "from") and isinstance(item.value, Block):
+                self._push_block(item.value, item, None, context=context)
+                return
+            for dyn in self.schema.dynamic:
+                if context in dyn.contexts and self._dynamic_matches(raw, dyn.key):
+                    scope_inside = dyn.push_scope or scope
+                    if dyn.value is None:
+                        if isinstance(item.value, Block):
+                            self._push_block(item.value, item, scope_inside, context=context)
+                            return
+                        continue
+                    self._value(item, dyn.value, scope_inside, context)
                     return
             other = Context.EFFECT if context is Context.TRIGGER else Context.TRIGGER
             if self.schema.command(other, key):
@@ -242,7 +256,7 @@ class Validator:
                     item,
                 )
             return
-        command = _pick(alternatives, item.value)
+        command = _pick(alternatives, item.value, scope, self.schema)
         if command.scopes and scope is not None and scope not in command.scopes:
             self._report(
                 Severity.WARNING,
@@ -250,7 +264,7 @@ class Validator:
                 f"'{item.key_text}' works in {'/'.join(command.scopes)} scope, not in {scope}",
                 item,
             )
-        self._value(item, command.value, command.push_scope or scope, context)
+        self._value(item, command.value, self.schema.pushed(command, scope), context)
 
     # -- values -----------------------------------------------------------------
     def _value(
@@ -279,6 +293,8 @@ class Validator:
                     f"'{item.key_text}' expects {problem}, got '{value.text}'",
                     value,
                 )
+            elif spec.name == "ref" and spec.arg and self.names is not None:
+                self._check_name(spec.arg, value)
             return
         if not isinstance(value, Block):
             self._report(
@@ -289,7 +305,8 @@ class Validator:
             )
             return
         if isinstance(spec, BlockSpec):
-            self._push_block(value, item, scope, context=spec.context)
+            block_context = spec.context or context or Context.TRIGGER
+            self._push_block(value, item, scope, context=block_context)
         elif isinstance(spec, RuleSpec):
             self._stack.append(
                 _Frame(value.items, item.key, scope, rule=self.schema.rules[spec.rule])
@@ -308,6 +325,39 @@ class Validator:
                     f"'{item.key_text}' expects {spec.min_items}-{spec.max_items} values, got {n}",
                     item,
                 )
+
+    def _pattern_matches(self, key: str, pattern: str) -> bool:
+        if pattern.startswith("ref:"):
+            if self.names is None:
+                return True
+            found = self.names(pattern[4:], key)
+            return True if found is None else found
+        return _key_matches(key, pattern)
+
+    def _check_name(self, registry: str, value: Scalar) -> None:
+        name = value.value
+        if name.lower() in SCOPE_KEYWORDS or self.names is None:
+            return
+        if self.names(registry, name) is False:
+            self._report(
+                Severity.WARNING,
+                "ref.unknown-name",
+                f"unknown {registry.replace('_', ' ')} '{name}'",
+                value,
+            )
+
+    def _dynamic_matches(self, raw: str, key: str) -> bool:
+        if key == "int":
+            return bool(_INT_KEY.fullmatch(raw))
+        if key == "tag":
+            if self.names is not None:
+                found = self.names("country", raw)
+                if found is not None:
+                    return found
+            return is_tag(raw) and raw.isupper()
+        if key.startswith("ref:") and self.names is not None:
+            return bool(self.names(key[4:], raw))
+        return False
 
     def _push_block(
         self, block: Block, item: Assignment, scope: str | None, *, context: Context
@@ -333,15 +383,30 @@ def _is_block_spec(spec: ValueSpec) -> bool:
     return not isinstance(spec, TypeSpec) or spec.name == "any"
 
 
-def _pick(alternatives: list[Command], value: Node | None) -> Command:
-    """Choose the command alternative that fits a scalar or a block value."""
+def _pick(
+    alternatives: list[Command], value: Node | None, scope: str | None, schema: Schema
+) -> Command:
+    """Choose the command alternative that fits the value and the current scope.
+
+    Preference: right kind of value (scalar / block), then valid in the current
+    scope, then a scalar value that passes the type check.
+    """
     if len(alternatives) == 1:
         return alternatives[0]
     want_block = isinstance(value, Block)
-    for c in alternatives:
-        if _is_block_spec(c.value) == want_block:
-            return c
-    return alternatives[0]
+
+    def score(c: Command) -> int:
+        points = 0
+        if _is_block_spec(c.value) == want_block or isinstance(c.value, OneOf):
+            points += 4
+        if not c.scopes or scope is None or scope in c.scopes:
+            points += 2
+        if isinstance(value, Scalar) and isinstance(c.value, TypeSpec):
+            if check_scalar(value.value, c.value, schema) is None:
+                points += 1
+        return points
+
+    return max(alternatives, key=score)
 
 
 def _choose(spec: OneOf, value: Node, schema: Schema) -> ValueSpec:

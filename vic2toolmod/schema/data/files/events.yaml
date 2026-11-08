@@ -1,0 +1,36 @@
+file_types:
+  events: {paths: ["events/*.txt"], rule: events_file}
+
+rules:
+  events_file:
+    fields:
+      country_event: {rule: event, multiple: true, push_scope: country}
+      province_event: {rule: event, multiple: true, push_scope: province}
+  event:
+    doc: "A country or province event."
+    fields:
+      id: {value: int, required: true}
+      title: localisation
+      desc: localisation
+      picture: scalar
+      news: bool
+      news_title: localisation
+      news_desc_long: localisation
+      news_desc_medium: localisation
+      news_desc_short: localisation
+      major: bool
+      election: bool
+      issue_group: ref:issue
+      is_triggered_only: bool
+      fire_only_once: bool
+      allow_multiple_instances: bool
+      trigger: {block: trigger}
+      mean_time_to_happen: {rule: weight}
+      immediate: {block: effect, multiple: true}
+      option: {rule: event_option, multiple: true}
+  event_option:
+    doc: "An event option: its name, AI weight and effects."
+    fields:
+      name: localisation
+      ai_chance: {rule: weight}
+    other: effect

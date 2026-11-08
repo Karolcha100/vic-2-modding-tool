@@ -1,0 +1,32 @@
+# Rules used by many file types.
+rules:
+  weight:
+    doc: "ai_will_do / ai_chance / mean_time_to_happen: a base value multiplied by modifiers."
+    fields:
+      factor: float
+      base: float
+      months: float
+      days: float
+      years: float
+      modifier: {rule: weight_modifier, multiple: true}
+      group: scalar
+  weight_modifier:
+    doc: "One multiplier of a weight: applies 'factor' when the conditions are true."
+    fields:
+      factor: {value: float}
+      months: float
+      days: float
+      years: float
+    other: trigger
+  random_list:
+    doc: "random_list = { 25 = { effects } 75 = { effects } }"
+    patterns:
+      - {key: int, block: effect}
+  modifier_block:
+    doc: "A block of modifier keys (country / province modifiers)."
+    fields:
+      icon: int
+    other: modifier
+  color:
+    doc: "color = { R G B }"
+    values: float

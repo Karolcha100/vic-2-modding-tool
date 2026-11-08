@@ -45,6 +45,7 @@ effect:
     scopes: [province]
     source: cwtools
     value: {block: effect}
+    vanilla_scopes: [country]
   cultural_union:
     push_scope: country
     scopes: [province]
@@ -96,7 +97,7 @@ effect:
 trigger:
   any_core:
     compare: block
-    push_scope: country
+    push_scope: {country: province, province: country}
     scopes: [country, province]
     source: cwtools
     value: {block: trigger}
@@ -152,6 +153,7 @@ trigger:
     scopes: [pop]
     source: cwtools
     value: {block: trigger}
+    vanilla_scopes: [country]
   cultural_union:
     compare: block
     push_scope: country
