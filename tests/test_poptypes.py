@@ -46,4 +46,7 @@ migration_target = { factor = 1 modifier = { factor = 2 trade_unions = no_trade_
     ]
     graph = promotion_graph(weights)
     assert {n["id"] for n in graph["nodes"]} == {"capitalists", "craftsmen"}
-    assert graph["edges"][0]["modifiers"][0]["refs"] == [["issue_option", "all_trade_unions"]]
+    assert graph["edges"][0]["modifiers"][0]["refs"] == [
+        ["issue", "trade_unions"],
+        ["issue_option", "all_trade_unions"],
+    ]
