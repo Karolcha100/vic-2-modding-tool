@@ -57,6 +57,25 @@ _FLAG_SETTER = {
 }
 
 
+@dataclass(frozen=True)
+class ValueInfo:
+    """What the value of an assignment should be (recorded by the validator).
+
+    Attributes:
+        spec: Expected value.
+        scope: Scope inside the value (for blocks).
+        context: Command context of a command block (``None`` = structural).
+        doc: Description of the key.
+        command: The command, when the key is one.
+    """
+
+    spec: ValueSpec
+    scope: str | None
+    context: Context | None
+    doc: str = ""
+    command: Command | None = None
+
+
 @dataclass
 class _Frame:
     """One block being checked."""
@@ -64,6 +83,7 @@ class _Frame:
     items: list[Node]
     anchor: Token  # where "missing field" is reported
     scope: str | None
+    node: Node | None = None  # the Block (or Document) whose items these are
     rule: Rule | None = None
     fields: FieldsSpec | None = None
     context: Context | None = None
@@ -101,6 +121,12 @@ class Validator:
         #: by the last `validate` call (values such as ``ref:culture`` and
         #: dynamic keys such as ``ENG = { }``); used for "find usages".
         self.references: list[tuple[str, str, Token]] = []
+        #: ``id(Block or Document) -> frame`` of the last `validate` call: what
+        #: is allowed inside each block (used for completion).
+        self.block_info: dict[int, _Frame] = {}
+        #: ``id(Assignment) -> ValueInfo`` of the last `validate` call: what its
+        #: value should be (used for completion and hover).
+        self.value_info: dict[int, ValueInfo] = {}
         self._out: list[Diagnostic] = []
         self._stack: list[_Frame] = []
 
@@ -113,8 +139,10 @@ class Validator:
         """
         self._out = []
         self.references = []
+        self.block_info = {}
+        self.value_info = {}
         root = self.schema.rules[rule]
-        self._stack = [_Frame(doc.items, doc.eof, scope, rule=root)]
+        self._stack = [_Frame(doc.items, doc.eof, scope, rule=root, node=doc)]
         while self._stack:
             frame = self._stack.pop()
             self._check_frame(frame)
@@ -140,6 +168,8 @@ class Validator:
 
     # -- frames ------------------------------------------------------------------
     def _check_frame(self, frame: _Frame) -> None:
+        if frame.node is not None:
+            self.block_info[id(frame.node)] = frame
         for item in frame.items:
             if isinstance(item, Assignment):
                 if item.operator.text != "=":
@@ -202,11 +232,20 @@ class Validator:
                     f"'{item.key_text}' should appear only once here",
                     item,
                 )
+            self.value_info[id(item)] = ValueInfo(
+                fld.value, fld.push_scope or frame.scope, None, fld.doc
+            )
             self._value(item, fld.value, fld.push_scope or frame.scope, None)
             return
         if frame.rule is not None:
             for pattern in frame.rule.patterns:
                 if self._pattern_matches(item.key_text, pattern.key):
+                    self.value_info[id(item)] = ValueInfo(
+                        pattern.field.value,
+                        pattern.field.push_scope or frame.scope,
+                        None,
+                        pattern.field.doc,
+                    )
                     self._value(
                         item, pattern.field.value, pattern.field.push_scope or frame.scope, None
                     )
@@ -247,6 +286,9 @@ class Validator:
                     if dyn.key != "int":
                         self.references.append((registry, raw, item.key))
                     scope_inside = dyn.push_scope or scope
+                    self.value_info[id(item)] = ValueInfo(
+                        dyn.value or BlockSpec(context), scope_inside, context, dyn.doc
+                    )
                     if dyn.value is None:
                         if isinstance(item.value, Block):
                             self._push_block(item.value, item, scope_inside, context=context)
@@ -279,6 +321,9 @@ class Validator:
                 f"'{item.key_text}' works in {'/'.join(command.scopes)} scope, not in {scope}",
                 item,
             )
+        self.value_info[id(item)] = ValueInfo(
+            command.value, self.schema.pushed(command, scope), context, command.doc, command
+        )
         self._value(item, command.value, self.schema.pushed(command, scope), context)
 
     # -- values -----------------------------------------------------------------
@@ -330,12 +375,12 @@ class Validator:
             self._push_block(value, item, scope, context=block_context)
         elif isinstance(spec, RuleSpec):
             self._stack.append(
-                _Frame(value.items, item.key, scope, rule=self.schema.rules[spec.rule])
+                _Frame(value.items, item.key, scope, rule=self.schema.rules[spec.rule], node=value)
             )
         elif isinstance(spec, FieldsSpec):
-            self._stack.append(_Frame(value.items, item.key, scope, fields=spec))
+            self._stack.append(_Frame(value.items, item.key, scope, fields=spec, node=value))
         elif isinstance(spec, ListSpec):
-            self._stack.append(_Frame(value.items, item.key, scope, list_spec=spec))
+            self._stack.append(_Frame(value.items, item.key, scope, list_spec=spec, node=value))
             n = sum(1 for i in value.items if isinstance(i, Scalar))
             if (spec.min_items is not None and n < spec.min_items) or (
                 spec.max_items is not None and n > spec.max_items
@@ -398,7 +443,7 @@ class Validator:
     def _push_block(
         self, block: Block, item: Assignment, scope: str | None, *, context: Context
     ) -> None:
-        self._stack.append(_Frame(block.items, item.key, scope, context=context))
+        self._stack.append(_Frame(block.items, item.key, scope, context=context, node=block))
 
 
 def _key_matches(key: str, pattern: str) -> bool:
