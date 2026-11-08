@@ -10,6 +10,8 @@ Commands:
 * ``check [MOD] [--game DIR] [--summary] [--vanilla]`` - check a mod on top
   of the game: syntax, schema (triggers, effects, scopes, value types) and
   names (tags, cultures, events, ...);
+* ``diff-vanilla [--file REL]`` - what the mod changes in vanilla (K6 H);
+* ``stats`` - pops at the start by owner, culture, religion, type (K6 I);
 * ``events [--json FILE]`` - event chains (K6 C): events fired but missing,
   triggered-only events nothing fires; ``--json`` saves the graph;
 * ``poptypes [--json FILE] [--registry R]`` - which reforms / techs change
@@ -31,12 +33,16 @@ import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from vic2toolmod.config import load_settings
 from vic2toolmod.files import iter_script_files
 from vic2toolmod.script.parser import parse_file
 from vic2toolmod.script.printer import diagnostics_data, outline, to_data
 from vic2toolmod.script.roundtrip import check_file
+
+if TYPE_CHECKING:
+    from vic2toolmod.workspace import Workspace
 
 
 def _default_paths() -> list[Path]:
@@ -181,6 +187,48 @@ def _cmd_generate_parties(args: argparse.Namespace) -> int:
     return 0
 
 
+def _workspace(args: argparse.Namespace) -> Workspace:
+    from vic2toolmod.workspace import Workspace
+
+    settings = load_settings()
+    mod = args.mod or (settings.mod_dirs[0] if settings.mod_dirs else None)
+    return Workspace.open(args.game or settings.game_dir, mod)
+
+
+def _cmd_diff_vanilla(args: argparse.Namespace) -> int:
+    from vic2toolmod.analysis.overview import compare_with_vanilla, vanilla_diff
+
+    ws = _workspace(args)
+    if args.file:
+        print(vanilla_diff(ws.project, args.file))
+        return 0
+    diffs = compare_with_vanilla(ws.project)
+    for status in ("new", "changed", "same", "hidden"):
+        group = [d for d in diffs if d.status == status]
+        print(f"{status}: {len(group)} files")
+        if status in ("changed",):
+            for d in sorted(group, key=lambda d: -(d.added + d.removed))[: args.top]:
+                print(f"    {d.rel}: +{d.added} -{d.removed}")
+    return 0
+
+
+def _cmd_stats(args: argparse.Namespace) -> int:
+    from vic2toolmod.analysis.overview import pop_stats
+
+    s = pop_stats(_workspace(args))
+    print(f"pops in history/pops/{s.date}: total size {s.total:,.0f}")
+    for title, table in (
+        ("owner", s.by_owner),
+        ("culture", s.by_culture),
+        ("religion", s.by_religion),
+        ("type", s.by_type),
+    ):
+        print(f"by {title}:")
+        for name, size in sorted(table.items(), key=lambda kv: -kv[1])[: args.top]:
+            print(f"    {name:<24} {size:>14,.0f}  {100 * size / s.total:5.1f}%")
+    return 0
+
+
 def _cmd_events(args: argparse.Namespace) -> int:
     from vic2toolmod.analysis.events import event_graph
     from vic2toolmod.workspace import Workspace
@@ -281,6 +329,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=0, help="port (default: any free one)")
     p.add_argument("--no-browser", action="store_true", help="do not open a browser")
     p.set_defaults(func=_cmd_gui)
+
+    for name, func, help_ in (
+        ("diff-vanilla", _cmd_diff_vanilla, "what the mod changes in vanilla"),
+        ("stats", _cmd_stats, "pops at the start by owner / culture / religion / type"),
+    ):
+        p = sub.add_parser(name, help=help_)
+        p.add_argument("--mod", type=Path, help="mod folder (default: configured)")
+        p.add_argument("--game", type=Path, help="game folder (default: configured)")
+        p.add_argument("--top", type=int, default=15, help="rows per table")
+        if name == "diff-vanilla":
+            p.add_argument("--file", help="show the diff of one file")
+        p.set_defaults(func=func)
 
     p = sub.add_parser("events", help="event chains: missing and never-fired events")
     p.add_argument("--mod", type=Path, help="mod folder (default: configured)")

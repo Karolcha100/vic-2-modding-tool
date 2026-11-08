@@ -86,3 +86,18 @@ def test_changed_and_static(api):
     assert api("/api/changed")["changed"] == ["events/c.txt"]
     with urllib.request.urlopen(api.base + "/") as r:
         assert b"vic2toolmod" in r.read()
+
+
+def test_trigger_and_localisation_endpoints(api):
+    text = "country_event = { id = 2 trigger = { tag = ENG war = no } }"
+    api("/api/buffer", {"rel": "events/b.txt", "text": text})
+    at = text.index("war")
+    r = api("/api/trigger", {"rel": "events/b.txt", "offset": at})
+    assert [f["key"] for f in r["facts"]] == ["tag", "war"] and r["result"] is None
+    r = api(
+        "/api/trigger", {"rel": "events/b.txt", "offset": at, "answers": {"0": "ENG", "1": "yes"}}
+    )
+    assert r["result"]["value"] is False and r["result"]["failed"] == ["1"]
+    r = api("/api/localisation", {"key": "K1", "english": "Hello"})
+    assert "+K1;Hello" in r["diff"]
+    assert "files" in api("/api/vanilla/diff") and "nodes" in api("/api/events/graph")

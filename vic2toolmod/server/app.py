@@ -23,6 +23,11 @@ API (all under ``/api/``, JSON in and out):
 ``parties/plan``    POST    party generator (K58): diff and summary
 ``parties/write``   POST    same, and write the files
 ``poptypes/graph``  GET     promotion graph (K59)
+``events/graph``    GET     event chains (K6 C)
+``vanilla/diff``    GET     mod files vs vanilla; ``rel`` -> diff of one file (K6 H)
+``stats``           GET     pops at the start (K6 I)
+``localisation``    POST    ``{key, english, other?, write?}`` -> plan / write a key (K35)
+``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
 ==================  ======  ==================================================
 
 Static files of the built frontend are served from ``static/``.
@@ -41,7 +46,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from vic2toolmod.changes import FileChange, diff, write_changes
-from vic2toolmod.script.cst import Document
+from vic2toolmod.script.cst import Block, Document
 from vic2toolmod.script.diagnostics import Diagnostic
 from vic2toolmod.services import LanguageService
 from vic2toolmod.workspace import Workspace
@@ -238,6 +243,66 @@ class Engine:
             result["backup"] = str(backup) if backup else None
         return result
 
+    def events_graph(self) -> dict[str, Any]:
+        """Event chains (K6 C)."""
+        from vic2toolmod.analysis.events import event_graph
+
+        return event_graph(self.ws)
+
+    def vanilla(self, rel: str) -> dict[str, Any]:
+        """Mod vs vanilla: list of files, or the diff of one (K6 H)."""
+        from vic2toolmod.analysis.overview import compare_with_vanilla, vanilla_diff
+
+        if rel:
+            return {"diff": vanilla_diff(self.ws.project, rel)}
+        return {"files": [asdict(d) for d in compare_with_vanilla(self.ws.project)]}
+
+    def stats(self) -> dict[str, Any]:
+        """Pops at the start (K6 I)."""
+        from vic2toolmod.analysis.overview import pop_stats
+
+        return asdict(pop_stats(self.ws))
+
+    def localisation(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Plan (and with ``write`` write) one localisation key (K35)."""
+        from vic2toolmod.project.localisation import set_entry
+
+        change = set_entry(
+            self.ws.project,
+            str(body["key"]),
+            str(body["english"]),
+            other={str(k): str(v) for k, v in (body.get("other") or {}).items()},
+        )
+        result: dict[str, Any] = {"diff": diff([change])}
+        if body.get("write"):
+            write_changes([change])
+            self.ws.refresh()
+        return result
+
+    def trigger(self, rel: str, offset: int, answers: dict[str, Any]) -> dict[str, Any]:
+        """Facts of the trigger block around an offset and, with answers, the result (K53)."""
+        from vic2toolmod.analysis.trigger_tester import TriggerTester
+        from vic2toolmod.schema.model import Context
+
+        doc, validator = self.services._analyse(self._file_or_404(rel))
+        best: Block | None = None
+        for node in doc.walk():
+            if isinstance(node, Block) and node.lbrace.start < offset:
+                close = node.rbrace.end if node.rbrace else len(doc.text)
+                frame = validator.block_info.get(id(node))
+                if offset <= close and frame is not None and frame.context is Context.TRIGGER:
+                    best = node
+        if best is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, "no trigger block at this position")
+        tester = TriggerTester(self.ws.schema, doc)
+        facts = tester.facts(best)
+        result = tester.evaluate(best, answers) if answers else None
+        return {
+            "start": best.lbrace.start,
+            "facts": [asdict(f) | {"question": f.question} for f in facts],
+            "result": asdict(result) if result else None,
+        }
+
     def poptypes_graph(self) -> dict[str, Any]:
         """Promotion graph of the pop types (K59)."""
         from vic2toolmod.analysis.poptypes import pop_weights, promotion_graph
@@ -335,6 +400,16 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.parties(body, write=True)
                 case ("GET", "poptypes/graph"):
                     return e.poptypes_graph()
+                case ("GET", "events/graph"):
+                    return e.events_graph()
+                case ("GET", "vanilla/diff"):
+                    return e.vanilla(q("rel"))
+                case ("GET", "stats"):
+                    return e.stats()
+                case ("POST", "localisation"):
+                    return e.localisation(body)
+                case ("POST", "trigger"):
+                    return e.trigger(body["rel"], int(body["offset"]), body.get("answers") or {})
             return None
 
         def _static(self, path: str) -> None:

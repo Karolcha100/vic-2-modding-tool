@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 from vic2toolmod import textio
+from vic2toolmod.changes import FileChange
 from vic2toolmod.project.layout import Project, ProjectFile
 
 LANGUAGES = ("english", "french", "german", "polish", "spanish")
@@ -88,3 +89,65 @@ def load_localisation(project: Project) -> Localisation:
             else:
                 loc.entries[low] = entry
     return loc
+
+
+def set_entry(
+    project: Project,
+    key: str,
+    english: str,
+    *,
+    other: dict[str, str] | None = None,
+    new_file: str = "localisation/00_vic2toolmod.csv",
+) -> FileChange:
+    """Plan adding or changing one localisation key in the mod (K35: edit text in place).
+
+    If the mod already defines the key, that line is changed (other columns are
+    kept unless given); otherwise a line is appended to ``new_file`` (created if
+    needed). Untouched lines stay byte for byte; the file keeps its line breaks.
+
+    Args:
+        project: The project (its mod folder is written).
+        key: The key.
+        english: English text.
+        other: Texts for other languages (``french``, ``german``, ``spanish``);
+            missing ones get the English text for a new line.
+        new_file: Where new keys go.
+
+    Returns:
+        The planned change (write it with `vic2toolmod.changes.write_changes`).
+    """
+    if project.mod_dir is None:
+        raise ValueError("a mod folder is needed")
+    other = other or {}
+    if ";" in english or any(";" in t for t in other.values()):
+        raise ValueError("localisation text cannot contain ';'")
+    for f in sorted(
+        project.glob("localisation/*.csv"), key=lambda f: PurePosixPath(f.rel).name.lower()
+    ):
+        if f.origin != "mod":
+            continue
+        for entry in read_csv(f):
+            if entry.key.lower() != key.lower():
+                continue
+            text, encoding = textio.decode(f.path.read_bytes())
+            lines = text.splitlines(keepends=True)
+            raw = lines[entry.line - 1]
+            body = raw.rstrip("\r\n")
+            ending = raw[len(body) :]
+            cols = body.split(";")
+            cols += [""] * max(0, 6 - len(cols))
+            cols[1] = english
+            for lang, value in other.items():
+                cols[1 + LANGUAGES.index(lang)] = value
+            lines[entry.line - 1] = ";".join(cols) + ending
+            return FileChange(f.rel, f.path, text, "".join(lines), encoding)
+    path = project.mod_dir / new_file
+    old = textio.decode(path.read_bytes())[0] if path.exists() else None
+    nl = "\r\n" if old is None or "\r\n" in old else "\n"
+    texts = [other.get(lang, english) if lang != "polish" else "" for lang in LANGUAGES]
+    texts[0] = english
+    line = ";".join([key, *texts]) + ";;;;;;;;;x" + nl
+    base = old or ""
+    if base and not base.endswith(("\n", "\r")):
+        base += nl
+    return FileChange(new_file, path, old, base + line)
