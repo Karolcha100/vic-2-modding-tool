@@ -1,0 +1,88 @@
+import json
+import threading
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+import pytest
+
+from vic2toolmod.server import make_server
+from vic2toolmod.workspace import Workspace
+
+
+def write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode("latin-1"))
+
+
+@pytest.fixture
+def api(tmp_path):
+    g = tmp_path / "game"
+    write(g / "common/countries.txt", 'ENG = "countries/UK.txt"\n')
+    write(g / "events/a.txt", "country_event = { id = 1 trigger = { tag = ENG } }\n")
+    mod = tmp_path / "mod"
+    write(mod / "events/b.txt", "country_event = { id = 2 colour = red }\n")
+    server, token = make_server(Workspace.open(g, mod))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+
+    def call(path, body=None, token_=token):
+        data = None if body is None else json.dumps(body).encode()
+        req = urllib.request.Request(base + path, data=data, headers={"X-Token": token_})
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read())
+
+    call.base = base
+    call.mod = mod
+    yield call
+    server.shutdown()
+    server.server_close()
+
+
+def test_token_required(api):
+    with pytest.raises(urllib.error.HTTPError) as info:
+        api("/api/project", token_="wrong")
+    assert info.value.code == 403
+
+
+def test_project_file_and_check(api):
+    files = {f["rel"]: f["origin"] for f in api("/api/project")["files"]}
+    assert files["events/a.txt"] == "game" and files["events/b.txt"] == "mod"
+    f = api("/api/file?rel=events/b.txt")
+    assert f["encoding"] == "cp1252"
+    assert [d["code"] for d in f["diagnostics"]] == ["schema.unknown-key"]
+    assert [x["rel"] for x in api("/api/check")["files"]] == ["events/b.txt"]
+
+
+def test_buffer_complete_hover_definition(api):
+    r = api(
+        "/api/buffer",
+        {"rel": "events/b.txt", "text": "country_event = { id = 2 trigger = { tag = E } }"},
+    )
+    assert [d["code"] for d in r["diagnostics"]] == ["schema.wrong-value"]  # "E" is no tag
+    offset = len("country_event = { id = 2 trigger = { tag = E")
+    labels = [c["label"] for c in api(f"/api/complete?rel=events/b.txt&offset={offset}")["items"]]
+    assert labels == ["ENG"]
+    at = len("country_event = { id = 1 trigger = { tag = E")
+    d = api(f"/api/definition?rel=events/a.txt&offset={at}")
+    assert d["definition"]["file"] == "common/countries.txt"
+
+
+def test_save_writes_into_mod_with_backup(api, tmp_path, monkeypatch):
+    monkeypatch.setattr("vic2toolmod.changes.backup_dir", lambda: tmp_path / "backup")
+    r = api("/api/save", {"rel": "events/a.txt", "text": "country_event = { id = 1 }\n"})
+    assert (api.mod / "events/a.txt").read_text() == "country_event = { id = 1 }\n"
+    assert r["backup"] is None  # the mod had no such file before
+    r = api("/api/save", {"rel": "events/b.txt", "text": "country_event = { id = 3 }\n"})
+    assert Path(r["backup"], "events/b.txt").read_text().startswith("country_event = { id = 2")
+    with pytest.raises(urllib.error.HTTPError) as info:
+        api("/api/save", {"rel": "events/b.txt", "text": "name = Łódź"})
+    assert info.value.code == 422
+
+
+def test_changed_and_static(api):
+    assert api("/api/changed") == {"changed": []}
+    (api.mod / "events/c.txt").write_text("country_event = { id = 9 }\n")
+    assert api("/api/changed")["changed"] == ["events/c.txt"]
+    with urllib.request.urlopen(api.base + "/") as r:
+        assert b"vic2toolmod" in r.read()

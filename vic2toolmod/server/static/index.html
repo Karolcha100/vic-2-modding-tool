@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vic2toolmod</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { max-width: 46rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+  code { background: color-mix(in srgb, currentColor 10%, transparent); padding: 0 .25rem; }
+  #status { margin-top: 1rem; }
+</style>
+</head>
+<body>
+<h1>vic2toolmod</h1>
+<p>The engine is running. The editor (TypeScript + React + Monaco) is not built yet;
+until then this page only checks that the API answers.</p>
+<div id="status">Checking the API…</div>
+<script>
+  const token = new URLSearchParams(location.search).get("token") || "";
+  fetch("/api/project", { headers: { "X-Token": token } })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(p => {
+      const el = document.getElementById("status");
+      el.textContent = `Mod: ${p.mod_dir || "(none)"} — ${p.files.length} files visible.`;
+    })
+    .catch(e => { document.getElementById("status").textContent = "API error: " + e; });
+</script>
+</body>
+</html>

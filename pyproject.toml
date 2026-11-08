@@ -20,7 +20,7 @@ vic2toolmod = "vic2toolmod.cli:main"
 include = ["vic2toolmod*"]
 
 [tool.setuptools.package-data]
-vic2toolmod = ["schema/data/*.yaml", "schema/data/*/*.yaml"]
+vic2toolmod = ["schema/data/*.yaml", "schema/data/*/*.yaml", "schema/data/NOTICE", "server/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

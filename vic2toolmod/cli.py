@@ -12,6 +12,8 @@ Commands:
   names (tags, cultures, events, ...);
 * ``poptypes [--json FILE] [--registry R]`` - which reforms / techs change
   which pop weights (K59); ``--json`` saves the promotion graph;
+* ``gui [--port N] [--no-browser]`` - start the local server for the GUI
+  (127.0.0.1 only, with a random token in the address);
 * ``generate-parties IDEOLOGY [options] [--write]`` - add a party of an
   ideology to many countries (K58); shows a diff, writes only with ``--write``.
 
@@ -204,6 +206,29 @@ def _cmd_poptypes(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_gui(args: argparse.Namespace) -> int:
+    import webbrowser
+
+    from vic2toolmod.server import make_server
+    from vic2toolmod.workspace import Workspace
+
+    settings = load_settings()
+    mod = args.mod or (settings.mod_dirs[0] if settings.mod_dirs else None)
+    ws = Workspace.open(args.game or settings.game_dir, mod)
+    server, token = make_server(ws, args.port)
+    url = f"http://127.0.0.1:{server.server_address[1]}/?token={token}"
+    print(f"vic2toolmod GUI: {url}  (Ctrl+C to stop)", flush=True)
+    if not args.no_browser:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Create the argument parser (exposed for tests and documentation)."""
     parser = argparse.ArgumentParser(prog="vic2toolmod", description=__doc__.splitlines()[0])
@@ -224,6 +249,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--vanilla", action="store_true", help="check the game itself, no mod")
     p.add_argument("--summary", action="store_true", help="counts instead of every problem")
     p.set_defaults(func=_cmd_check)
+
+    p = sub.add_parser("gui", help="start the local server for the GUI")
+    p.add_argument("--mod", type=Path, help="mod folder (default: configured)")
+    p.add_argument("--game", type=Path, help="game folder (default: configured)")
+    p.add_argument("--port", type=int, default=0, help="port (default: any free one)")
+    p.add_argument("--no-browser", action="store_true", help="do not open a browser")
+    p.set_defaults(func=_cmd_gui)
 
     p = sub.add_parser("poptypes", help="what changes pop promotion / ideologies / issues")
     p.add_argument("--mod", type=Path, help="mod folder (default: configured)")
