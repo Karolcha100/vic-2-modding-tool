@@ -8,6 +8,10 @@ agents_board/
 tests/test_agents_board.py
 CLAUDE.md
 
+# mod RPM — dane testowe na dysku, nie w repo (decyzja K40 = B, 2026-11-08);
+# testy biorą ścieżki moda i gry z konfiguracji
+Reforms-Parties-Military-vic2-mod/
+
 # Python
 __pycache__/
 *.pyc
