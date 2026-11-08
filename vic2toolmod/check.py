@@ -1,10 +1,19 @@
-"""Check a whole project (vanilla + mod): syntax, schema and names."""
+"""Check a whole project (vanilla + mod): syntax, schema and names.
+
+Per-project settings (K21 = B, "ignore in this project") live in
+``vic2toolmod.toml`` in the mod folder (the game ignores the file)::
+
+    ignore_codes = ["schema.wrong-scope"]          # whole diagnostic codes
+    ignore_messages = ["unknown trigger 'pop_unemployment'"]   # message substrings
+"""
 
 from __future__ import annotations
 
+import tomllib
 from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
+from pathlib import Path
 
 from vic2toolmod.project.layout import Project, ProjectFile
 from vic2toolmod.project.registries import Registries, build_registries
@@ -50,6 +59,7 @@ def check_project(
             still read to know their names).
     """
     schema = schema or default_schema()
+    ignore = load_ignore_rules(project.mod_dir)
     cache: dict[str, Document] = {}
     registries = registries or build_registries(project, cache)
     validator = Validator(schema, registries.has)
@@ -66,7 +76,35 @@ def check_project(
         if ft is not None:
             diags += validator.validate(doc, ft.rule, ft.scope)
             diags.sort(key=lambda d: d.start)
+        diags = [d for d in diags if not ignore.ignored(d)]
         yield FileReport(f, doc, ft.name if ft else None, diags)
+
+
+@dataclass(frozen=True)
+class IgnoreRules:
+    """Diagnostics the author chose to ignore in a project."""
+
+    codes: frozenset[str] = frozenset()
+    messages: tuple[str, ...] = ()
+
+    def ignored(self, d: Diagnostic) -> bool:
+        """Whether a diagnostic is ignored."""
+        return d.code in self.codes or any(m in d.message for m in self.messages)
+
+
+def load_ignore_rules(mod_dir: Path | None) -> IgnoreRules:
+    """Read ``vic2toolmod.toml`` from a mod folder (missing file = nothing ignored)."""
+    if mod_dir is None:
+        return IgnoreRules()
+    path = mod_dir / "vic2toolmod.toml"
+    if not path.is_file():
+        return IgnoreRules()
+    with path.open("rb") as fh:
+        data = tomllib.load(fh)
+    return IgnoreRules(
+        frozenset(str(c) for c in data.get("ignore_codes", [])),
+        tuple(str(m) for m in data.get("ignore_messages", [])),
+    )
 
 
 def summarise(reports: list[FileReport], top: int = 40) -> str:

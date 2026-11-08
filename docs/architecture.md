@@ -11,9 +11,9 @@ another language.
 ```
  6. language services   completion, hover, go to definition, find usages   (Phase 4)
  5. editing             tree operations -> minimal text edits, undo/redo   (Phase 4)
- 4. validation          unknown keys, wrong types / scopes, missing refs   (Phase 2-3)
- 3. project index       vanilla + mod, registries of names, definitions/uses (Phase 3)
- 2. schema             what the language allows, as YAML data            (Phase 2)
+ 4. validation          unknown keys, wrong types / scopes, missing refs   (Phase 2, done; names: Phase 3)
+ 3. project index       vanilla + mod, registries of names, definitions/uses (Phase 3, started)
+ 2. schema             what the language allows, as YAML data            (Phase 2, done)
  1. syntax              lossless text <-> tree, syntax errors              (Phase 1, done)
  0. text I/O            lossless bytes <-> text                            (Phase 1, done)
 ```
@@ -50,7 +50,11 @@ through an API (possibly LSP later), never to the files directly.
 | `vic2toolmod.script.roundtrip` | `check_file` - the lossless check used by CLI and tests |
 | `vic2toolmod.files` | finding script files (follows symlinks, visits each folder once) |
 | `vic2toolmod.config` | user settings (`~/.config/vic2toolmod/config.toml`, env overrides) |
-| `vic2toolmod.cli` | `python -m vic2toolmod parse / roundtrip / errors` |
+| `vic2toolmod.schema` | schema model, YAML loader with consistency checks, value checks, `Validator` (see `docs/schema.md`) |
+| `vic2toolmod.project` | `Project` (vanilla + mod overlay, `replace_path`, `.mod` files), `build_registries` (names defined by the game and the mod) |
+| `vic2toolmod.check` | check a whole project: syntax + schema + names; per-mod ignore rules |
+| `vic2toolmod.census` | counts of key paths actually used in game files (schema development) |
+| `vic2toolmod.cli` | `python -m vic2toolmod parse / roundtrip / errors / check` |
 
 ## Data flow (Phase 1)
 

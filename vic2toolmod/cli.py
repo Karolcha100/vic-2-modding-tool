@@ -6,7 +6,10 @@ Commands:
 * ``roundtrip PATH...`` - check that every script file is read and written back
   byte for byte, and report timing;
 * ``errors PATH...`` - list syntax errors of every script file
-  (``path:line:column: severity code: message``).
+  (``path:line:column: severity code: message``);
+* ``check [MOD] [--game DIR] [--summary] [--vanilla]`` - check a mod on top
+  of the game: syntax, schema (triggers, effects, scopes, value types) and
+  names (tags, cultures, events, ...).
 
 When ``roundtrip`` / ``errors`` get no paths, the game and mod folders from
 the settings (`vic2toolmod.config`) are used.
@@ -106,6 +109,31 @@ def _cmd_errors(args: argparse.Namespace) -> int:
     return 1 if count else 0
 
 
+def _cmd_check(args: argparse.Namespace) -> int:
+    from vic2toolmod.check import check_project, summarise
+    from vic2toolmod.project import Project
+
+    settings = load_settings()
+    game = args.game or settings.game_dir
+    mod = args.mod or (settings.mod_dirs[0] if settings.mod_dirs and not args.vanilla else None)
+    if args.vanilla:
+        mod = None
+    if game is None and mod is None:
+        raise SystemExit("no game or mod folder given or configured")
+    project = Project.open(game, mod)
+    reports = list(check_project(project, only_mod=mod is not None))
+    if args.summary:
+        print(summarise(reports))
+    else:
+        for r in reports:
+            for d in r.diagnostics:
+                line, col = r.document.position(d.start)
+                print(f"{r.file.rel}:{line}:{col}: {d.severity.value} {d.code}: {d.message}")
+    total = sum(len(r.diagnostics) for r in reports)
+    print(f"{total} problems in {sum(1 for r in reports if r.diagnostics)} files", file=sys.stderr)
+    return 1 if total else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Create the argument parser (exposed for tests and documentation)."""
     parser = argparse.ArgumentParser(prog="vic2toolmod", description=__doc__.splitlines()[0])
@@ -119,6 +147,13 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("roundtrip", help="check lossless read/write of script files")
     p.add_argument("paths", nargs="*", help="files or folders (default: configured folders)")
     p.set_defaults(func=_cmd_roundtrip)
+
+    p = sub.add_parser("check", help="check a mod against the schema and its names")
+    p.add_argument("mod", nargs="?", type=Path, help="mod folder (default: configured)")
+    p.add_argument("--game", type=Path, help="game folder (default: configured)")
+    p.add_argument("--vanilla", action="store_true", help="check the game itself, no mod")
+    p.add_argument("--summary", action="store_true", help="counts instead of every problem")
+    p.set_defaults(func=_cmd_check)
 
     p = sub.add_parser("errors", help="list syntax errors of script files")
     p.add_argument("paths", nargs="*", help="files or folders (default: configured folders)")
