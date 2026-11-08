@@ -1,1 +1,15 @@
+# kod porzucony (wcześniejsza wersja silnika)
 old/
+
+# komunikacja z agentami LLM — AGENTS/ ma własne, lokalne repo (AGENTS/.git):
+#   git -C AGENTS status / git -C AGENTS diff / git -C AGENTS commit
+AGENTS/
+agents_board/
+tests/test_agents_board.py
+CLAUDE.md
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
