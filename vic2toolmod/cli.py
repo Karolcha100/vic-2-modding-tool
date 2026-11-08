@@ -9,7 +9,9 @@ Commands:
   (``path:line:column: severity code: message``);
 * ``check [MOD] [--game DIR] [--summary] [--vanilla]`` - check a mod on top
   of the game: syntax, schema (triggers, effects, scopes, value types) and
-  names (tags, cultures, events, ...).
+  names (tags, cultures, events, ...);
+* ``generate-parties IDEOLOGY [options] [--write]`` - add a party of an
+  ideology to many countries (K58); shows a diff, writes only with ``--write``.
 
 When ``roundtrip`` / ``errors`` get no paths, the game and mod folders from
 the settings (`vic2toolmod.config`) are used.
@@ -134,6 +136,45 @@ def _cmd_check(args: argparse.Namespace) -> int:
     return 1 if total else 0
 
 
+def _cmd_generate_parties(args: argparse.Namespace) -> int:
+    from vic2toolmod.changes import diff, write_changes
+    from vic2toolmod.generators.parties import CountryFilter, PartySpec, plan_parties
+    from vic2toolmod.workspace import Workspace
+
+    settings = load_settings()
+    mod = args.mod or (settings.mod_dirs[0] if settings.mod_dirs else None)
+    if mod is None:
+        raise SystemExit("no mod folder given or configured")
+    ws = Workspace.open(args.game or settings.game_dir, mod)
+    policies = dict(p.split("=", 1) for p in args.set or [])
+    spec = PartySpec(
+        args.ideology,
+        start_date=args.start,
+        end_date=args.end,
+        copy_from=tuple(args.copy_from or ()),
+        policies=policies,
+        loc_text=args.loc,
+    )
+    where = CountryFilter(
+        tags={t.upper() for t in args.tags.split(",")} if args.tags else None,
+        culture_groups={g.lower() for g in args.culture_groups.split(",")}
+        if args.culture_groups
+        else None,
+        civilized={"yes": True, "no": False}.get(args.civilized or ""),
+    )
+    plan = plan_parties(ws, spec, where)
+    print(diff(plan.changes))
+    print(f"{len(plan.created)} parties planned: {' '.join(plan.created)}", file=sys.stderr)
+    for tag, why in sorted(plan.skipped.items()):
+        print(f"  skipped {tag}: {why}", file=sys.stderr)
+    if args.write and plan.changes:
+        backup = write_changes(plan.changes)
+        print(f"written; backup of changed files: {backup}", file=sys.stderr)
+    elif plan.changes:
+        print("dry run - add --write to save", file=sys.stderr)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Create the argument parser (exposed for tests and documentation)."""
     parser = argparse.ArgumentParser(prog="vic2toolmod", description=__doc__.splitlines()[0])
@@ -154,6 +195,25 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--vanilla", action="store_true", help="check the game itself, no mod")
     p.add_argument("--summary", action="store_true", help="counts instead of every problem")
     p.set_defaults(func=_cmd_check)
+
+    p = sub.add_parser("generate-parties", help="add a party of an ideology to many countries")
+    p.add_argument("ideology")
+    p.add_argument("--mod", type=Path, help="mod folder (default: configured)")
+    p.add_argument("--game", type=Path, help="game folder (default: configured)")
+    p.add_argument(
+        "--copy-from", action="append", help="ideology to copy policies from (repeatable)"
+    )
+    p.add_argument(
+        "--set", action="append", metavar="ISSUE=OPTION", help="fixed policy (repeatable)"
+    )
+    p.add_argument("--start", default="1836.1.1", help="start date")
+    p.add_argument("--end", default="2000.1.1", help="end date")
+    p.add_argument("--tags", help="only these tags, comma separated")
+    p.add_argument("--culture-groups", help="only countries of these culture groups")
+    p.add_argument("--civilized", choices=["yes", "no"], help="only (un)civilized countries")
+    p.add_argument("--loc", help='English name template, e.g. "{adj} Christian Democrats"')
+    p.add_argument("--write", action="store_true", help="write the files (with a backup)")
+    p.set_defaults(func=_cmd_generate_parties)
 
     p = sub.add_parser("errors", help="list syntax errors of script files")
     p.add_argument("paths", nargs="*", help="files or folders (default: configured folders)")

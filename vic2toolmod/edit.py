@@ -223,6 +223,22 @@ def insert(
     return TextEdit(at, at, render_items(items, unit, depth, nl))
 
 
+def insert_after(doc: Document, node: Node, items: Items) -> TextEdit:
+    """Insert new items on the lines right after a node, at the node's indentation.
+
+    Unlike `insert` before the next item, this keeps comments that belong to
+    the next item next to it.
+    """
+    text = doc.text
+    unit = indent_unit(text)
+    nl = newline_of(text)
+    m = re.compile(r"[^\r\n]*(\r\n|\n|\r|$)").match(text, node.end)
+    assert m is not None
+    at = m.end()
+    prefix = "" if m.group(1) else nl
+    return TextEdit(at, at, prefix + render_items(items, unit, _depth(doc, node, unit), nl))
+
+
 # -- buffer with undo / redo ---------------------------------------------------------
 @dataclass
 class Buffer:
