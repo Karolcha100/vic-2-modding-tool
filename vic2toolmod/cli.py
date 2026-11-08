@@ -10,6 +10,8 @@ Commands:
 * ``check [MOD] [--game DIR] [--summary] [--vanilla]`` - check a mod on top
   of the game: syntax, schema (triggers, effects, scopes, value types) and
   names (tags, cultures, events, ...);
+* ``events [--json FILE]`` - event chains (K6 C): events fired but missing,
+  triggered-only events nothing fires; ``--json`` saves the graph;
 * ``poptypes [--json FILE] [--registry R]`` - which reforms / techs change
   which pop weights (K59); ``--json`` saves the promotion graph;
 * ``gui [--port N] [--no-browser]`` - start the local server for the GUI
@@ -179,6 +181,29 @@ def _cmd_generate_parties(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_events(args: argparse.Namespace) -> int:
+    from vic2toolmod.analysis.events import event_graph
+    from vic2toolmod.workspace import Workspace
+
+    settings = load_settings()
+    mod = args.mod or (settings.mod_dirs[0] if settings.mod_dirs else None)
+    graph = event_graph(Workspace.open(args.game or settings.game_dir, mod))
+    if args.json:
+        args.json.write_text(json.dumps(graph, indent=1, ensure_ascii=False), encoding="utf-8")
+        print(f"event graph written to {args.json}", file=sys.stderr)
+    nodes = graph["nodes"]
+    print(f"{sum(n['type'] == 'event' for n in nodes)} events, {len(graph['edges'])} calls")
+    for n in nodes:
+        if n.get("missing"):
+            callers = [e for e in graph["edges"] if e["target"] == n["id"]]
+            where = ", ".join(f"{e['file']}:{e['line']}" for e in callers)
+            print(f"missing event {n['event_id']} fired from {where}")
+    for n in nodes:
+        if n.get("orphan"):
+            print(f"triggered-only event {n['event_id']} is never fired ({n['file']}:{n['line']})")
+    return 0
+
+
 def _cmd_poptypes(args: argparse.Namespace) -> int:
     from vic2toolmod.analysis.poptypes import influences, pop_weights, promotion_graph
     from vic2toolmod.workspace import Workspace
@@ -256,6 +281,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=0, help="port (default: any free one)")
     p.add_argument("--no-browser", action="store_true", help="do not open a browser")
     p.set_defaults(func=_cmd_gui)
+
+    p = sub.add_parser("events", help="event chains: missing and never-fired events")
+    p.add_argument("--mod", type=Path, help="mod folder (default: configured)")
+    p.add_argument("--game", type=Path, help="game folder (default: configured)")
+    p.add_argument("--json", type=Path, help="write the event graph as JSON")
+    p.set_defaults(func=_cmd_events)
 
     p = sub.add_parser("poptypes", help="what changes pop promotion / ideologies / issues")
     p.add_argument("--mod", type=Path, help="mod folder (default: configured)")
