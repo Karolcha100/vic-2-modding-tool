@@ -401,9 +401,12 @@ def _pick(
             points += 4
         if not c.scopes or scope is None or scope in c.scopes:
             points += 2
-        if isinstance(value, Scalar) and isinstance(c.value, TypeSpec):
-            if check_scalar(value.value, c.value, schema) is None:
-                points += 1
+        if (
+            isinstance(value, Scalar)
+            and isinstance(c.value, TypeSpec)
+            and check_scalar(value.value, c.value, schema) is None
+        ):
+            points += 1
         return points
 
     return max(alternatives, key=score)
