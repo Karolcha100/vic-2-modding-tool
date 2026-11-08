@@ -10,6 +10,8 @@ Commands:
 * ``check [MOD] [--game DIR] [--summary] [--vanilla]`` - check a mod on top
   of the game: syntax, schema (triggers, effects, scopes, value types) and
   names (tags, cultures, events, ...);
+* ``poptypes [--json FILE] [--registry R]`` - which reforms / techs change
+  which pop weights (K59); ``--json`` saves the promotion graph;
 * ``generate-parties IDEOLOGY [options] [--write]`` - add a party of an
   ideology to many countries (K58); shows a diff, writes only with ``--write``.
 
@@ -175,6 +177,33 @@ def _cmd_generate_parties(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_poptypes(args: argparse.Namespace) -> int:
+    from vic2toolmod.analysis.poptypes import influences, pop_weights, promotion_graph
+    from vic2toolmod.workspace import Workspace
+
+    settings = load_settings()
+    mod = args.mod or (settings.mod_dirs[0] if settings.mod_dirs else None)
+    ws = Workspace.open(args.game or settings.game_dir, mod)
+    weights = pop_weights(ws)
+    if args.json:
+        args.json.write_text(json.dumps(promotion_graph(weights), indent=1), encoding="utf-8")
+        print(f"promotion graph written to {args.json}", file=sys.stderr)
+    table = influences(weights, tuple(args.registry or ("issue_option", "technology", "invention")))
+    for (registry, name), uses in sorted(table.items()):
+        print(f"{name} ({registry}):")
+        for w, m in uses:
+            target = w.target or w.kind
+            what = (
+                f"{w.pop} -> {target}" if w.kind == "promote_to" else f"{w.pop} {w.kind} {target}"
+            )
+            print(
+                f"    {what}: x{m.factor:g}  [{w.file}:{m.line}]"
+                if m.factor is not None
+                else f"    {what}  [{w.file}:{m.line}]"
+            )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Create the argument parser (exposed for tests and documentation)."""
     parser = argparse.ArgumentParser(prog="vic2toolmod", description=__doc__.splitlines()[0])
@@ -195,6 +224,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--vanilla", action="store_true", help="check the game itself, no mod")
     p.add_argument("--summary", action="store_true", help="counts instead of every problem")
     p.set_defaults(func=_cmd_check)
+
+    p = sub.add_parser("poptypes", help="what changes pop promotion / ideologies / issues")
+    p.add_argument("--mod", type=Path, help="mod folder (default: configured)")
+    p.add_argument("--game", type=Path, help="game folder (default: configured)")
+    p.add_argument("--json", type=Path, help="write the promotion graph as JSON")
+    p.add_argument(
+        "--registry", action="append", help="kinds of names (default: reforms, techs, inventions)"
+    )
+    p.set_defaults(func=_cmd_poptypes)
 
     p = sub.add_parser("generate-parties", help="add a party of an ideology to many countries")
     p.add_argument("ideology")
