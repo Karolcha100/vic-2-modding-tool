@@ -11,7 +11,11 @@ Status:
 - **Phase 2 done** — schema of the scripting language (triggers, effects, scopes,
   modifiers, structure of every file type) and a checker; the whole of vanilla 3.04 is
   known to the schema except its five real problems.
-- Phase 3 (project index) in progress.
+- **Phase 3 done** — project index: vanilla + mod, registries of names, localisation,
+  flags, duplicate / free event ids, definitions and usages (`Workspace`).
+- **Phase 4 done** — editing through the tree with undo/redo, completion, hover, go to
+  definition, find usages, rename.
+- Next: the GUI (TypeScript + React + Monaco) on top of a local HTTP API.
 
 ## Setup
 
@@ -62,7 +66,8 @@ assert doc.to_text() == doc.text
 ```
 
 Documentation: [`docs/architecture.md`](docs/architecture.md),
-[`docs/script-syntax.md`](docs/script-syntax.md), [`docs/schema.md`](docs/schema.md).
+[`docs/script-syntax.md`](docs/script-syntax.md), [`docs/schema.md`](docs/schema.md),
+[`docs/index.md`](docs/index.md), [`docs/editing.md`](docs/editing.md).
 
 The schema uses data from [cwtools-vic2-config](https://github.com/cwtools/cwtools-vic2-config)
 (MIT licence) and the [Victoria 2 wiki](https://vic2.paradoxwikis.com/Modifier_effects).

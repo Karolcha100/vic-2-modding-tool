@@ -9,10 +9,10 @@ another language.
 ## Layers
 
 ```
- 6. language services   completion, hover, go to definition, find usages   (Phase 4)
- 5. editing             tree operations -> minimal text edits, undo/redo   (Phase 4)
+ 6. language services   completion, hover, go to definition, find usages   (Phase 4, done)
+ 5. editing             tree operations -> minimal text edits, undo/redo   (Phase 4, done)
  4. validation          unknown keys, wrong types / scopes, missing refs   (Phase 2, done; names: Phase 3)
- 3. project index       vanilla + mod, registries of names, definitions/uses (Phase 3, started)
+ 3. project index       vanilla + mod, registries of names, definitions/uses (Phase 3, done)
  2. schema             what the language allows, as YAML data            (Phase 2, done)
  1. syntax              lossless text <-> tree, syntax errors              (Phase 1, done)
  0. text I/O            lossless bytes <-> text                            (Phase 1, done)
@@ -20,6 +20,9 @@ another language.
 
 Each layer only uses the layers below it. The GUI will talk to the engine
 through an API (possibly LSP later), never to the files directly.
+
+Documents: `docs/script-syntax.md` (layer 1), `docs/schema.md` (2, 4),
+`docs/index.md` (3), `docs/editing.md` (5, 6).
 
 ## Principles
 
@@ -53,6 +56,10 @@ through an API (possibly LSP later), never to the files directly.
 | `vic2toolmod.schema` | schema model, YAML loader with consistency checks, value checks, `Validator` (see `docs/schema.md`) |
 | `vic2toolmod.project` | `Project` (vanilla + mod overlay, `replace_path`, `.mod` files), `build_registries` (names defined by the game and the mod) |
 | `vic2toolmod.check` | check a whole project: syntax + schema + names; per-mod ignore rules |
+| `vic2toolmod.workspace` | `Workspace`: documents (cache, editor buffers), registries, check, definition, usages (see `docs/index.md`) |
+| `vic2toolmod.edit` | text edits from tree operations, `Buffer` with undo/redo (see `docs/editing.md`) |
+| `vic2toolmod.services` | completion, hover, definition, references, rename |
+| `vic2toolmod.project.localisation`, `.defines`, `.events` | localisation files, `defines.lua`, free event ids |
 | `vic2toolmod.census` | counts of key paths actually used in game files (schema development) |
 | `vic2toolmod.cli` | `python -m vic2toolmod parse / roundtrip / errors / check` |
 
