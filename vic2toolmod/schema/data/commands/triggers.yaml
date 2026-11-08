@@ -104,7 +104,7 @@ trigger:
     scopes: [country]
     source: cwtools
     value: bool
-    vanilla_scopes: [province]
+    vanilla_scopes: [province, state]
   colonial_nation:
     compare: eq
     scopes: [country]
@@ -276,6 +276,7 @@ trigger:
     scopes: [province]
     source: cwtools
     value: bool
+    vanilla_scopes: [state]
   has_global_flag:
     compare: eq
     scopes: [any]
@@ -352,7 +353,7 @@ trigger:
     compare: gte
     scopes: [country]
     source: cwtools
-    value: int
+    value: [int, 'ref:country']
   invention:
     compare: eq
     scopes: [country]
@@ -367,11 +368,11 @@ trigger:
   - compare: eq
     scopes: [province]
     source: cwtools
-    value: bool
+    value: [bool, 'ref:country']
   - compare: eq
     scopes: [pop]
     source: cwtools
-    value: bool
+    value: [bool, 'ref:country']
   is_blockaded:
     compare: eq
     scopes: [province]
@@ -408,10 +409,12 @@ trigger:
     scopes: [country]
     source: cwtools
     value: ref:province
+    vanilla_scopes: [state]
   - compare: eq
     scopes: [province]
     source: cwtools
-    value: ref:country
+    value: ['ref:country', 'ref:province']
+    vanilla_scopes: [state]
   is_cultural_union:
     compare: eq
     scopes: [country]
@@ -480,11 +483,13 @@ trigger:
   - compare: eq
     scopes: [province]
     source: cwtools
-    value: bool
+    value: [bool, 'ref:country', 'ref:culture']
+    vanilla_scopes: [country]
   - compare: eq
     scopes: [pop]
     source: cwtools
-    value: bool
+    value: [bool, 'ref:country', 'ref:culture']
+    vanilla_scopes: [country]
   is_secondary_power:
     compare: eq
     scopes: [country]
@@ -546,7 +551,7 @@ trigger:
     compare: gte
     scopes: [country]
     source: cwtools
-    value: int
+    value: float
   luxury_needs:
     compare: gte
     scopes: [pop]
@@ -557,7 +562,7 @@ trigger:
     scopes: [country]
     source: cwtools
     value: float
-    vanilla_scopes: [province]
+    vanilla_scopes: [province, state]
   middle_strata_life_needs:
     compare: gte
     scopes: [country]
@@ -593,7 +598,7 @@ trigger:
     compare: gte
     scopes: [country]
     source: cwtools
-    value: int
+    value: [int, 'ref:country']
   military_spending:
   - compare: gte
     scopes: [country]
@@ -722,13 +727,13 @@ trigger:
     scopes: [country]
     source: cwtools
     value: float
-    vanilla_scopes: [province]
+    vanilla_scopes: [province, state]
   poor_strata_life_needs:
     compare: gte
     scopes: [country]
     source: cwtools
     value: float
-    vanilla_scopes: [province]
+    vanilla_scopes: [province, state]
   poor_strata_luxury_needs:
     compare: gte
     scopes: [country]
@@ -936,11 +941,6 @@ trigger:
     scopes: [province]
     source: cwtools
     value: ref:terrain
-  this_culture_union:
-    compare: eq
-    scopes: [country]
-    source: cwtools
-    value: ref:country
   total_amount_of_divisions:
     compare: gte
     scopes: [country]
@@ -1015,14 +1015,17 @@ trigger:
     scopes: [country]
     source: cwtools
     value: float
+    vanilla_scopes: [state]
   - compare: gte
     scopes: [province]
     source: cwtools
     value: float
+    vanilla_scopes: [state]
   - compare: gte
     scopes: [pop]
     source: cwtools
     value: float
+    vanilla_scopes: [state]
   unemployment_by_type:
     compare: block
     scopes: [province]
@@ -1083,6 +1086,7 @@ trigger:
     source: cwtools
     value:
       fields: {worker: 'ref:pop_type'}
+    vanilla_scopes: [state]
   year:
     compare: gte
     scopes: [any]

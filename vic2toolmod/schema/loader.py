@@ -317,6 +317,8 @@ def load_schema(directory: Path = DATA_DIR) -> Schema:
     modifiers = directory / "modifiers.yaml"
     if modifiers.is_file():
         for name, raw in (read(modifiers).get("modifiers") or {}).items():
+            if isinstance(raw, dict):
+                raw = raw.get("value", "float")
             spec = b.spec(raw if raw is not None else "float")
             b.schema.modifiers[str(name).lower()] = (
                 spec if isinstance(spec, TypeSpec) else TypeSpec("float")

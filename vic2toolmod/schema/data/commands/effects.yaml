@@ -57,7 +57,7 @@ effect:
   badboy:
     scopes: [country]
     source: cwtools
-    value: int
+    value: float
   capital:
     scopes: [country]
     source: cwtools
@@ -88,14 +88,17 @@ effect:
     source: cwtools
     value: ref:country
   change_variable:
-    scopes: [country]
-    source: cwtools
-    value: ref:variable
+    doc: Set / change a country variable.
+    source: manual
+    value:
+      fields:
+        value: {required: true, value: float}
+        which: {required: true, value: 'ref:variable'}
   civilized:
     scopes: [country]
     source: cwtools
     value: bool
-    vanilla_scopes: [province]
+    vanilla_scopes: [province, state]
   clr_country_flag:
     scopes: [country]
     source: cwtools
@@ -113,11 +116,6 @@ effect:
     source: cwtools
     value: float
     vanilla_scopes: [country]
-  country_event:
-    scopes: [country]
-    source: cwtools
-    value:
-      fields: {days: int, id: 'ref:event'}
   create_alliance:
     scopes: [country]
     source: cwtools
@@ -229,6 +227,7 @@ effect:
     source: cwtools
     value:
       fields: {from: 'ref:issue_option', to: 'ref:issue_option', value: float}
+    vanilla_scopes: [country]
   move_pop:
     scopes: [pop]
     source: cwtools
@@ -274,11 +273,6 @@ effect:
     scopes: [country]
     source: cwtools
     value: ref:culture
-  province_event:
-    scopes: [province]
-    source: cwtools
-    value:
-      fields: {days: int, id: 'ref:event'}
   reduce_pop:
     scopes: [pop]
     source: cwtools
@@ -326,15 +320,6 @@ effect:
     scopes: [country]
     source: cwtools
     value: ref:ideology
-  scaled_consciousness:
-    scopes: [pop]
-    source: cwtools
-    value:
-      fields: {factor: scalar, ideology: 'ref:ideology', issue: 'ref:issue_option'}
-  scaled_militancy:
-    scopes: [pop]
-    source: cwtools
-    value: float
   secede_province:
     scopes: [province]
     source: cwtools
@@ -354,9 +339,12 @@ effect:
     source: cwtools
     value: ref:province_flag
   set_variable:
-    scopes: [any]
-    source: cwtools
-    value: ref:variable
+    doc: Set / change a country variable.
+    source: manual
+    value:
+      fields:
+        value: {required: true, value: float}
+        which: {required: true, value: 'ref:variable'}
   social_reform:
     scopes: [country]
     source: cwtools
@@ -380,11 +368,10 @@ effect:
     source: cwtools
     value:
       fields:
-        attacker_goal:
-          fields: {casus_belli: 'ref:cb_type'}
+        attacker_goal: &id001
+          fields: {casus_belli: 'ref:cb_type', country: 'ref:country', state_province_id: 'ref:province'}
         call_ally: bool
-        defender_goal:
-          fields: {casus_belli: 'ref:cb_type'}
+        defender_goal: *id001
         target: ref:country
   war_exhaustion:
     scopes: [country]

@@ -9,7 +9,7 @@ rules:
       days: float
       years: float
       modifier: {rule: weight_modifier, multiple: true}
-      group: scalar
+      group: {rule: weight, multiple: true}
   weight_modifier:
     doc: "One multiplier of a weight: applies 'factor' when the conditions are true."
     fields:

@@ -1,20 +1,207 @@
 # Imported from cwtools-vic2-config (MIT) by tools/import_cwtools.py, then curated.
-modifiers: {army_tech_tech_research_bonus: float, assimilation_rate: float, badboy: float, cb_generation_speed_modifier: float,
-  commerce_tech_tech_research_bonus: float, core_pop_consciousness_modifer: float, core_pop_militancy_modifer: float,
-  culture_tech_tech_research_bonus: float, diplomatic_points_modifier: float, education_efficiency_modifier: float,
-  factory_cost: float, factory_input: float, factory_output: float, factory_owner_cost: float, factory_throughput: float,
-  farm_rgo_eff: float, farm_rgo_size: float, global_assimilation_rate: float, global_immigrant_attract: float,
-  global_pop_consciousness_modifier: float, global_pop_militancy_modifier: float, global_population_growth: float,
-  immigrant_attract: float, immigrant_push: float, import_cost: float, industry_tech_tech_research_bonus: float,
-  influence_modifier: float, issue_change_speed: float, land_organisation: float, land_unit_start_experience: float,
-  leadership_modifier: float, life_rating: float, loan_interest: float, local_RGO_output: float, local_RGO_throughput: float,
-  local_artisan_output: float, local_factory_input: float, local_factory_output: float, local_factory_throughput: float,
-  local_repair: float, local_ruling_party_support: float, local_ship_build: float, max_loan_modifier: float,
-  max_military_spending: float, max_social_spending: float, max_tariff: float, middle_vote: float, min_military_spending: float,
-  min_social_spending: float, min_tariff: float, mine_rgo_eff: float, mine_rgo_size: float, mobilisation_size: float,
-  mobilization_economy_impact: float, mobilization_impact: float, naval_organisation: float, naval_unit_start_experience: float,
-  navy_tech_tech_research_bonus: float, non_accepted_pop_consciousness_modifier: float, non_accepted_pop_militancy_modifier: float,
-  org_regain: float, political_reform_desire: float, poor_vote: float, population_growth: float, prestige: float,
-  research_points: float, research_points_modifier: float, rgo_output: float, rgo_throughput: float, rich_vote: float,
-  ruling_party_support: float, social_reform_desire: float, supply_consumption: float, suppression_points_modifier: float,
-  tax_efficiency: float, unit_start_experience: float, war_exhaustion: float}
+# source: wiki = https://vic2.paradoxwikis.com/Modifier_effects (oldid 23262), placeholders expanded.
+modifiers:
+  administrative_efficiency: {source: vanilla, value: float}
+  administrative_efficiency_modifier: {source: vanilla, value: float}
+  aeroplanes: {source: vanilla, value: float}
+  ammunition: {source: vanilla, value: float}
+  aristocrats: {source: vanilla, value: float}
+  army_base: {source: vanilla, value: float}
+  army_tech_research_bonus: {source: vanilla, value: float}
+  army_tech_tech_research_bonus: float
+  artillery: {source: vanilla, value: float}
+  artisan_input: {source: wiki, value: float}
+  artisan_output: {source: wiki, value: float}
+  artisan_throughput: {source: wiki, value: float}
+  artisans: {source: vanilla, value: float}
+  assimilation_rate: float
+  automobiles: {source: vanilla, value: float}
+  badboy: float
+  barrels: {source: vanilla, value: float}
+  boost_strongest_party: {source: vanilla, value: float}
+  bureaucrats: {source: vanilla, value: float}
+  canned_food: {source: vanilla, value: float}
+  capitalists: {source: vanilla, value: float}
+  cb_creation_speed: {source: vanilla, value: float}
+  cb_generation_speed_modifier: float
+  cement: {source: vanilla, value: float}
+  civilization_progress_modifier: {source: vanilla, value: float}
+  clergymen: {source: vanilla, value: float}
+  clerks: {source: vanilla, value: float}
+  clipper_convoy: {source: vanilla, value: float}
+  colonial_life_rating: {source: vanilla, value: float}
+  colonial_migration: {source: vanilla, value: float}
+  colonial_points: {source: vanilla, value: float}
+  colonial_prestige: {source: vanilla, value: float}
+  combat_width: {source: vanilla, value: float}
+  commerce_tech_research_bonus: {source: vanilla, value: float}
+  commerce_tech_tech_research_bonus: float
+  core_pop_consciousness_modifer: float
+  core_pop_consciousness_modifier: {source: vanilla, value: float}
+  core_pop_militancy_modifer: float
+  core_pop_militancy_modifier: {source: vanilla, value: float}
+  craftsmen: {source: vanilla, value: float}
+  culture_tech_research_bonus: {source: vanilla, value: float}
+  culture_tech_tech_research_bonus: float
+  dig_in_cap: {source: vanilla, value: float}
+  diplomatic_points: {source: vanilla, value: float}
+  diplomatic_points_modifier: float
+  dye: {source: vanilla, value: float}
+  education_efficiency: {source: vanilla, value: float}
+  education_efficiency_modifier: float
+  electric_gear: {source: vanilla, value: float}
+  explosives: {source: vanilla, value: float}
+  fabric: {source: vanilla, value: float}
+  factory_cost: float
+  factory_input: float
+  factory_output: float
+  factory_owner_cost: float
+  factory_throughput: float
+  farm_rgo_eff: float
+  farm_rgo_size: float
+  farmers: {source: vanilla, value: float}
+  fertilizer: {source: vanilla, value: float}
+  fuel: {source: vanilla, value: float}
+  furniture: {source: vanilla, value: float}
+  glass: {source: vanilla, value: float}
+  global_assimilation_rate: float
+  global_immigrant_attract: float
+  global_pop_consciousness_modifier: float
+  global_pop_militancy_modifier: float
+  global_population_growth: float
+  goods_demand: {source: author, value: float}
+  immigrant_attract: float
+  immigrant_push: float
+  import_cost: float
+  increase_research: {source: vanilla, value: float}
+  industry_tech_research_bonus: {source: vanilla, value: float}
+  industry_tech_tech_research_bonus: float
+  influence: {source: vanilla, value: float}
+  influence_modifier: float
+  issue_change_speed: float
+  labourers: {source: vanilla, value: float}
+  land_attrition: {source: vanilla, value: float}
+  land_defense_modifier: {source: vanilla, value: float}
+  land_organisation: float
+  land_unit_start_experience: float
+  leadership: {source: vanilla, value: float}
+  leadership_modifier: float
+  life_rating: float
+  liquor: {source: vanilla, value: float}
+  literacy_con_impact: {source: vanilla, value: float}
+  loan_interest: float
+  local_RGO_output: float
+  local_RGO_throughput: float
+  local_artisan_input: {source: wiki, value: float}
+  local_artisan_output: float
+  local_factory_input: float
+  local_factory_output: float
+  local_factory_throughput: float
+  local_repair: float
+  local_rgo_output: {source: wiki, value: float}
+  local_rgo_throughput: {source: wiki, value: float}
+  local_ruling_party_support: float
+  local_ship_build: float
+  lumber: {source: vanilla, value: float}
+  luxury_clothes: {source: vanilla, value: float}
+  luxury_furniture: {source: vanilla, value: float}
+  machine_parts: {source: vanilla, value: float}
+  max_attrition: {source: vanilla, value: float}
+  max_fort: {source: vanilla, value: float}
+  max_loan_modifier: float
+  max_military_spending: float
+  max_national_focus: {source: vanilla, value: float}
+  max_naval_base: {source: vanilla, value: float}
+  max_railroad: {source: vanilla, value: float}
+  max_social_spending: float
+  max_tariff: float
+  max_tax: {source: vanilla, value: float}
+  max_war_exhaustion: {source: vanilla, value: float}
+  middle_everyday_needs: {source: vanilla, value: float}
+  middle_income_modifier: {source: wiki, value: float}
+  middle_life_needs: {source: vanilla, value: float}
+  middle_luxury_needs: {source: vanilla, value: float}
+  middle_vote: float
+  military_tactics: {source: vanilla, value: float}
+  min_military_spending: float
+  min_social_spending: float
+  min_tariff: float
+  min_tax: {source: vanilla, value: float}
+  mine_rgo_eff: float
+  mine_rgo_size: float
+  minimum_wage: {source: vanilla, value: float}
+  mobilisation_economy_impact: {source: vanilla, value: float}
+  mobilisation_size: float
+  mobilization_economy_impact: float
+  mobilization_impact: float
+  morale: {source: vanilla, value: float}
+  naval_attack_modifier: {source: vanilla, value: float}
+  naval_attrition: {source: vanilla, value: float}
+  naval_defense_modifier: {source: vanilla, value: float}
+  naval_organisation: float
+  naval_unit_start_experience: float
+  navy_base: {source: vanilla, value: float}
+  navy_tech_research_bonus: {source: vanilla, value: float}
+  navy_tech_tech_research_bonus: float
+  non_accepted_pop_consciousness_modifier: float
+  non_accepted_pop_militancy_modifier: float
+  number_of_voters: {source: vanilla, value: float}
+  officers: {source: vanilla, value: float}
+  oil: {source: vanilla, value: float}
+  org_regain: float
+  paper: {source: vanilla, value: float}
+  pension_level: {source: vanilla, value: float}
+  permanent_prestige: {source: vanilla, value: float}
+  plurality: {source: vanilla, value: float}
+  political_reform_desire: float
+  poor_everyday_needs: {source: vanilla, value: float}
+  poor_income_modifier: {source: wiki, value: float}
+  poor_life_needs: {source: vanilla, value: float}
+  poor_luxury_needs: {source: vanilla, value: float}
+  poor_vote: float
+  pop_consciousness_modifier: {source: vanilla, value: float}
+  pop_growth: {source: vanilla, value: float}
+  pop_militancy_modifier: {source: vanilla, value: float}
+  population_growth: float
+  prestige: float
+  radio: {source: vanilla, value: float}
+  regular_clothes: {source: vanilla, value: float}
+  regular_experience_level: {source: vanilla, value: float}
+  reinforce_rate: {source: vanilla, value: float}
+  reinforce_speed: {source: vanilla, value: float}
+  research_points: float
+  research_points_modifier: float
+  research_points_on_conquer: {source: vanilla, value: float}
+  rgo_output: float
+  rgo_throughput: float
+  rich_everyday_needs: {source: vanilla, value: float}
+  rich_income_modifier: {source: wiki, value: float}
+  rich_life_needs: {source: vanilla, value: float}
+  rich_luxury_needs: {source: wiki, value: float}
+  rich_vote: float
+  ruling_party_support: float
+  self_unciv_economic_modifier: {source: vanilla, value: float}
+  self_unciv_military_modifier: {source: vanilla, value: float}
+  seperatism: {source: vanilla, value: float}
+  shared_prestige: {source: vanilla, value: float}
+  small_arms: {source: vanilla, value: float}
+  social_reform_desire: float
+  soldier_to_pop_loss: {source: vanilla, value: float}
+  soldiers: {source: vanilla, value: float}
+  steamer_convoy: {source: vanilla, value: float}
+  steel: {source: vanilla, value: float}
+  supply_consumption: float
+  supply_limit: {source: vanilla, value: float}
+  supply_range: {source: vanilla, value: float}
+  suppression_points_modifier: float
+  tariff_efficiency_modifier: {source: vanilla, value: float}
+  tax_eff: {source: vanilla, value: float}
+  tax_efficiency: float
+  telephones: {source: vanilla, value: float}
+  unciv_economic_modifier: {source: vanilla, value: float}
+  unciv_military_modifier: {source: vanilla, value: float}
+  unemployment_benefit: {source: vanilla, value: float}
+  unit: {source: vanilla, value: float}
+  unit_start_experience: float
+  war_exhaustion: float
+  wine: {source: vanilla, value: float}

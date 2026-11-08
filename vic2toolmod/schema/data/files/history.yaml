@@ -1,0 +1,178 @@
+# history/ - the 1836 start: countries, provinces, pops, armies, diplomacy, wars.
+file_types:
+  province_history: {paths: ["history/provinces/*/*.txt", "history/provinces/*.txt"], rule: province_history, scope: province}
+  pops_history: {paths: ["history/pops/*/*.txt"], rule: pops_history}
+  country_history: {paths: ["history/countries/*.txt"], rule: country_history, scope: country}
+  units_history: {paths: ["history/units/*.txt", "history/units/*/*.txt"], rule: units_history}
+  diplomacy_history: {paths: ["history/diplomacy/*.txt"], rule: diplomacy_history}
+  wars_history: {paths: ["history/wars/*.txt"], rule: war_history}
+
+rules:
+  province_history:
+    doc: "Province at the start; date blocks change it later."
+    fields:
+      owner: ref:country
+      controller: ref:country
+      add_core: {value: ref:country, multiple: true}
+      remove_core: {value: ref:country, multiple: true}
+      trade_goods: ref:goods
+      life_rating: int
+      colonial: int
+      colony: int
+      is_slave: bool
+      terrain: ref:terrain
+      state_building: {rule: state_building, multiple: true}
+      party_loyalty: {rule: party_loyalty, multiple: true}
+      revolt: {fields: {type: ref:rebel_type, controller: ref:country}, doc: "Rebels holding the province at the start."}
+    patterns:
+      - {key: date, rule: province_history}
+      - {key: ref:building, value: int}
+  state_building:
+    fields:
+      level: int
+      building: ref:building
+      upgrade: bool
+  party_loyalty:
+    fields:
+      ideology: ref:ideology
+      loyalty_value: float
+
+  pops_history:
+    patterns:
+      - {key: int, rule: province_pops}
+  province_pops:
+    patterns:
+      - {key: ref:pop_type, rule: pop, multiple: true}
+  pop:
+    fields:
+      culture: {value: ref:culture, required: true}
+      religion: {value: ref:religion, required: true}
+      size: {value: float, required: true}
+      militancy: float
+      consciousness: float
+      rebel_type: ref:rebel_type
+
+  country_history:
+    doc: "Country at the start; date blocks change it later."
+    fields:
+      capital: ref:province
+      primary_culture: ref:culture
+      culture: {value: ref:culture, multiple: true}
+      remove_culture: {value: ref:culture, multiple: true}
+      religion: ref:religion
+      government: ref:government
+      plurality: float
+      nationalvalue: ref:national_value
+      literacy: float
+      non_state_culture_literacy: float
+      civilized: {value: bool, multiple: true}
+      prestige: float
+      ruling_party: scalar
+      last_election: date
+      upper_house: {rule: upper_house}
+      consciousness: float
+      nonstate_consciousness: float
+      schools: scalar
+      foreign_investment: {rule: foreign_investment}
+      decision: {value: ref:decision, multiple: true}
+      oob: scalar
+      colonial_points: int
+      is_releasable_vassal: bool
+      set_country_flag: {value: ref:country_flag, multiple: true}
+      clr_country_flag: {value: ref:country_flag, multiple: true}
+      set_global_flag: {value: ref:global_flag, multiple: true}
+      govt_flag: {rule: govt_flag, multiple: true}
+    patterns:
+      - {key: date, rule: country_history}
+      - {key: ref:issue, value: ref:issue_option}
+      - {key: ref:technology, value: [int, bool]}
+      - {key: ref:invention, value: bool}
+  upper_house:
+    patterns:
+      - {key: ref:ideology, value: float}
+  foreign_investment:
+    patterns:
+      - {key: tag, value: float}
+  govt_flag:
+    fields:
+      government: ref:government
+      flag: ref:government
+
+  units_history:
+    values: any
+    fields:
+      army: {rule: army, multiple: true}
+      navy: {rule: navy, multiple: true}
+      leader: {rule: leader, multiple: true}
+    patterns:
+      - {key: tag, rule: relation}
+  relation:
+    fields:
+      value: int
+      level: int
+      influence_value: float
+      military_access: bool
+      truce_until: date
+  army:
+    fields:
+      name: scalar
+      location: ref:province
+      regiment: {rule: regiment, multiple: true}
+      leader: {rule: leader}
+  navy:
+    fields:
+      name: scalar
+      location: ref:province
+      ship: {rule: ship, multiple: true}
+      leader: {rule: leader}
+  regiment:
+    fields:
+      name: scalar
+      type: ref:unit
+      home: ref:province
+  ship:
+    fields:
+      name: scalar
+      type: ref:unit
+  leader:
+    fields:
+      name: scalar
+      date: date
+      type: scalar
+      personality: ref:trait
+      background: ref:trait
+      picture: scalar
+      prestige: float
+
+  diplomacy_history:
+    patterns:
+      - {key: any, rule: treaty, multiple: true}
+  treaty:
+    doc: "alliance / vassal / union / substate / casus_belli / warsubsidy ..."
+    fields:
+      first: ref:country
+      second: ref:country
+      start_date: date
+      end_date: date
+      type: ref:cb_type
+      months: int
+
+  war_history:
+    fields:
+      name: scalar
+    patterns:
+      - {key: date, rule: war_event}
+  war_event:
+    fields:
+      add_attacker: {value: ref:country, multiple: true}
+      add_defender: {value: ref:country, multiple: true}
+      rem_attacker: {value: ref:country, multiple: true}
+      rem_defender: {value: ref:country, multiple: true}
+      war_goal: {rule: war_goal, multiple: true}
+  war_goal:
+    fields:
+      casus_belli: ref:cb_type
+      actor: ref:country
+      receiver: ref:country
+      state_province_id: ref:province
+      country: ref:country

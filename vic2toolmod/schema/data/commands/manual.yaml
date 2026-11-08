@@ -6,6 +6,22 @@ effect:
     scopes: [province]
     source: vanilla
     value: scalar
+  add_war_goal:
+    source: vanilla
+    value:
+      fields: {casus_belli: 'ref:cb_type'}
+      other: any
+  build_factory_in_capital_state: {source: vanilla, value: 'ref:building'}
+  build_fort_in_capital:
+    source: vanilla
+    value:
+      fields: {}
+      other: any
+  build_railway_in_capital:
+    source: vanilla
+    value:
+      fields: {}
+      other: any
   enable_canal: {doc: 'Open canal number N (1 Kiel, 2 Suez, 3 Panama).', source: vanilla, value: int}
   great_wars_enabled: {doc: Enable great wars., source: vanilla, value: bool}
   leadership:
@@ -13,6 +29,27 @@ effect:
     scopes: [country]
     source: vanilla
     value: float
+  modify_relation:
+    doc: 'Change relations with a country: modify_relation = { tag = X relation = -150 }.'
+    source: vanilla
+    value:
+      fields: {relation: float, tag: 'ref:country'}
+  remove_random_economic_reforms:
+    scopes: [country]
+    source: vanilla
+    value: int
+  remove_random_military_reforms:
+    scopes: [country]
+    source: vanilla
+    value: int
+  remove_random_political_reforms:
+    scopes: [country]
+    source: vanilla
+    value: int
+  remove_random_social_reforms:
+    scopes: [country]
+    source: vanilla
+    value: int
   sub_unit:
     doc: Add a unit in the province.
     scopes: [province]
@@ -27,12 +64,42 @@ effect:
     value: scalar
   world_wars_enabled: {doc: Enable world wars., source: vanilla, value: bool}
 trigger:
+  accepted_culture: {compare: eq, source: author, value: scalar}
+  agree_with_ruling_party: {compare: gte, source: author, value: float}
+  always: {compare: eq, doc: Always true (yes) or false (no)., source: vanilla, value: bool}
+  big_producer:
+    compare: eq
+    doc: The country is a big producer of these goods.
+    scopes: [country]
+    source: vanilla
+    value: ref:goods
+  can_build_factory_in_capital_state:
+    compare: eq
+    source: vanilla
+    value:
+    - ref:building
+    - fields: {}
+      other: any
+  can_build_fort_in_capital:
+    compare: block
+    source: vanilla
+    value:
+      fields: {}
+      other: any
   can_build_in_province:
     compare: block
     scopes: [province]
     source: vanilla
     value:
       fields: {building: 'ref:building', limit_to_world_greatest_level: bool, limit_to_world_market: bool}
+  can_build_railway_in_capital:
+    compare: block
+    source: vanilla
+    value:
+      fields: {}
+      other: any
+  country_units_in_state: {compare: eq, source: author, value: scalar}
+  crime_higher_than_education: {compare: eq, source: author, value: scalar}
   culture_has_union_tag:
     compare: eq
     doc: The primary culture has a cultural union tag.
@@ -50,6 +117,16 @@ trigger:
     scopes: [province, state]
     source: vanilla
     value: bool
+  in_default:
+    compare: eq
+    source: vanilla
+    value: [bool, 'ref:country']
+  is_colonial_crisis: {compare: eq, source: author, value: scalar}
+  is_next_reform: {compare: eq, doc: The given reform option is the next step., source: author, value: 'ref:issue_option'}
+  is_releasable_vassal:
+    compare: eq
+    source: vanilla
+    value: [bool, 'ref:country']
   is_slave:
     compare: eq
     doc: Pops are slaves / slavery allowed in the state.
@@ -72,26 +149,42 @@ trigger:
     scopes: [country]
     source: vanilla
     value: float
+  pop_majority_issue: {compare: eq, source: author, value: scalar}
   pop_type:
     compare: eq
     scopes: [pop]
     source: vanilla
     value: ref:pop_type
+  rebel_power_fraction: {compare: eq, source: author, value: scalar}
+  recruited_percentage: {compare: gte, source: author, value: float}
+  revanchism:
+    compare: gte
+    doc: Revanchism of the country.
+    scopes: [country]
+    source: vanilla
+    value: float
   rich_strata_militancy:
     compare: gte
     scopes: [country]
     source: vanilla
     value: float
+  rich_tax_above_poor: {compare: eq, source: author, value: scalar}
   tech_school:
     compare: eq
     doc: Current technology school.
     scopes: [country]
     source: vanilla
     value: scalar
+  this_culture_union:
+    compare: eq
+    source: vanilla
+    value: ['enum:union_keyword', 'ref:country']
   treasury:
     compare: gte
     doc: Money in the treasury is at least this.
     scopes: [country]
     source: vanilla
     value: float
+    vanilla_scopes: [province]
+  war_score: {compare: eq, source: author, value: scalar}
   world_wars_enabled: {compare: eq, source: vanilla, value: bool}

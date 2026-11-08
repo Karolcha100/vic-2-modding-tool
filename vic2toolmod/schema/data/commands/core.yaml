@@ -6,6 +6,7 @@ both:
     scopes: [country]
     value: {block: same}
   any_core:
+    push_scope: {country: province, province: country}
     scopes: [country, province]
     value: {block: same}
   any_country:
@@ -90,6 +91,7 @@ both:
     push_scope: country
     scopes: [province, state]
     value: {block: same}
+    vanilla_scopes: [country]
   poor_strata:
     doc: Pops of the poor strata.
     push_scope: pop
@@ -139,6 +141,7 @@ both:
     push_scope: state
     scopes: [province]
     value: {block: same}
+    vanilla_scopes: [state]
   war_countries:
     push_scope: country
     scopes: [country]
@@ -148,6 +151,10 @@ dynamic:
 - {doc: Scope to the province with this id., key: int, push_scope: province}
 - {doc: Scope to the state of this region., key: 'ref:region', push_scope: state}
 - {doc: Pops of this type in the current scope., key: 'ref:pop_type', push_scope: pop}
+- contexts: [trigger]
+  doc: Share of pops of this type in the scope.
+  key: ref:pop_type
+  value: float
 - contexts: [trigger, effect]
   doc: 'Goods in the national stockpile (trigger: at least; effect: add).'
   key: ref:goods

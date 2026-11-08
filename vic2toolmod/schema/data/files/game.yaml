@@ -1,0 +1,132 @@
+# Technologies, inventions, units, pop types, map and interface files.
+file_types:
+  technologies: {paths: ["technologies/*.txt"], rule: technologies, scope: country}
+  inventions: {paths: ["inventions/*.txt"], rule: inventions, scope: country}
+  units: {paths: ["units/*.txt"], rule: units}
+  poptypes: {paths: ["poptypes/*.txt"], rule: poptype}
+  regions: {paths: ["map/region.txt", "map/region_sea.txt"], rule: regions}
+  continents: {paths: ["map/continent.txt"], rule: continents}
+  map_other: {paths: ["map/*.txt", "map/*.map", "map/*/*.txt"], rule: any_file}
+  interface: {paths: ["interface/*.gui", "interface/*.gfx", "interface/*.txt"], rule: any_file}
+
+rules:
+  technologies:
+    patterns:
+      - {key: any, rule: technology}
+  technology:
+    fields:
+      area: scalar
+      year: int
+      cost: int
+      unciv_military: bool
+      ai_chance: {rule: weight}
+      activate_unit: {value: ref:unit, multiple: true}
+      activate_building: {value: ref:building, multiple: true}
+      rgo_goods_output: {rule: goods_amounts, multiple: true}
+      rgo_size: {rule: goods_amounts, multiple: true}
+      rgo_goods_throughput: {rule: goods_amounts, multiple: true}
+      factory_goods_output: {rule: goods_amounts, multiple: true}
+      factory_goods_throughput: {rule: goods_amounts, multiple: true}
+      artisan_goods_output: {rule: goods_amounts, multiple: true}
+      artisan_goods_throughput: {rule: goods_amounts, multiple: true}
+      army_base: {rule: unit_modifiers, doc: "Stats of all land units."}
+      navy_base: {rule: unit_modifiers, doc: "Stats of all naval units."}
+    patterns:
+      - {key: ref:unit, rule: unit_modifiers}
+    other: modifier
+  goods_amounts:
+    patterns:
+      - {key: ref:goods, value: float}
+  unit_modifiers:
+    doc: "Changes of unit stats (attack, defence, speed, ...)."
+    other: any
+
+  inventions:
+    patterns:
+      - {key: any, rule: invention}
+  invention:
+    fields:
+      limit: {block: trigger}
+      chance: {rule: weight}
+      effect: {rule: invention_effect}
+      news: bool
+      shared_prestige: float
+    other: modifier
+  invention_effect:
+    fields:
+      activate_unit: {value: ref:unit, multiple: true}
+      activate_building: {value: ref:building, multiple: true}
+      rgo_goods_output: {rule: goods_amounts, multiple: true}
+      rgo_size: {rule: goods_amounts, multiple: true}
+      rgo_goods_throughput: {rule: goods_amounts, multiple: true}
+      factory_goods_output: {rule: goods_amounts, multiple: true}
+      factory_goods_throughput: {rule: goods_amounts, multiple: true}
+      artisan_goods_output: {rule: goods_amounts, multiple: true}
+      artisan_goods_throughput: {rule: goods_amounts, multiple: true}
+      rebel_org_gain: {rule: rebel_org_gain, multiple: true}
+      gas_attack: bool
+      gas_defence: bool
+      enable_crime: scalar
+      colonial_migration: float
+      army_base: {rule: unit_modifiers}
+      navy_base: {rule: unit_modifiers}
+    patterns:
+      - {key: ref:unit, rule: unit_modifiers}
+    other: modifier
+  rebel_org_gain:
+    fields:
+      faction: scalar
+      value: float
+
+  units:
+    patterns:
+      - {key: any, rule: unit}
+  unit:
+    doc: "A land or naval unit type: costs, stats, graphics."
+    fields:
+      build_cost: {rule: goods_amounts}
+      supply_cost: {rule: goods_amounts}
+    other: any
+
+  poptype:
+    doc: "One pop type (the file name is the pop type)."
+    fields:
+      sprite: int
+      color: {list: int, min: 3, max: 3}
+      strata: enum:strata
+      life_needs: {rule: goods_amounts}
+      everyday_needs: {rule: goods_amounts}
+      luxury_needs: {rule: goods_amounts}
+      rebel: {rule: rebel_units}
+      promote_to: {rule: pop_weights}
+      ideologies: {rule: ideology_weights}
+      issues: {rule: issue_weights}
+      country_migration_target: {rule: weight}
+      migration_target: {rule: weight}
+      equivalent: ref:pop_type
+    other: any
+  rebel_units:
+    patterns:
+      - {key: ref:unit, value: float}
+  pop_weights:
+    doc: "promote_to = { pop_type = { weight } } - where pops promote to (K59: promotion graph)."
+    patterns:
+      - {key: ref:pop_type, rule: weight}
+  ideology_weights:
+    patterns:
+      - {key: ref:ideology, rule: weight}
+  issue_weights:
+    patterns:
+      - {key: ref:issue_option, rule: weight}
+
+  regions:
+    doc: "REGION = { province ids }"
+    patterns:
+      - {key: any, list: int}
+  continents:
+    patterns:
+      - {key: any, rule: continent}
+  continent:
+    fields:
+      provinces: {list: int}
+    other: modifier

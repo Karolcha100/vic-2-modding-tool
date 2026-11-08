@@ -1,0 +1,303 @@
+# Files in common/ (definitions of cultures, ideologies, issues, modifiers, ...).
+file_types:
+  countries_list: {paths: ["common/countries.txt"], rule: countries_list}
+  country_definition: {paths: ["common/countries/*.txt"], rule: country_definition}
+  cultures: {paths: ["common/cultures.txt"], rule: cultures}
+  religions: {paths: ["common/religion.txt"], rule: religions}
+  ideologies: {paths: ["common/ideologies.txt"], rule: ideologies}
+  governments: {paths: ["common/governments.txt"], rule: governments}
+  issues: {paths: ["common/issues.txt"], rule: issues, scope: country}
+  goods: {paths: ["common/goods.txt"], rule: goods}
+  buildings: {paths: ["common/buildings.txt"], rule: buildings}
+  production_types: {paths: ["common/production_types.txt"], rule: production_types}
+  pop_types_common: {paths: ["common/pop_types.txt"], rule: pop_types_common}
+  event_modifiers: {paths: ["common/event_modifiers.txt"], rule: modifiers_file}
+  static_modifiers: {paths: ["common/static_modifiers.txt"], rule: modifiers_file}
+  triggered_modifiers: {paths: ["common/triggered_modifiers.txt"], rule: triggered_modifiers, scope: country}
+  national_values: {paths: ["common/nationalvalues.txt"], rule: modifiers_file}
+  crime: {paths: ["common/crime.txt"], rule: crime, scope: province}
+  cb_types: {paths: ["common/cb_types.txt"], rule: cb_types, scope: country}
+  rebel_types: {paths: ["common/rebel_types.txt"], rule: rebel_types}
+  national_focus: {paths: ["common/national_focus.txt"], rule: national_focus, scope: state}
+  technology_folders: {paths: ["common/technology.txt"], rule: technology_folders}
+  traits: {paths: ["common/traits.txt"], rule: traits}
+  on_actions: {paths: ["common/on_actions.txt"], rule: on_actions}
+  bookmarks: {paths: ["common/bookmarks.txt"], rule: bookmarks}
+  country_colors: {paths: ["common/country_colors.txt"], rule: country_colors}
+  cot_colors: {paths: ["common/cot_colors.txt"], rule: any_file}
+  graphical_cultures: {paths: ["common/graphicalculturetype.txt"], rule: any_file}
+
+rules:
+  any_file:
+    doc: "Files whose structure is not described yet; accepted as they are."
+    other: any
+    values: any
+
+  countries_list:
+    doc: "TAG = \"countries/Name.txt\""
+    fields:
+      dynamic_tags: bool
+    patterns:
+      - {key: tag, value: scalar}
+
+  country_definition:
+    fields:
+      color: {list: int, min: 3, max: 3}
+      graphical_culture: scalar
+      party: {rule: party, multiple: true}
+      unit_names: {rule: unit_names}
+    patterns:
+      - {key: ref:government, value: any, doc: "Government-specific settings (e.g. a different colour)."}
+  party:
+    doc: "A political party of a country (K58: the party generator writes these)."
+    fields:
+      name: {value: localisation, required: true}
+      start_date: {value: date, required: true}
+      end_date: {value: date, required: true}
+      ideology: {value: ref:ideology, required: true}
+      economic_policy: ref:issue_option
+      trade_policy: ref:issue_option
+      religious_policy: ref:issue_option
+      citizenship_policy: ref:issue_option
+      war_policy: ref:issue_option
+    patterns:
+      - {key: ref:issue, value: ref:issue_option}
+  unit_names:
+    patterns:
+      - {key: ref:unit, list: scalar}
+
+  cultures:
+    patterns:
+      - {key: any, rule: culture_group}
+  culture_group:
+    fields:
+      leader: scalar
+      unit: scalar
+      union: ref:country
+      is_overseas: bool
+    patterns:
+      - {key: any, rule: culture}
+  culture:
+    fields:
+      color: {list: int, min: 3, max: 3}
+      first_names: {list: scalar}
+      last_names: {list: scalar}
+      radicalism: float
+      primary: ref:country
+
+  religions:
+    patterns:
+      - {key: any, rule: religion_group}
+  religion_group:
+    patterns:
+      - {key: any, rule: religion}
+  religion:
+    fields:
+      icon: int
+      color: {list: float, min: 3, max: 3}
+      pagan: bool
+
+  ideologies:
+    patterns:
+      - {key: any, rule: ideology_group}
+  ideology_group:
+    patterns:
+      - {key: any, rule: ideology}
+  ideology:
+    fields:
+      color: {list: int, min: 3, max: 3}
+      date: date
+      uncivilized: bool
+      can_reduce_militancy: bool
+      add_political_reform: {rule: weight}
+      remove_political_reform: {rule: weight}
+      add_social_reform: {rule: weight}
+      remove_social_reform: {rule: weight}
+      add_economic_reform: {rule: weight}
+      remove_economic_reform: {rule: weight}
+      add_military_reform: {rule: weight}
+      remove_military_reform: {rule: weight}
+
+  governments:
+    patterns:
+      - {key: any, rule: government}
+  government:
+    fields:
+      election: bool
+      duration: int
+      appoint_ruling_party: bool
+      flagtype: scalar
+    patterns:
+      - {key: ref:ideology, value: bool}
+
+  issues:
+    doc: "party_issues / political_reforms / social_reforms / economic_reforms / military_reforms"
+    patterns:
+      - {key: any, rule: issue_category}
+  issue_category:
+    patterns:
+      - {key: any, rule: issue}
+  issue:
+    fields:
+      next_step_only: bool
+      administrative: bool
+    patterns:
+      - {key: any, rule: issue_option}
+  issue_option:
+    doc: "One option of a party issue or reform: its modifiers and effects."
+    fields:
+      technology_cost: int
+      allow: {block: trigger}
+      on_execute: {rule: on_execute}
+      rules: {rule: issue_rules}
+      war_exhaustion_effect: float
+      administrative_multiplier: float
+      is_jingoism: bool
+    other: modifier
+  on_execute:
+    fields:
+      trigger: {block: trigger}
+      effect: {block: effect}
+  issue_rules:
+    doc: "Things a government with this option may do (build factories, ...)."
+    other: any
+
+  goods:
+    patterns:
+      - {key: any, rule: goods_group}
+  goods_group:
+    patterns:
+      - {key: any, rule: good}
+  good:
+    fields:
+      cost: float
+      color: {list: int, min: 3, max: 3}
+      available_from_start: bool
+      overseas_penalty: bool
+      tradeable: bool
+      money: bool
+
+  buildings:
+    patterns:
+      - {key: any, rule: building}
+  building:
+    doc: "Factories, forts, naval bases, railways."
+    other: any
+
+  production_types:
+    patterns:
+      - {key: any, rule: production_type}
+  production_type:
+    other: any
+
+  pop_types_common:
+    other: any
+
+  modifiers_file:
+    doc: "name = { modifier keys }"
+    patterns:
+      - {key: any, rule: modifier_block}
+
+  triggered_modifiers:
+    patterns:
+      - {key: any, rule: triggered_modifier}
+  triggered_modifier:
+    fields:
+      icon: int
+      trigger: {block: trigger}
+    other: modifier
+
+  crime:
+    patterns:
+      - {key: any, rule: crime_entry}
+  crime_entry:
+    fields:
+      icon: int
+      trigger: {block: trigger}
+      active: bool
+    other: modifier
+
+  cb_types:
+    fields:
+      peace_order: {list: scalar}
+    patterns:
+      - {key: any, rule: cb_type}
+  cb_type:
+    fields:
+      can_use: {block: trigger}
+      is_valid: {block: trigger}
+      allowed_states: {block: trigger, push_scope: state}
+      allowed_states_in_crisis: {block: trigger, push_scope: state}
+      allowed_substate_regions: {block: trigger, push_scope: state}
+      allowed_countries: {block: trigger}
+      on_add: {block: effect}
+      on_po_accepted: {block: effect}
+      on_success: {block: effect}
+      on_failure: {block: effect}
+    other: any
+
+  rebel_types:
+    patterns:
+      - {key: any, rule: rebel_type}
+  rebel_type:
+    fields:
+      will_rise: {rule: weight}
+      spawn_chance: {rule: weight}
+      movement_evaluation: {rule: weight}
+      siege_won_trigger: {block: trigger, push_scope: province}
+      siege_won_effect: {block: effect, push_scope: province}
+      demands_enforced_trigger: {block: trigger}
+      demands_enforced_effect: {block: effect}
+    other: any
+
+  national_focus:
+    patterns:
+      - {key: any, rule: focus_group}
+  focus_group:
+    patterns:
+      - {key: any, rule: focus}
+  focus:
+    fields:
+      icon: int
+      limit: {block: trigger}
+      has_flashpoint: bool
+      flashpoint_tension: float
+      ideology: ref:ideology
+      loyalty_value: float
+      railroads: float
+      outliner_show_as_percent: bool
+      own_provinces: bool
+    patterns:
+      - {key: ref:goods, value: float, doc: "Production focus on these goods."}
+    other: modifier
+
+  technology_folders:
+    fields:
+      folders: {rule: any_file}
+      schools: {rule: tech_schools}
+  tech_schools:
+    patterns:
+      - {key: any, rule: modifier_block}
+
+  traits:
+    fields:
+      personality: {rule: trait_list}
+      background: {rule: trait_list}
+  trait_list:
+    patterns:
+      - {key: any, rule: trait}
+  trait:
+    other: any
+
+  on_actions:
+    patterns:
+      - {key: any, rule: on_action}
+  on_action:
+    doc: "on_x = { 1000 = event_id ... } - event id weighted by the number."
+    patterns:
+      - {key: int, value: ref:event}
+
+  bookmarks:
+    other: any
+  country_colors:
+    other: any
