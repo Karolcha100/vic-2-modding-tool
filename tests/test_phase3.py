@@ -24,7 +24,8 @@ def game(tmp_path):
         g / "events/a.txt",
         (
             "### Events 1-5 used\n"
-            "country_event = { id = 1 title = EVTNAME1 desc = EVTDESC1 trigger = { has_country_flag = f } "
+            "country_event = { id = 1 title = EVTNAME1 desc = EVTDESC1 "
+            "trigger = { has_country_flag = f } "
             'option = { name = "Fine!" set_country_flag = g ENG = { prestige = 1 } } }\n'
             'country_event = { id = 2 title = "Some text" option = { name = OK } }\n'
         ),
