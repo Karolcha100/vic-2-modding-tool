@@ -39,6 +39,19 @@ export interface OutlineNode {
   key?: string; value?: string; start: number; end: number; line: number; children?: OutlineNode[];
 }
 
+export interface BlockNode {
+  kind: "assignment" | "block" | "value" | "error";
+  start: number; end: number; line: number;
+  key?: string; key_start?: number; key_end?: number;
+  role?: "trigger" | "effect" | "scope" | "field" | "dynamic" | "unknown";
+  doc?: string; spec?: string;
+  block?: boolean; lbrace?: number; rbrace?: number | null; scope?: string | null; context?: string | null;
+  children?: BlockNode[];
+  value?: string; value_start?: number; value_end?: number;
+  value_kind?: "bool" | "number" | "enum" | "ref" | "loc" | "date" | "text" | "block";
+  registry?: string | null; choices?: string[]; loc_text?: string | null;
+}
+
 export interface Box {
   name: string; x: number; y: number; w: number; h: number;
   category: string | null; line: number; outside: boolean; clipped: boolean;
@@ -63,6 +76,10 @@ export const api = {
     call<{ edits: Record<string, TextEdit[]> }>("rename", { rel, offset, new_name: newName }),
   changed: () => call<{ changed: string[] }>("changed"),
   outline: (rel: string) => call<{ items: OutlineNode[] }>(`outline?${q({ rel })}`),
+  blocks: (rel: string) => call<{ items: BlockNode[]; root_rule: string | null }>(`blocks?${q({ rel })}`),
+  edit: (body: Record<string, unknown>) => call<{ edits: TextEdit[] }>("edit", body),
+  localisation: (key: string, english: string, write: boolean) =>
+    call<{ diff: string }>("localisation", { key, english, write }),
   names: (registry: string) => call<{ names: string[] }>(`names?${q({ registry })}`),
   createReform: (spec: unknown, write: boolean) =>
     call<{ diff: string; files: string[]; notes: string[]; backup?: string | null }>("create/reform", { spec, write }),

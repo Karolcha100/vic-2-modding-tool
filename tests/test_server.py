@@ -106,3 +106,42 @@ def test_trigger_and_localisation_endpoints(api):
 def test_file_drops_old_editor_buffer(api):
     api("/api/buffer", {"rel": "events/b.txt", "text": "country_event = { id = 77 }"})
     assert "id = 2" in api("/api/file?rel=events/b.txt")["text"]  # disk, not the stale buffer
+
+
+def test_blocks_and_edit(api):
+    api(
+        "/api/buffer",
+        {
+            "rel": "events/b.txt",
+            "text": "country_event = {\n\tid = 2\n\ttrigger = { war = no }\n}\n",
+        },
+    )
+    items = api("/api/blocks?rel=events/b.txt")["items"]
+    ev = items[0]
+    assert ev["key"] == "country_event" and ev["block"] and ev["context"] == "event"
+    war = ev["children"][1]["children"][0]
+    assert (war["key"], war["role"], war["value_kind"], war["choices"]) == (
+        "war",
+        "trigger",
+        "bool",
+        ["yes", "no"],
+    )
+    r = api(
+        "/api/edit", {"rel": "events/b.txt", "op": "set", "start": war["start"], "value": "yes"}
+    )
+    assert r["edits"][0]["new_text"] == "yes"
+    r = api(
+        "/api/edit",
+        {
+            "rel": "events/b.txt",
+            "op": "insert",
+            "parent": ev["children"][1]["lbrace"],
+            "key": "tag",
+            "value": "ENG",
+        },
+    )
+    assert r["edits"][0]["new_text"].strip() == "tag = ENG"
+    r = api(
+        "/api/edit", {"rel": "events/b.txt", "op": "delete", "start": ev["children"][1]["start"]}
+    )
+    assert r["edits"][0]["new_text"] == ""

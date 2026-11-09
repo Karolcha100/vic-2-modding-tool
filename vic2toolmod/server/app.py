@@ -22,6 +22,8 @@ API (all under ``/api/``, JSON in and out):
 ``names``           GET     ``registry`` -> names defined in the project (sorted)
 ``changed``         GET     files changed on disk since the last call (K30)
 ``outline``         GET     ``rel`` -> the syntax tree for the side panel
+``blocks``          GET     ``rel`` -> tree with schema information (block view, K32)
+``edit``            POST    ``{rel, op, …}`` -> text edits for set / delete / insert
 ``parties/plan``    POST    party generator (K58): diff and summary
 ``parties/write``   POST    same, and write the files
 ``poptypes/graph``  GET     promotion graph (K59)
@@ -199,6 +201,200 @@ class Engine:
             return out
 
         return {"items": [node(i) for i in doc.items]}
+
+    def blocks(self, rel: str) -> dict[str, Any]:
+        """The file as nested nodes with what the schema says about each (block view, K32)."""
+        from vic2toolmod.services import _short
+
+        doc, v = self.services._analyse(self._file_or_404(rel))
+        loc = self.ws.registries().localisation
+
+        def kind_of(info: Any) -> str:
+            if info is None:
+                return "unknown"
+            if info.command is not None:
+                return "scope" if info.command.push_scope else info.command.context.value
+            return "dynamic" if info.context is not None else "field"
+
+        def value_kind(spec: Any) -> tuple[str, str | None, list[str]]:
+            from vic2toolmod.schema.model import OneOf, TypeSpec
+
+            if isinstance(spec, OneOf):
+                spec = next((o for o in spec.options if isinstance(o, TypeSpec)), spec.options[0])
+            if not isinstance(spec, TypeSpec):
+                return "block", None, []
+            if spec.name == "bool":
+                return "bool", None, ["yes", "no"]
+            if spec.name in ("int", "float"):
+                return "number", None, []
+            if spec.name == "enum":
+                return "enum", None, sorted(self.ws.schema.enums.get(spec.arg or "", ()))
+            if spec.name == "ref":
+                return "ref", spec.arg, []
+            if spec.name == "localisation":
+                return "loc", None, []
+            if spec.name == "date":
+                return "date", None, []
+            return "text", None, []
+
+        def node(n: Node) -> dict[str, Any]:
+            out: dict[str, Any] = {"start": n.start, "end": n.end, "line": doc.position(n.start)[0]}
+            if isinstance(n, Assignment):
+                info = v.value_info.get(id(n))
+                out.update(
+                    kind="assignment",
+                    key=n.key.text,
+                    key_start=n.key.start,
+                    key_end=n.key.end,
+                    role=kind_of(info),
+                    doc=info.doc if info else "",
+                    spec=_short(info.spec) if info else "",
+                )
+                if isinstance(n.value, Block):
+                    frame = v.block_info.get(id(n.value))
+                    out.update(
+                        block=True,
+                        lbrace=n.value.lbrace.start,
+                        rbrace=n.value.rbrace.start if n.value.rbrace else None,
+                        scope=frame.scope if frame else None,
+                        context=frame.context.value
+                        if frame and frame.context
+                        else (frame.rule.name if frame and frame.rule else None),
+                        children=[node(c) for c in n.value.items],
+                    )
+                elif n.value is not None:
+                    vk, registry, choices = value_kind(info.spec) if info else ("text", None, [])
+                    out.update(
+                        value=n.value.text,
+                        value_start=n.value.start,
+                        value_end=n.value.end,
+                        value_kind=vk,
+                        registry=registry,
+                        choices=choices,
+                    )
+                    if vk == "loc" and loc is not None:
+                        entry = loc.get(n.value.value)
+                        out["loc_text"] = entry.text() if entry else None
+            elif isinstance(n, Block):
+                out.update(
+                    kind="block",
+                    lbrace=n.lbrace.start,
+                    rbrace=n.rbrace.start if n.rbrace else None,
+                    children=[node(c) for c in n.items],
+                )
+            elif isinstance(n, Scalar):
+                out.update(kind="value", value=n.text)
+            else:
+                out.update(kind="error", value=n.to_text().strip())
+            return out
+
+        root = v.block_info.get(id(doc))
+        return {
+            "items": [node(i) for i in doc.items],
+            "root_rule": root.rule.name if root and root.rule else None,
+        }
+
+    def edit(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Text edits for one block operation on the server's current text of a file.
+
+        ``op``: ``set`` (``start``: node start, ``value``), ``delete`` (``start``),
+        ``insert`` (``parent``: offset of the block's ``{`` or ``-1`` for the file,
+        ``key``, ``value``: text or ``"{}"`` for an empty block).
+        """
+        from vic2toolmod import edit as ed
+
+        rel = self._file_or_404(str(body["rel"]))
+        doc = self.ws.document(rel)
+
+        def at(start: int) -> Node:
+            for n in doc.walk():
+                if not isinstance(n, Document) and n.start == start:
+                    return n
+            raise ApiError(HTTPStatus.NOT_FOUND, f"no node at {start}")
+
+        op = body["op"]
+        if op == "set":
+            n = at(int(body["start"]))
+            if not isinstance(n, Assignment):
+                raise ApiError(HTTPStatus.BAD_REQUEST, "not an assignment")
+            edits = [ed.set_value(doc, n, str(body["value"]))]
+        elif op == "delete":
+            edits = [ed.delete(doc, at(int(body["start"])))]
+        elif op == "insert":
+            parent_offset = int(body["parent"])
+            parent: Block | Document = doc
+            if parent_offset >= 0:
+                found = next(
+                    (
+                        n
+                        for n in doc.walk()
+                        if isinstance(n, Block) and n.lbrace.start == parent_offset
+                    ),
+                    None,
+                )
+                if found is None:
+                    raise ApiError(HTTPStatus.NOT_FOUND, f"no block at {parent_offset}")
+                parent = found
+            key = str(body["key"])
+            raw = str(body.get("value", "auto"))
+            value: Any = self._default_value(rel, parent, key) if raw == "auto" else raw
+            if value == "{}":
+                value = []
+            edits = [ed.insert(doc, parent, [(key, value)])]
+        else:
+            raise ApiError(HTTPStatus.BAD_REQUEST, f"unknown op {op!r}")
+        return {"edits": [asdict(e) for e in edits]}
+
+    def _default_value(self, rel: str, parent: Block | Document, key: str) -> Any:
+        """A sensible first value for a new key, from the schema (``[]`` = empty block)."""
+        from vic2toolmod.schema.model import (
+            BlockSpec,
+            FieldsSpec,
+            ListSpec,
+            OneOf,
+            RuleSpec,
+            TypeSpec,
+        )
+
+        _, v = self.services._analyse(rel)
+        frame = v.block_info.get(id(parent))
+        spec: Any = None
+        if frame is not None:
+            fields = (
+                frame.rule.fields if frame.rule else frame.fields.fields if frame.fields else {}
+            )
+            if key.lower() in fields:
+                spec = fields[key.lower()].value
+            elif frame.context is not None or (
+                frame.rule and frame.rule.other in ("trigger", "effect")
+            ):
+                from vic2toolmod.schema.model import Context
+
+                ctx = frame.context or Context(frame.rule.other)  # type: ignore[union-attr]
+                alts = self.ws.schema.command(ctx, key)
+                spec = alts[0].value if alts else None
+        if isinstance(spec, OneOf):
+            spec = spec.options[0]
+        if spec is None or isinstance(spec, (BlockSpec, FieldsSpec, RuleSpec, ListSpec)):
+            return [] if spec is not None else "x"
+        assert isinstance(spec, TypeSpec)
+        if spec.name == "bool":
+            return "yes"
+        if spec.name in ("int", "float"):
+            return "0"
+        if spec.name == "date":
+            return "1836.1.1"
+        if spec.name == "enum":
+            values = sorted(self.ws.schema.enums.get(spec.arg or "", ()))
+            return values[0] if values else "x"
+        if spec.name == "ref":
+            if spec.arg in ("country", "province"):
+                return "THIS"
+            names = self.ws.registries().names.get(spec.arg or "", {})
+            return next(iter(sorted(d.name for d in names.values())), "x")
+        if spec.name == "localisation":
+            return '""'
+        return "x"
 
     def check(self, only_mod: bool) -> dict[str, Any]:
         """Diagnostics of every file (only the mod's own files when ``only_mod``)."""
@@ -514,6 +710,10 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.changed()
                 case ("GET", "outline"):
                     return e.outline(q("rel"))
+                case ("GET", "blocks"):
+                    return e.blocks(q("rel"))
+                case ("POST", "edit"):
+                    return e.edit(body)
                 case ("POST", "parties/plan"):
                     return e.parties(body, write=False)
                 case ("POST", "parties/write"):

@@ -15,7 +15,21 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
 - **problems** of the open file, **Check mod** for the whole mod;
 - **Ctrl+S** saves into the mod folder with a backup of the old file (K36);
   files changed by another editor reload automatically (K30);
-- deep links: `…/?token=…&open=events/x.txt&line=12`.
+- deep links: `…/?token=…&open=events/x.txt&line=12&mode=split&view=reforms`.
+- **blocks** (Phase 6b, K32 = B): the open file as nested cards built from the
+  schema - key coloured by role (trigger / effect / scope), scope of each
+  block, value editors (yes/no and enum lists, names from the mod's
+  registries, numbers, text), `+ add` with only the keys allowed in that
+  block (new keys get a sensible first value from the schema), `×` delete,
+  problems on the card. Every change is a small text edit applied through the
+  editor model, so Ctrl+Z works across code and blocks (K31). **Code / Blocks /
+  Split** switch above the editor (K33 = C). Localisation keys (event titles,
+  descriptions, option names) show their English text, editable with
+  "save text" (K35 = A); literal text such as `"Unacceptable!"` is left alone.
+- **Reform window** view (K69): drag the issue boxes of `reforms_window`,
+  automatic grid, boxes outside the window in red, preview and save.
+- **Create** view (K70): new reform, new ideology (with pop support and
+  governments copied from a template), parties for an ideology (K58).
 
 ## Running
 

@@ -5,6 +5,7 @@ import { FileTree } from "./components/FileTree";
 import { Outline } from "./components/Outline";
 import { ReformWindow } from "./components/ReformWindow";
 import { Creators } from "./components/Creators";
+import { Blocks } from "./components/Blocks";
 
 interface OpenFile {
   rel: string;
@@ -35,6 +36,9 @@ export function App() {
   const [cursor, setCursor] = useState(0);
   const [bottom, setBottom] = useState<Bottom>({ kind: "problems" });
   const [status, setStatus] = useState("Loading…");
+  const [mode, setMode] = useState<"code" | "blocks" | "split">(
+    (new URLSearchParams(location.search).get("mode") as "blocks" | "split" | null) ?? "code",
+  );
   const [view, setView] = useState<"code" | "reforms" | "create">(
     (new URLSearchParams(location.search).get("view") as "reforms" | "create" | null) ?? "code",
   );
@@ -243,6 +247,29 @@ export function App() {
   });
   const c = counts(cur?.diagnostics ?? []);
 
+  /** Apply engine edits to the open file through Monaco (one undo step, K31). */
+  const applyEdits_ = (edits: { start: number; end: number; new_text: string }[]) => {
+    const f = fileOf(current);
+    if (!f) return;
+    const ops = edits.map((e) => {
+      const a = f.model.getPositionAt(e.start);
+      const b = f.model.getPositionAt(e.end);
+      return { range: new monaco.Range(a.lineNumber, a.column, b.lineNumber, b.column), text: e.new_text };
+    });
+    f.model.pushStackElement();
+    f.model.pushEditOperations([], ops, () => null);
+    f.model.pushStackElement();
+  };
+  const selectRange = (start: number, end: number) => {
+    const ed = editor.current;
+    const m = ed?.getModel();
+    if (!ed || !m) return;
+    const a = m.getPositionAt(start);
+    const b = m.getPositionAt(end);
+    ed.setSelection(new monaco.Range(a.lineNumber, a.column, b.lineNumber, b.column));
+    ed.revealRangeInCenter(new monaco.Range(a.lineNumber, a.column, b.lineNumber, b.column));
+  };
+
   const selectNode = (n: OutlineNode) => {
     const ed = editor.current;
     const m = ed?.getModel();
@@ -274,7 +301,7 @@ export function App() {
         <b>vic2toolmod</b>
         <span className="muted">{modDir ?? "no mod"}</span>
         <span className="spacer" />
-        <button className={view === "code" ? "on" : ""} onClick={() => setView("code")}>Code</button>
+        <button className={view === "code" ? "on" : ""} onClick={() => setView("code")}>Editor</button>
         <button className={view === "reforms" ? "on" : ""} onClick={() => setView("reforms")}>Reform window</button>
         <button className={view === "create" ? "on" : ""} onClick={() => setView("create")}>Create</button>
         <button onClick={() => save(current)} disabled={!current || !dirty.has(current)}>Save (Ctrl+S)</button>
@@ -289,6 +316,11 @@ export function App() {
           <ReformWindow onStatus={setStatus} onOpen={(rel, line) => { setView("code"); openFile(rel, line); }} />
         )}
         <div className="tabs" style={view === "code" ? undefined : { display: "none" }}>
+          <div className="mode-switch">
+            {(["code", "blocks", "split"] as const).map((m) => (
+              <button key={m} className={mode === m ? "on" : ""} onClick={() => setMode(m)}>{m === "code" ? "Code" : m === "blocks" ? "Blocks" : "Split"}</button>
+            ))}
+          </div>
           {open.map((f) => (
             <div key={f.rel} className={"tab" + (f.rel === current ? " active" : "")} onClick={() => openFile(f.rel)} title={f.rel}>
               {dirty.has(f.rel) ? "● " : ""}{f.rel.slice(f.rel.lastIndexOf("/") + 1)}
@@ -296,7 +328,19 @@ export function App() {
             </div>
           ))}
         </div>
-        <div className="editor" ref={host} style={view === "code" ? undefined : { display: "none" }} />
+        <div className="editor-row" style={view === "code" ? undefined : { display: "none" }}>
+          <div className="editor" ref={host} style={mode === "blocks" ? { display: "none" } : undefined} />
+          {mode !== "code" && cur && (
+            <Blocks
+              rel={cur.rel}
+              version={cur.model.getVersionId()}
+              diagnostics={cur.diagnostics}
+              apply={applyEdits_}
+              sync={() => sync(cur.rel)}
+              select={(a, b) => { if (mode === "blocks") setMode("split"); selectRange(a, b); }}
+            />
+          )}
+        </div>
         {!current && view === "code" && <div className="empty">Open a file from the tree on the left.</div>}
       </main>
       <aside className="right">
