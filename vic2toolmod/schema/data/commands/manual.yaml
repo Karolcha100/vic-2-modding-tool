@@ -64,6 +64,11 @@ effect:
     value: scalar
   world_wars_enabled: {doc: Enable world wars., source: vanilla, value: bool}
 trigger:
+  trade_goods_in_state:
+    doc: True if the state's RGOs produce the given goods (used in production_types bonuses).
+    scopes: [state]
+    source: vanilla
+    value: ref:goods
   accepted_culture: {compare: eq, source: author, value: scalar}
   agree_with_ruling_party: {compare: gte, source: author, value: float}
   always: {compare: eq, doc: Always true (yes) or false (no)., source: vanilla, value: bool}

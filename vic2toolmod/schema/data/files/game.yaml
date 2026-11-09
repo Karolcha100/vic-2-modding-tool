@@ -42,7 +42,25 @@ rules:
       - {key: ref:goods, value: float}
   unit_modifiers:
     doc: "Changes of unit stats (attack, defence, speed, ...)."
-    other: any
+    fields:
+      fort: {rule: unit_modifiers, doc: "Stats when fighting at a fort (used by RPM; not verified in the game)."}
+      attack: float
+      defence: float
+      discipline: float
+      support: float
+      maneuver: float
+      maximum_speed: float
+      reconnaissance: float
+      default_organisation: float
+      build_time: float
+      supply_consumption: float
+      siege: float
+      hull: float
+      gun_power: float
+      fire_range: float
+      evasion: float
+      torpedo_attack: float
+    other: warn
 
   inventions:
     patterns:
@@ -92,7 +110,47 @@ rules:
     fields:
       build_cost: {rule: goods_amounts}
       supply_cost: {rule: goods_amounts}
-    other: any
+      icon: {value: int, doc: "Icon of the unit type."}
+      type: {value: scalar, doc: "land or naval."}
+      sprite: {value: scalar, doc: "3D model of the unit."}
+      unit_type: {value: scalar, doc: "infantry, cavalry, support, special, big_ship, light_ship or transport."}
+      floating_flag: {value: bool, doc: "Show a flag above the unit."}
+      priority: {value: int, doc: "Order in lists."}
+      max_strength: {value: int, doc: "Full strength (men / hull)."}
+      default_organisation: {value: float, doc: "Starting organisation."}
+      maximum_speed: {value: float, doc: "Speed."}
+      weighted_value: {value: float, doc: "Value for the AI and war score."}
+      build_time: {value: int, doc: "Days to build."}
+      active: {value: bool, doc: "Available from the start (else an invention enables it)."}
+      reconnaissance: {value: float, doc: "Reconnaissance."}
+      attack: {value: float, doc: "Attack."}
+      defence: {value: float, doc: "Defence."}
+      discipline: {value: float, doc: "Discipline."}
+      support: {value: float, doc: "Support."}
+      maneuver: {value: float, doc: "Maneuver."}
+      naval_icon: {value: int, doc: "Icon in naval screens."}
+      min_port_level: {value: int, doc: "Smallest naval base that can build it."}
+      limit_per_port: {value: int, doc: "Ships per port (-1 = no limit)."}
+      supply_consumption_score: {value: int, doc: "Supply needed (naval)."}
+      hull: {value: float, doc: "Hull."}
+      gun_power: {value: float, doc: "Gun power."}
+      fire_range: {value: float, doc: "Fire range."}
+      evasion: {value: float, doc: "Evasion."}
+      can_build_overseas: {value: bool, doc: "Can be built in overseas provinces."}
+      move_sound: {value: scalar, doc: "Sound when moving."}
+      select_sound: {value: scalar, doc: "Sound when selected."}
+      colonial_points: {value: int, doc: "Colonial points it gives."}
+      primary_culture: {value: bool, doc: "Only pops of the primary culture can be recruited."}
+      siege: {value: float, doc: "Siege."}
+      capital: {value: bool, doc: "Built in the capital only."}
+      sprite_mount: {value: scalar, doc: "Model of the mount."}
+      sprite_mount_attach_node: {value: scalar, doc: "Node where the mount is attached."}
+      sprite_override: {value: scalar, doc: "Model replacing the default."}
+      transport: {value: bool, doc: "Transports land units."}
+      torpedo_attack: {value: float, doc: "Torpedo attack."}
+      sail: {value: bool, doc: "A sailing ship."}
+      supply_consumption: {value: float, doc: "Supply consumption."}
+    other: warn
 
   poptype:
     doc: "One pop type (the file name is the pop type)."

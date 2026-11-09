@@ -182,13 +182,69 @@ rules:
       - {key: any, rule: building}
   building:
     doc: "Factories, forts, naval bases, railways."
-    other: any
+    fields:
+      type: {value: scalar, required: true, doc: "factory, fort, naval_base or infrastructure (mods add more)."}
+      goods_cost: {rule: goods_amounts, doc: "Goods needed to build one level."}
+      cost: {value: float, doc: "Money cost."}
+      time: {value: int, doc: "Days to build."}
+      visibility: {value: bool, doc: "Shown in the interface."}
+      onmap: {value: bool, doc: "Drawn on the map."}
+      max_level: {value: int, doc: "Highest level."}
+      pop_build_factory: {value: bool, doc: "Capitalists may build it."}
+      on_completion: {value: scalar, doc: "What to do when built (factory)."}
+      completion_size: {value: float, doc: "Size of the finished building."}
+      production_type: {value: ref:production_type, doc: "What the factory produces."}
+      advanced_factory: {value: bool, doc: "Needs an invention / technology."}
+      strategic_factory: {value: bool, doc: "Counts for military production."}
+      default_enabled: {value: bool, doc: "Available from the start."}
+      province: {value: bool, doc: "Built in a province (not in a state)."}
+      infrastructure: {value: float, doc: "Infrastructure per level (railways)."}
+      spawn_railway_track: {value: bool, doc: "Draws railway tracks on the map."}
+      naval_capacity: {value: int, doc: "Ships supported per level (naval bases)."}
+      capital: {value: bool, doc: "Only in the capital."}
+      port: {value: bool, doc: "Only in ports."}
+      colonial_points: {list: int, doc: "Colonial points per level."}
+      one_per_state: {value: bool, doc: "At most one per state."}
+      colonial_range: {value: int, doc: "Colonial range per level."}
+      local_ship_build: {value: float, doc: "Ship building speed per level."}
+      fort_level: {value: int, doc: "Fort level per level."}
+      movement_cost: {value: float, doc: "Movement cost change per level."}
+      sail: {value: bool, doc: "For sailing ships."}
+      steam: {value: bool, doc: "For steam ships."}
+    other: warn
 
   production_types:
     patterns:
       - {key: any, rule: production_type}
   production_type:
-    other: any
+    doc: "How a factory, RGO or artisan produces: workers, input and output goods."
+    fields:
+      template: {value: scalar, doc: "Production type to copy the workers from (e.g. factory_template)."}
+      type: {value: scalar, doc: "factory, rgo or artisan."}
+      owner: {rule: pop_job, doc: "The pop type that owns it and how it affects it."}
+      employees: {value: any, doc: "{ { poptype = … effect = input / output / throughput amount = … } … }"}
+      workforce: {value: int, doc: "Workers per level."}
+      input_goods: {rule: goods_amounts, doc: "Goods used up per day at full output."}
+      output_goods: {value: ref:goods, doc: "Goods produced."}
+      value: {value: float, doc: "Amount of output goods."}
+      efficiency: {rule: goods_amounts, doc: "Goods that raise efficiency (RGOs)."}
+      bonus: {rule: production_bonus, multiple: true, doc: "Output bonus while a trigger holds (state scope)."}
+      farm: {value: bool, doc: "A farm RGO (farm_rgo_* modifiers apply)."}
+      mine: {value: bool, doc: "A mine RGO (mine_rgo_* modifiers apply)."}
+      is_coastal: {value: bool, doc: "Only in coastal states."}
+    other: warn
+  pop_job:
+    fields:
+      poptype: {value: scalar, doc: "The pop type (vanilla writes 'artisan' for artisans)."}
+      effect: {value: scalar, doc: "input, output or throughput: what the pop type changes."}
+      amount: {value: float, doc: "Share of the workforce / strength of the effect."}
+      effect_multiplier: float
+    other: warn
+  production_bonus:
+    fields:
+      trigger: {block: trigger, push_scope: state}
+      value: float
+    other: warn
 
   pop_types_common:
     other: any
@@ -234,7 +290,48 @@ rules:
       on_po_accepted: {block: effect}
       on_success: {block: effect}
       on_failure: {block: effect}
-    other: any
+      sprite_index: {value: int, sprite: GFX_diplo_wargoal_icons, doc: "Icon of the war goal: a frame of gfx/interface/diplo_wargoal_icons."}
+      is_triggered_only: {value: bool, doc: "Only events / decisions give this CB (it cannot be fabricated)."}
+      months: {value: int, doc: "How long the CB lasts once gained."}
+      badboy_factor: {value: float, doc: "Multiplies the infamy of its peace option."}
+      prestige_factor: {value: float, doc: "Multiplies the prestige gained by enforcing it."}
+      peace_cost_factor: {value: float, doc: "Multiplies the war score cost of the war goal."}
+      penalty_factor: {value: float, doc: "Multiplies the penalty for the loser."}
+      break_truce_prestige_factor: {value: float, doc: "Prestige lost when used during a truce."}
+      break_truce_infamy_factor: {value: float, doc: "Infamy gained when used during a truce."}
+      break_truce_militancy_factor: {value: float, doc: "Militancy gained when used during a truce."}
+      truce_months: {value: int, doc: "Length of the truce after the war."}
+      war_name: {value: scalar, doc: "Localisation key of the war's name (e.g. NORMAL_WAR_NAME)."}
+      good_relation_prestige_factor: {value: float, doc: "Prestige lost when used against a country with good relations."}
+      good_relation_infamy_factor: {value: float, doc: "Infamy gained when used against a country with good relations."}
+      good_relation_militancy_factor: {value: float, doc: "Militancy gained when used against a country with good relations."}
+      crisis: {value: bool, doc: "Whether the CB can be pressed in a crisis."}
+      construction_speed: {value: float, doc: "Speed of fabricating this CB (multiplier)."}
+      always: {value: bool, doc: "The CB is always available against valid targets."}
+      constructing_cb: {value: bool, doc: "Whether the CB can be fabricated."}
+      tws_battle_factor: {value: float, doc: "Weight of battles in the ticking war score."}
+      great_war_obligatory: {value: bool, doc: "Must be added in great wars."}
+      all_allowed_states: {value: bool, doc: "Applies to all states allowed by allowed_states at once."}
+      is_civil_war: {value: bool, doc: "The war is a civil war."}
+      po_demand_state: {value: bool, doc: "Peace option: demand state."}
+      po_annex: {value: bool, doc: "Peace option: annex."}
+      po_remove_prestige: {value: bool, doc: "Peace option: remove prestige."}
+      po_add_to_sphere: {value: bool, doc: "Peace option: add to sphere."}
+      po_disarmament: {value: bool, doc: "Peace option: disarmament."}
+      po_reparations: {value: bool, doc: "Peace option: reparations."}
+      po_transfer_provinces: {value: bool, doc: "Peace option: transfer provinces."}
+      po_release_puppet: {value: bool, doc: "Peace option: release puppet."}
+      po_make_puppet: {value: bool, doc: "Peace option: make puppet."}
+      po_remove_cores: {value: bool, doc: "Peace option: remove cores."}
+      po_uninstall_communist_gov_type: {value: bool, doc: "Peace option: uninstall communist gov type."}
+      po_install_communist_gov_type: {value: bool, doc: "Peace option: install communist gov type."}
+      po_clear_union_sphere: {value: bool, doc: "Peace option: clear union sphere."}
+      po_destroy_forts: {value: bool, doc: "Peace option: destroy forts."}
+      po_destroy_naval_bases: {value: bool, doc: "Peace option: destroy naval bases."}
+      po_colony: {value: bool, doc: "Peace option: colony."}
+      po_status_quo: {value: bool, doc: "Peace option: status quo."}
+      po_gunboat: {value: bool, doc: "Peace option: gunboat."}
+    other: warn
 
   rebel_types:
     patterns:
@@ -287,7 +384,18 @@ rules:
     patterns:
       - {key: any, rule: trait}
   trait:
-    other: any
+    doc: "A leader trait (personality or background): changes of unit stats."
+    fields:
+      morale: {value: float, doc: "Morale of the led units."}
+      attack: {value: float, doc: "Attack."}
+      organisation: {value: float, doc: "Organisation."}
+      defence: {value: float, doc: "Defence."}
+      experience: {value: float, doc: "Experience gain."}
+      speed: {value: float, doc: "Speed."}
+      reliability: {value: float, doc: "Reliability (chance not to suffer from bad events)."}
+      attrition: {value: float, doc: "Attrition."}
+      reconnaissance: {value: float, doc: "Reconnaissance."}
+    other: warn
 
   on_actions:
     patterns:
