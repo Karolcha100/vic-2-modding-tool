@@ -154,3 +154,28 @@ def test_structural_rules_history():
     """
     assert check(text, rule="country_history", scope="country") == []
     assert codes("capital = london", rule="country_history") == ["schema.wrong-value"]
+
+
+def test_keys_confirmed_by_the_game_program():
+    # K78: names found in v2game.exe are known, with their values checked.
+    assert (
+        codes(
+            "country_event = { id = 1 trigger = { any_pop = {"
+            " pop_unemployment = { value = 0.1 type = THIS } } } }"
+        )
+        == []
+    )
+    assert codes(
+        "country_event = { id = 1 trigger = { any_pop = {"
+        " pop_unemployment = { value = x type = THIS } } } }"
+    ) == ["schema.wrong-value"]
+    assert (
+        codes("x = { factory_maintenance = 0.05 random_party_votes = 0.1 }", rule="modifiers_file")
+        == []
+    )
+
+
+def test_names_the_game_does_not_know_are_errors_with_a_hint():
+    found = check("country_event = { id = 1 trigger = { is_subject = no } }")
+    assert [c for c, _ in found] == ["schema.not-in-game"]
+    assert "is_vassal" in found[0][1]

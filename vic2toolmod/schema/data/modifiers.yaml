@@ -54,6 +54,7 @@ modifiers:
   fabric: {source: vanilla, value: float}
   factory_cost: float
   factory_input: float
+  factory_maintenance: {source: game, value: float}
   factory_output: float
   factory_owner_cost: float
   factory_throughput: float
@@ -165,6 +166,7 @@ modifiers:
   population_growth: float
   prestige: float
   radio: {source: vanilla, value: float}
+  random_party_votes: {source: game, value: float}
   regular_clothes: {source: vanilla, value: float}
   regular_experience_level: {source: vanilla, value: float}
   reinforce_rate: {source: vanilla, value: float}

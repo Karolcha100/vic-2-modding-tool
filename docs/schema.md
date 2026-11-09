@@ -89,6 +89,22 @@ Alternatives (a list) are chosen by: scalar vs block value, then the current
 scope, then whether the value passes the type check (e.g. `is_culture_group`
 takes a tag in country scope and a culture group in pop scope).
 
+### Names confirmed by the game program; names the game does not know
+
+`commands/game.yaml` holds commands with `source: game`: names found in
+`v2game.exe` (`strings v2game.exe | grep -x NAME`) - the program keeps the
+names of every trigger, effect and modifier it understands, so a name that is
+there is known to the game even when vanilla never uses it (K78). The program
+says nothing about scopes or syntax; those come from mods that use the name.
+
+A `not_in_game` section maps names that mods use but the game does not know
+to a hint; using one is an error (`schema.not-in-game`):
+
+```yaml
+not_in_game:
+  is_subject: 'a Hearts of Iron IV trigger; in Victoria 2 use is_vassal or is_substate'
+```
+
 ### Dynamic keys
 
 `core.yaml` has a `dynamic` list for keys that are names from the mod, tried
@@ -135,6 +151,7 @@ not described yet: interface, some map files, units' stats).
 | Code | Level | Meaning |
 |---|---|---|
 | `schema.unknown-key` | warning | key not known in this place |
+| `schema.not-in-game` | error | a name mods use but the game does not know (`not_in_game`) |
 | `schema.wrong-context` | error | effect in a trigger block or vice versa |
 | `schema.wrong-scope` | info | command not known to work in the current scope (the game is lenient; K66). Scopes confirmed in the game go to `game_scopes` |
 | `schema.wrong-value` | error | value of the wrong type |

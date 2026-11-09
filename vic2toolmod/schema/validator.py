@@ -8,6 +8,7 @@ Diagnostic codes:
 
 ==========================  ========  =========================================
 ``schema.unknown-key``      warning   key not known in this place (K21 = B)
+``schema.not-in-game``      error     a name mods use but the game does not know (K78)
 ``schema.wrong-context``    error     an effect used where triggers belong, or vice versa
 ``schema.wrong-scope``      info      command not known to work in the current scope (K66)
 ``schema.wrong-value``      error     value of the wrong type
@@ -254,6 +255,8 @@ class Validator:
             self._command(item, Context(other), frame.scope)
         elif other == "modifier":
             spec = self.schema.modifiers.get(key)
+            if spec is None and self._not_in_game(item):
+                return
             if spec is None:
                 self._report(
                     Severity.WARNING,
@@ -271,6 +274,20 @@ class Validator:
                 f"unknown key '{item.key_text}' in {where}",
                 item,
             )
+
+    def _not_in_game(self, item: Assignment) -> bool:
+        """Report a name the game does not know (``not_in_game``); False if not one."""
+        hint = self.schema.not_in_game.get(item.key_text.lower())
+        if hint is None:
+            return False
+        self._report(
+            Severity.ERROR,
+            "schema.not-in-game",
+            f"'{item.key_text}' does not exist in Victoria 2: the game ignores it"
+            + (f" ({hint})" if hint else ""),
+            item,
+        )
+        return True
 
     def _command(self, item: Assignment, context: Context, scope: str | None) -> None:
         key = item.key_text.lower()
@@ -305,7 +322,7 @@ class Validator:
                     f"{other.value}, not allowed in a {context.value} block",
                     item,
                 )
-            else:
+            elif not self._not_in_game(item):
                 self._report(
                     Severity.WARNING,
                     "schema.unknown-key",

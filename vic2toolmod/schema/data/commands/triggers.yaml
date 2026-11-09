@@ -758,6 +758,7 @@ trigger:
   pop_majority_ideology:
   - compare: eq
     scopes: [country]
+    game_scopes: [province]  # K78: HPM / HFM use it in any_owned limits
     source: cwtools
     value: ref:ideology
   - compare: eq

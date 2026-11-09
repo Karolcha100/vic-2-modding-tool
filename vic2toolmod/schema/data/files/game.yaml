@@ -27,6 +27,9 @@ rules:
       rgo_goods_throughput: {rule: goods_amounts, multiple: true}
       factory_goods_output: {rule: goods_amounts, multiple: true}
       factory_goods_throughput: {rule: goods_amounts, multiple: true}
+      factory_goods_input: {rule: goods_amounts, multiple: true, doc: 'Input goods of factories (K78: in v2game.exe).'}
+      rgo_goods_input: {rule: goods_amounts, multiple: true, doc: 'Input goods of RGOs (K78: in v2game.exe).'}
+      artisan_goods_input: {rule: goods_amounts, multiple: true, doc: 'Input goods of artisans (K78: in v2game.exe).'}
       artisan_goods_output: {rule: goods_amounts, multiple: true}
       artisan_goods_throughput: {rule: goods_amounts, multiple: true}
       army_base: {rule: unit_modifiers, doc: "Stats of all land units."}
@@ -61,6 +64,9 @@ rules:
       rgo_goods_throughput: {rule: goods_amounts, multiple: true}
       factory_goods_output: {rule: goods_amounts, multiple: true}
       factory_goods_throughput: {rule: goods_amounts, multiple: true}
+      factory_goods_input: {rule: goods_amounts, multiple: true, doc: 'Input goods of factories (K78: in v2game.exe).'}
+      rgo_goods_input: {rule: goods_amounts, multiple: true, doc: 'Input goods of RGOs (K78: in v2game.exe).'}
+      artisan_goods_input: {rule: goods_amounts, multiple: true, doc: 'Input goods of artisans (K78: in v2game.exe).'}
       artisan_goods_output: {rule: goods_amounts, multiple: true}
       artisan_goods_throughput: {rule: goods_amounts, multiple: true}
       rebel_org_gain: {rule: rebel_org_gain, multiple: true}

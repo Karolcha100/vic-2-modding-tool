@@ -232,6 +232,8 @@ class Schema:
         rules: Rule name -> rule.
         file_types: File types in matching order.
         dynamic: Dynamic command keys, tried in order when a key is no command.
+        not_in_game: Names the game does not know although mods use them
+            (lower case) -> hint (what to use instead).
     """
 
     commands: dict[tuple[Context, str], list[Command]] = field(default_factory=dict)
@@ -240,6 +242,7 @@ class Schema:
     rules: dict[str, Rule] = field(default_factory=dict)
     file_types: list[FileType] = field(default_factory=list)
     dynamic: list[DynamicKey] = field(default_factory=list)
+    not_in_game: dict[str, str] = field(default_factory=dict)
 
     @staticmethod
     def pushed(command: Command, scope: str | None) -> str | None:

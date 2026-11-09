@@ -141,6 +141,8 @@ class _Builder:
     def add_commands(self, data: dict[str, Any]) -> None:
         for raw in data.pop("dynamic", None) or []:
             self.add_dynamic(raw)
+        for name, hint in (data.pop("not_in_game", None) or {}).items():
+            self.schema.not_in_game[str(name).lower()] = str(hint or "")
         for section, entries in data.items():
             if section not in ("trigger", "effect", "both"):
                 self.fail(f"unknown section {section!r} (use trigger / effect / both)")

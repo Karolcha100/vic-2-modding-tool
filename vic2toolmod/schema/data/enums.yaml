@@ -6,3 +6,4 @@ enums:
   leaders: [european, southamerican, russian, arab, asian, indian, nativeamerican, african, polar_bear]
   strata: [poor, middle, rich]
   union_keyword: [this_union]
+  this_from: [this, from]

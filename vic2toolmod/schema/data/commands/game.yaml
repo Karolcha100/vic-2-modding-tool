@@ -1,0 +1,20 @@
+# Commands confirmed by the game program itself (K78 = A, 2026-11-09): the name
+# is in v2game.exe (`strings v2game.exe`), where the game keeps the names of all
+# triggers, effects and modifiers it understands. Vanilla does not use them;
+# mods (PDM, RPM) do. Scopes and syntax come from those mods.
+trigger:
+  pop_unemployment:
+    doc: >-
+      Unemployment of pops of a type, as a share (0..1):
+      pop_unemployment = { value = 0.1 type = THIS } (THIS = the current pop's type).
+    compare: block
+    scopes: [pop, province, state, country]
+    source: game
+    value:
+      fields:
+        value: float
+        type: ['ref:pop_type', 'enum:this_from']
+
+# Names that mods use but the game does not know: an error with a hint.
+not_in_game:
+  is_subject: 'a Hearts of Iron IV trigger; in Victoria 2 use is_vassal (any overlord) or is_substate'
