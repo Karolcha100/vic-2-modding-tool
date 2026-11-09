@@ -12,7 +12,7 @@ rules:
       id: {value: "int[1..2147483647]", required: true, doc: "Event id; the game stores ids as 32-bit numbers."}
       title: localisation
       desc: localisation
-      picture: scalar
+      picture: {value: scalar, picture: gfx/pictures/events, doc: "Picture of the event: gfx/pictures/events/<name>.tga."}
       news: bool
       news_title: localisation
       news_desc_long: localisation

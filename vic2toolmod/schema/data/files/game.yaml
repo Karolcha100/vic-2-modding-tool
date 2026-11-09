@@ -110,7 +110,7 @@ rules:
     fields:
       build_cost: {rule: goods_amounts}
       supply_cost: {rule: goods_amounts}
-      icon: {value: int, doc: "Icon of the unit type."}
+      icon: {value: int, sprite: GFX_unit_strip, doc: "Icon of the unit type: a frame of gfx/interface/unit_strip.dds (1 = infantry in vanilla)."}
       type: {value: scalar, doc: "land or naval."}
       sprite: {value: scalar, doc: "3D model of the unit."}
       unit_type: {value: scalar, doc: "infantry, cavalry, support, special, big_ship, light_ship or transport."}
@@ -128,7 +128,7 @@ rules:
       discipline: {value: float, doc: "Discipline."}
       support: {value: float, doc: "Support."}
       maneuver: {value: float, doc: "Maneuver."}
-      naval_icon: {value: int, doc: "Icon in naval screens."}
+      naval_icon: {value: int, sprite: GFX_naval_combat_unit_normal_l, doc: "Picture of the ship in naval battles: a frame of gfx/interface/unit_strip_naval_combat_1_L.dds."}
       min_port_level: {value: int, doc: "Smallest naval base that can build it."}
       limit_per_port: {value: int, doc: "Ships per port (-1 = no limit)."}
       supply_consumption_score: {value: int, doc: "Supply needed (naval)."}

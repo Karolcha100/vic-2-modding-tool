@@ -345,6 +345,7 @@ rules:
       siege_won_effect: {block: effect, push_scope: province}
       demands_enforced_trigger: {block: trigger}
       demands_enforced_effect: {block: effect}
+      icon: {value: int, sprite: GFX_politics_rebel_strip, doc: "Icon of the rebels: a frame of gfx/interface/politics_rebel_strip."}
     other: any
 
   national_focus:

@@ -30,7 +30,7 @@ def tga_to_rgba(data: bytes) -> tuple[int, int, bytes]:
         raise ImageError("too short for a Targa file")
     id_len, cmap_type, img_type = data[0], data[1], data[2]
     width, height, bpp, desc = struct.unpack_from("<HHBB", data, 12)
-    if cmap_type != 0 or img_type not in (2, 10) or bpp not in (24, 32):
+    if cmap_type != 0 or img_type not in (2, 10) or bpp not in (16, 24, 32):
         raise ImageError(f"unsupported Targa (type {img_type}, {bpp} bits)")
     step = bpp // 8
     pos = 18 + id_len
@@ -40,8 +40,13 @@ def tga_to_rgba(data: bytes) -> tuple[int, int, bytes]:
 
     def put(px: bytes) -> None:
         nonlocal i
-        b, g, r = px[0], px[1], px[2]
-        a = px[3] if step == 4 else 255
+        if step == 2:  # A1 R5 G5 B5, little endian (alpha ignored: often unset)
+            v = px[0] | px[1] << 8
+            r, g, b = ((v >> s & 31) * 255 // 31 for s in (10, 5, 0))
+            a = 255
+        else:
+            b, g, r = px[0], px[1], px[2]
+            a = px[3] if step == 4 else 255
         out[i * 4 : i * 4 + 4] = bytes((r, g, b, a))
         i += 1
 
@@ -113,6 +118,13 @@ def dds_to_rgba(data: bytes) -> tuple[int, int, bytes]:
         if kind not in ("DXT1", "DXT3", "DXT5"):
             raise ImageError(f"unsupported DDS compression {kind!r}")
         return width, height, _dxt(body, width, height, kind)
+    if pf_flags & 0x20 and bits == 8:  # 8-bit palette (RPM's decision pictures)
+        # 256 entries of R G B flags after the header, then one index per pixel
+        if len(body) < 1024 + width * height:
+            raise ImageError("DDS file is cut short")
+        palette = [bytes((body[i * 4], body[i * 4 + 1], body[i * 4 + 2], 255)) for i in range(256)]
+        indices = body[1024 : 1024 + width * height]
+        return width, height, b"".join(palette[i] for i in indices)
     if not pf_flags & 0x40 or bits not in (16, 24, 32):
         raise ImageError(f"unsupported DDS pixel format (flags {pf_flags:#x}, {bits} bits)")
     step = bits // 8

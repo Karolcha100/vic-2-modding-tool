@@ -71,6 +71,7 @@ class ValueInfo:
         modifier: Whether the key is a modifier (``pop_militancy_modifier``).
         sprite: Sprite whose frame an icon number picks (see `Field.sprite`).
         sprite_from: Value of the sprite's first frame.
+        picture: Folder of the picture the value names (see `Field.picture`).
     """
 
     spec: ValueSpec
@@ -81,6 +82,7 @@ class ValueInfo:
     modifier: bool = False
     sprite: str = ""
     sprite_from: int = 1
+    picture: str = ""
 
 
 @dataclass
@@ -258,10 +260,13 @@ class Validator:
                 fld.doc,
                 sprite=fld.sprite,
                 sprite_from=fld.sprite_from,
+                picture=fld.picture,
             )
             self._value(item, fld.value, fld.push_scope or frame.scope, None)
             if fld.sprite:
                 self._icon(item, fld.sprite, fld.sprite_from)
+            if fld.picture:
+                self._picture(item, fld.picture)
             return
         if frame.rule is not None:
             for pattern in frame.rule.patterns:
@@ -318,6 +323,21 @@ class Validator:
                 "schema.wrong-value",
                 f"icon {n} does not exist: {sprite} has {frames} icons"
                 f" ({first}..{first + frames - 1})",
+                item.value,
+            )
+
+    def _picture(self, item: Assignment, folder: str) -> None:
+        """A picture name must name a file of the folder (T006)."""
+        if self.names is None or item.value is None or isinstance(item.value, Block):
+            return
+        name = item.value.value.strip()
+        if not name:
+            return
+        if self.names("picture", f"{folder}/{name}") is False:
+            self._report(
+                Severity.WARNING,
+                "schema.missing-picture",
+                f"picture '{name}' not found: no {folder}/{name}.tga or .dds",
                 item.value,
             )
 

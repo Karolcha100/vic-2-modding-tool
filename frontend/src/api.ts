@@ -32,7 +32,7 @@ export interface Diagnostic {
 export interface FileData { text: string; encoding: string; rel: string; file_type: string | null; diagnostics: Diagnostic[] }
 export interface Report { rel: string; file_type: string | null; diagnostics: Diagnostic[] }
 export interface Completion { label: string; kind: string; detail: string; doc: string }
-export interface Hover { text: string; start: number; end: number; sprite?: [string, number] | null }
+export interface Hover { text: string; start: number; end: number; sprite?: [string, number] | null; picture?: string | null }
 export interface Definition { name: string; file: string; line: number }
 export interface Usage { file: string; start: number; end: number; line: number; column: number }
 export interface TextEdit { start: number; end: number; new_text: string }
@@ -54,6 +54,7 @@ export interface BlockNode {
   children?: BlockNode[];
   value?: string; value_start?: number; value_end?: number;
   sprite?: [string, number];
+  picture?: string;
   value_kind?: "bool" | "number" | "enum" | "ref" | "loc" | "date" | "text" | "block";
   registry?: string | null; choices?: string[]; loc_text?: string | null;
 }
@@ -158,6 +159,8 @@ export const api = {
 export const pictureUrl = (name: string) => `/api/picture?${q({ name, token })}`;
 /** One frame (from 1) of a sprite of interface/*.gfx as PNG (T003). */
 export const spriteUrl = (name: string, frame: number) => `/api/sprite?${q({ name, frame, token })}`;
+/** A picture file under gfx/ (.tga / .dds) as PNG (T006). */
+export const imageUrl = (rel: string) => `/api/image?${q({ rel, token })}`;
 
 /** Apply edits (offsets into `text`) - same semantics as vic2toolmod.edit.apply_edits. */
 export function applyEdits(text: string, edits: TextEdit[]): string {

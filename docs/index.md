@@ -39,6 +39,7 @@ grows only when the set of names changes, not when lines move.
 | `event`, `decision` | event ids in `events/`, decision names in `decisions/` |
 | `country_flag`, `global_flag`, `province_flag`, `variable` | defined by being set (`set_country_flag = x`, `set_variable = { which = x }`), K28; tests are in `Registries.tested` |
 | `localisation` | `localisation/*.csv` (see below) |
+| `picture` | picture files (`.tga` / `.dds`) of `gfx/pictures/events`, `gfx/pictures/decisions`, `gfx/interface/leaders`, as `folder/name` (T006) |
 
 `Registries.has(registry, name)` answers `True` / `False`, or `None` for a
 registry that does not exist - the validator then does not report anything.

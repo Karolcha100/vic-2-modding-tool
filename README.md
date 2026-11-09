@@ -80,5 +80,10 @@ Documentation: [`docs/architecture.md`](docs/architecture.md),
 [`docs/index.md`](docs/index.md), [`docs/editing.md`](docs/editing.md),
 [`docs/tools.md`](docs/tools.md), [`docs/gui.md`](docs/gui.md).
 
+**Command reference for modders:** [`docs/commands.md`](docs/commands.md) - every
+trigger, effect, scope change and modifier the tool knows, with what it does,
+where it may be used, the value it takes and an example (generated from the
+schema with `python -m vic2toolmod.schema.reference --write`).
+
 The schema uses data from [cwtools-vic2-config](https://github.com/cwtools/cwtools-vic2-config)
 (MIT licence) and the [Victoria 2 wiki](https://vic2.paradoxwikis.com/Modifier_effects).

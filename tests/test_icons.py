@@ -96,3 +96,68 @@ def test_missing_required_icon(game):
     write(game / "common/crime.txt", "bombs = { trigger = { } }\n")
     report = Workspace.open(game).check_file("common/crime.txt")
     assert [d.message for d in report.diagnostics] == ["required key 'icon' is missing"]
+
+
+def test_unit_and_rebel_icons(game):
+    # T006: units/*.txt icon -> GFX_unit_strip, rebel icon -> GFX_politics_rebel_strip
+    write(
+        game / "interface/unit.gfx",
+        'spriteTypes = { spriteType = { name = "GFX_unit_strip"\n'
+        '  textureFile = "gfx\\\\interface\\\\unit_strip.dds" noOfFrames = 2 }\n'
+        'spriteType = { name = "GFX_politics_rebel_strip"\n'
+        '  textureFile = "gfx\\\\interface\\\\rebels.dds" noOfFrames = 2 } }\n',
+    )
+    write(game / "units/infantry.txt", "infantry = { icon = 2 }\nguard = { icon = 3 }\n")
+    write(game / "common/rebel_types.txt", "reactionary = { icon = 1 }\n")
+    ws = Workspace.open(game)
+    report = ws.check_file("units/infantry.txt")
+    assert [d.message for d in report.diagnostics] == [
+        "icon 3 does not exist: GFX_unit_strip has 2 icons (1..2)"
+    ]
+    svc = LanguageService(ws)
+    text = ws.document("units/infantry.txt").text
+    assert svc.hover("units/infantry.txt", text.index("= 2") + 2).sprite == ("GFX_unit_strip", 2)
+    text = ws.document("common/rebel_types.txt").text
+    hover = svc.hover("common/rebel_types.txt", text.index("= 1") + 2)
+    assert hover.sprite == ("GFX_politics_rebel_strip", 1)
+
+
+def test_pictures_are_checked_and_shown(game):
+    # T006: picture = name in events / decisions names a file of gfx/pictures/...
+    write(game / "gfx/pictures/decisions/railways.dds", dds(2, 2, bytes(16)))
+    write(
+        game / "decisions/test.txt",
+        "political_decisions = {\n"
+        "  a = { picture = railways potential = { } allow = { } effect = { } }\n"
+        "  b = { picture = nothing_here potential = { } allow = { } effect = { } }\n"
+        "}\n",
+    )
+    ws = Workspace.open(game)
+    report = ws.check_file("decisions/test.txt")
+    assert [d.message for d in report.diagnostics] == [
+        "picture 'nothing_here' not found: no gfx/pictures/decisions/nothing_here.tga or .dds"
+    ]
+    svc = LanguageService(ws)
+    text = ws.document("decisions/test.txt").text
+    hover = svc.hover("decisions/test.txt", text.index("railways") + 2)
+    assert hover.picture == "gfx/pictures/decisions/railways.dds"
+    engine = Engine(ws)
+    assert engine.image(hover.picture)[:8] == b"\x89PNG\r\n\x1a\n"
+    with pytest.raises(Exception, match="not a picture"):
+        engine.image("common/crime.txt")
+
+
+def test_palette_dds():
+    # 8-bit palette (flags 0x20), as RPM's decision pictures: palette after the header
+    header = bytearray(dds(2, 1, b""))
+    struct.pack_into("<II4sI", header, 76, 32, 0x20, b"\0\0\0\0", 8)
+    palette = bytes([10, 20, 30, 0]) + bytes([200, 100, 50, 0]) + bytes(254 * 4)
+    w, h, px = dds_to_rgba(bytes(header) + palette + bytes([1, 0]))
+    assert (w, h, px) == (2, 1, bytes([200, 100, 50, 255, 10, 20, 30, 255]))
+
+
+def test_tga_16_bits():
+    # A1R5G5B5, origin at the top (RPM's events/farming.tga): pure red, then white
+    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, 2, 1, 16, 0x20)
+    w, h, px = image_to_rgba(header + struct.pack("<HH", 31 << 10, 0x7FFF))
+    assert (w, h, px) == (2, 1, bytes([255, 0, 0, 255, 255, 255, 255, 255]))

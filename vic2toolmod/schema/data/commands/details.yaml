@@ -1,0 +1,1098 @@
+# Longer descriptions of the commands (T006, 2026-11-09): what a command does
+# in the game, how the value is read, common mistakes. Shown in the hover and in
+# docs/commands.md (python -m vic2toolmod.schema.reference --write).
+#
+# name: text                                  - for every context
+# name: {text: …, example: …}                 - with a hand-written example
+# name: {trigger: … or {text, example}, effect: …}
+#
+# "(not verified)" = taken from the name, the wiki or other mods, not tested in the game.
+details:
+  accepted_culture: >-
+    Checks the country's accepted cultures, not the primary culture alone (use
+    primary_culture for that). Pops of accepted cultures can vote and are not
+    discriminated against by the citizenship policy.
+  activate_technology: >-
+    The technology counts as researched at once, with all its effects (unlocked
+    inventions, units, modifiers). Research points already spent are not refunded.
+  add_accepted_culture:
+    text: >-
+      Pops of an accepted culture get political rights and are counted as
+      "our" pops. With `union` (or `this_union`) every culture of the country's
+      culture group becomes accepted, as when forming a cultural union.
+    example: add_accepted_culture = british
+  add_casus_belli:
+    text: >-
+      Gives this country a ready casus belli against `target` for `months`
+      months; it does not need to be fabricated and costs no infamy when it is
+      added. `type` is a CB from `common/cb_types.txt`.
+    example: add_casus_belli = { target = FRA type = conquest months = 12 }
+  add_core: >-
+    In a province: the country with the given tag (or THIS / FROM) gets a core
+    there. In a state: every province of the state gets the core. A core does not
+    change the owner; use secede_province or inherit for that.
+  add_country_modifier:
+    text: >-
+      `name` is a modifier from `common/event_modifiers.txt` (or another file of
+      modifiers); `duration` is in days, -1 = until removed with
+      remove_country_modifier. Adding the same modifier again only resets its time.
+    example: add_country_modifier = { name = national_confusion duration = 365 }
+  add_crime: >-
+    The province gets the crime (from `common/crime.txt`) at once, without the
+    usual random roll. Crime fighting spending can remove it later.
+  add_crisis_interest: >-
+    The country joins the current crisis as an interested power, as if a great
+    power had chosen to take part (not verified).
+  add_crisis_temperature: >-
+    Raises (or with a negative value lowers) the temperature of the current crisis;
+    at 100 the crisis turns into a war or a forced peace (not verified).
+  add_province_modifier:
+    text: >-
+      Like add_country_modifier, but for one province: `name` is a modifier,
+      `duration` in days (-1 = for ever). Province modifiers can use
+      province-only keys such as `life_rating` or `local_rgo_output`.
+    example: add_province_modifier = { name = nationalist_agitation duration = 365 }
+  add_tax_relative_income: >-
+    Gives (or takes, if negative) money in proportion to the country's tax income,
+    so the effect scales with the size of the country (not verified).
+  add_war_goal:
+    text: >-
+      Adds a war goal to a war this country is fighting against the scope in the
+      FROM position; usually used in events fired during a war (not verified).
+    example: add_war_goal = { casus_belli = conquest }
+  administration_spending: >-
+    The share of the administration slider in the budget, from 0 to 1 (0.5 = half
+    of the maximum). Low spending makes bureaucrats less effective.
+  agree_with_ruling_party: >-
+    Share (0..1) of the pops whose ideology matches the ruling party's. Useful in
+    events about elections or government crises.
+  ai: >-
+    `ai = yes` is true for countries the computer plays. Use `ai = no` to show a
+    decision or event only to players, or to give the AI an easier version.
+  all_core:
+    trigger: >-
+      True only if every core province passes the conditions inside; one failing
+      province makes the whole trigger false. Compare with any_core (at least one).
+    effect: >-
+      Runs the effects inside on every core province of the country, owned or not.
+  alliance_with: >-
+    True if the two countries have an alliance (not a sphere or a vassal relation).
+    THIS and FROM work as the value.
+  always: >-
+    `always = yes` is a condition that always holds, `always = no` one that never
+    does. Typical use: `allow = { always = no }` to hide a decision, or a
+    placeholder while writing a trigger.
+  and:
+    text: >-
+      True if all the triggers inside are true. A trigger block already works as
+      AND, so it is needed only inside OR or NOT.
+    example: OR = { AND = { ai = no war = yes } badboy = 0.8 }
+  annex_to: >-
+    The whole country (all provinces, pops, units) is annexed by the given country
+    and stops existing. The value is the country that gets everything.
+  any_core: >-
+    In country scope it goes over the provinces where this country has a core; in
+    province scope over the countries that have a core on this province. A typical
+    use is checking or adding claims across the whole core area.
+  any_country: >-
+    Goes over every country that exists at the moment (not the ones that are
+    dead). Heavy when used often; combine with a limit = { … } in effects.
+  any_empty_neighbor_province: >-
+    Neighbouring provinces that nobody owns (uncolonised land). Used by colonial
+    events and decisions.
+  any_greater_power: >-
+    The current great powers (the top 8 by score). Changes during the game as
+    ranks change.
+  any_neighbor_country: >-
+    Countries that share a land border with this one. Sea connections do not
+    count.
+  any_neighbor_province: >-
+    Provinces that border this one by land, whoever owns them.
+  any_owned: >-
+    Same as any_owned_province: every province this country (or state) owns,
+    occupied or not.
+  any_owned_province: >-
+    Every province owned by the country (in state scope: by the state). Occupied
+    provinces still count as owned.
+  any_pop: >-
+    Every pop of the scope. In an effect use limit = { … } to pick the pops, e.g.
+    by type or culture; effects like militancy then change only those pops.
+  any_sphere_member: >-
+    The countries in this great power's sphere of influence. Empty for countries
+    that are not great powers.
+  any_state: >-
+    The states of the country (groups of provinces from `map/region.txt` that the
+    country owns). Colonial and protectorate states count too.
+  any_substate: >-
+    The country's substates (vassals with substate status, like the princely
+    states of India).
+  assimilate: >-
+    In pop scope the pop changes to the culture of the country's primary culture;
+    in state scope every pop of the state does (not verified).
+  average_consciousness: >-
+    Average consciousness (0..10) of the pops in the scope, weighted by size.
+    Consciousness drives the wish for reforms.
+  average_militancy: >-
+    Average militancy (0..10) of the pops in the scope, weighted by size.
+    Militancy above about 7 starts rebellions.
+  badboy:
+    trigger: >-
+      Infamy as a share of the infamy limit: 0.5 = half of it (12.5 with the
+      default limit of 25). Countries above the limit can be attacked by anyone.
+    effect: >-
+      Adds infamy points (not a share); negative values remove infamy.
+  big_producer: >-
+    True if the country is one of the biggest producers of the goods in the world
+    (not verified how big).
+  blockade: >-
+    Share (0..1) of the country's ports that are blockaded by enemy fleets.
+    Blockades cut trade and reduce tax income.
+  brigades_compare: >-
+    Compares the number of brigades of this country with the country in FROM
+    (or the other side); 1 = equal size (not verified).
+  build_factory_in_capital_state: >-
+    Builds the factory (a building of `common/buildings.txt` of type factory) at
+    once in the state of the capital, without cost or construction time.
+  build_fort_in_capital: >-
+    Adds one fort level in the capital at once (not verified whether limits are
+    checked).
+  build_railway_in_capital: >-
+    Adds one railroad level in the capital at once (not verified whether limits
+    are checked).
+  can_build_factory: >-
+    True if the country's policies (economic policy) let the capitalists or the
+    state build factories.
+  can_build_factory_in_capital_state: >-
+    True if the factory can be built in the capital's state: the technology is
+    known and there is a free slot (not verified).
+  can_build_fort_in_capital: >-
+    True if one more fort level can be built in the capital (not verified).
+  can_build_in_province:
+    text: >-
+      True if the building (fort, naval_base, railroad) can be built in the
+      province. With `limit_to_world_greatest_level = yes` it also must not
+      exceed the highest level anybody has (not verified).
+    example: can_build_in_province = { building = fort limit_to_world_greatest_level = yes }
+  can_build_railway_in_capital: >-
+    True if one more railroad level can be built in the capital (not verified).
+  can_create_vassals: >-
+    True if the country has cores of countries that do not exist, which it could
+    release as vassals.
+  can_nationalize: >-
+    True if there are foreign investments in the country that it could take over.
+  capital:
+    trigger: >-
+      True if the country's capital is the given province id; checks one
+      province, not the state.
+    effect: >-
+      Moves the capital to the given province at once. The province should be
+      owned by the country.
+  capital_scope: >-
+    Moves to the capital province of the country, so province triggers and
+    effects inside apply to the capital.
+  cash_reserves: >-
+    Savings of the pop compared to its needs (not verified how it is measured).
+  casus_belli:
+    trigger: >-
+      True if this country has a casus belli of any type against the given country.
+    effect:
+      text: >-
+        Same as add_casus_belli: a ready CB against `target` of `type` for
+        `months` months.
+      example: casus_belli = { target = FRA type = conquest months = 12 }
+  change_controller: >-
+    The province is occupied by the given country (owner does not change). Used to
+    start wars with occupied land or for rebel events.
+  change_province_name: >-
+    New name shown on the map; quotes are needed for names with spaces. Not a
+    localisation key.
+  change_region_name: >-
+    New name of the state on the map; quotes for names with spaces.
+  change_tag: >-
+    The player now plays the given tag. `culture` makes the tag the one of the
+    country's primary culture (used by cultural unions). The old country keeps
+    existing if it still owns land.
+  change_tag_no_core_switch: >-
+    Like change_tag, but the cores of the old tag stay as they are.
+  change_variable:
+    text: >-
+      Adds `value` to a country variable (`which` = its name); the variable is
+      created with 0 if it does not exist. Use set_variable to set it.
+    example: change_variable = { which = my_variable value = 1 }
+  check_variable:
+    text: >-
+      True if the variable named by `which` is at least `value`. Variables belong
+      to the country in scope.
+    example: check_variable = { which = my_variable value = 10 }
+  citizenship_policy: >-
+    Current option of the citizenship policy (an issue option of
+    `common/issues.txt`), e.g. residency or full_citizenship.
+  civilization_progress: >-
+    Westernisation progress of an uncivilised country, from 0 to 1 (1 = can
+    westernise).
+  civilized:
+    trigger: >-
+      True for civilised countries; uncivilised ones (most of Asia and Africa at
+      the start) have `civilized = no`.
+    effect: >-
+      Makes the country civilised (yes) or uncivilised (no) at once; used by
+      westernisation decisions.
+  clr_country_flag: >-
+    Removes a flag set with set_country_flag. Nothing happens if the flag is not
+    set.
+  clr_global_flag: >-
+    Removes a flag set with set_global_flag (flags shared by the whole game).
+  clr_province_flag: >-
+    Removes a flag set with set_province_flag from this province.
+  colonial_nation: >-
+    True if the country owns colonies (not verified whether protectorates count).
+  consciousness:
+    trigger: >-
+      In pop scope: consciousness of the pop (0..10) is at least the value; in
+      country scope: the average.
+    effect: >-
+      Adds consciousness to the pop (or every pop of the country); negative values
+      lower it. Limits 0..10.
+  constructing_cb_progress: >-
+    Progress (0..1 or percent, not verified) of the casus belli the country is
+    fabricating.
+  constructing_cb_type: >-
+    True if the country is fabricating a CB of this type at the moment.
+  continent: >-
+    True if the province (in country scope: the capital, not verified) is on the
+    continent from `map/continent.txt`.
+  controlled_by: >-
+    True if the given country (or THIS / FROM / owner) controls the province, i.e.
+    occupies it or owns it unoccupied.
+  controlled_by_rebels: >-
+    True if rebels occupy the province.
+  controller: >-
+    Moves to the country that controls (occupies) the province; for unoccupied
+    provinces the owner.
+  controls: >-
+    True if this country controls the province with the given id (owns it
+    unoccupied or occupies it).
+  country: >-
+    Moves from a pop, province or state to the country it belongs to (the owner).
+  country_event:
+    text: >-
+      Fires the country event with the given id for the country in scope. With a
+      block you can delay it: `days` = after how many days. The receiving
+      country's FROM is the country that fired it.
+    example: country_event = { id = 10000 days = 30 }
+  country_units_in_province: >-
+    True if any unit of the given country (or THIS / FROM) is in the province.
+  country_units_in_state: >-
+    True if any unit of the given country is in the state (not verified).
+  create_alliance: >-
+    Makes an alliance between this country and the given one at once, without
+    asking.
+  create_vassal: >-
+    Releases the given country from this country's cores as a vassal (the tag
+    must have cores here; not verified).
+  crime_fighting: >-
+    Share (0..1) of the crime fighting (administration) slider.
+  crime_higher_than_education: >-
+    True if crime fighting spending is higher than education spending (not
+    verified).
+  crisis_exist: >-
+    True while a crisis (an international dispute over a flashpoint) is going on.
+  crisis_state_scope: >-
+    Moves to the state the current crisis is about.
+  cultural_union: >-
+    Moves to the country that unites the culture group (e.g. GER for prussians,
+    ITA for north italians). Empty if the group has no union tag.
+  culture: >-
+    In pop scope: the pop's own culture. In province scope: true if the province
+    has pops of the culture (not verified whether the majority is needed).
+  culture_has_union_tag: >-
+    True if the country's primary culture belongs to a group with a cultural union
+    tag (like GER or ITA), so a union can be formed.
+  define_general:
+    text: >-
+      Creates a new general for the country. `personality` and `background` are
+      traits of `common/traits.txt`; without them the game picks random ones.
+    example: define_general = { name = "Helmuth von Moltke" personality = aggressive background = brilliant_strategist }
+  diplomatic_influence:
+    trigger:
+      text: >-
+        True if this great power has at least `value` influence points with the
+        country `who`.
+      example: diplomatic_influence = { who = CHI value = 50 }
+    effect:
+      text: >-
+        Adds `value` influence points (negative removes) with the country `who`;
+        only great powers use influence.
+      example: diplomatic_influence = { who = CHI value = 50 }
+  dominant_issue:
+    text: >-
+      In an effect: shifts the pops' support towards the issue option `value` by
+      `factor` (as a share). In a trigger (pop scope): the option the pop
+      supports most is `value` (not verified).
+    example: dominant_issue = { value = free_trade factor = 0.25 }
+  economic_policy: >-
+    Economic policy of the ruling party (an issue option such as laissez_faire,
+    interventionism, state_capitalism, planned_economy). Changes when the ruling
+    party changes.
+  economic_reform:
+    trigger: >-
+      True if the uncivilised country has passed this economic reform step
+      (westernisation reforms, not the party issues).
+    effect: >-
+      Sets the uncivilised country's economic reform to the given option at once.
+  education_spending: >-
+    Share (0..1) of the education slider. Education spending raises literacy and
+    research points.
+  election:
+    trigger: >-
+      True while an election campaign is running in the country.
+    effect: >-
+      Starts an election campaign at once (only in countries that hold elections).
+  empty: >-
+    True if no country owns the province (uncolonised land).
+  enable_canal: >-
+    Opens a canal: 1 = Kiel, 2 = Suez, 3 = Panama (numbers from `map/canals.txt`).
+    Ships can use it from then on.
+  enable_ideology: >-
+    Makes an ideology (from `common/ideologies.txt`) appear in the world, as the
+    game does for e.g. fascism after its date and conditions.
+  end_military_access: >-
+    Ends the military access this country has in the given country.
+  end_war: >-
+    Ends the war between this country and the given one at once, as a white
+    peace.
+  everyday_needs: >-
+    Share (0..1) of everyday needs the pop could buy. Low values lower the pop's
+    happiness.
+  exists: >-
+    `exists = yes` in a country scope: the country exists now (owns land).
+    `exists = TAG` checks another country without changing scope.
+  flashpoint_tension:
+    trigger: >-
+      Tension (0..100) of the flashpoint in the state; at 100 a crisis can start.
+    effect: >-
+      Adds tension to the state's flashpoint (negative lowers it).
+  fort: >-
+    Adds fort levels in the province (negative removes them), limited by the
+    technology's maximum (not verified).
+  from: >-
+    Commands inside apply to FROM: in an event, the country or province that fired
+    it; in a CB, the attacker; in a decision, the country itself (not verified).
+  government:
+    trigger: >-
+      True if the country's government type (from `common/governments.txt`) is
+      the given one, e.g. absolute_monarchy, democracy.
+    effect: >-
+      Changes the government type at once; the ruling party may change to fit it.
+  great_wars_enabled:
+    trigger: >-
+      True once great wars are enabled: wars between great powers become great
+      wars with war exhaustion rules.
+    effect: >-
+      Enables great wars for the whole game.
+  has_building: >-
+    With fort, naval_base or railroad (building types): the province has at least
+    one level. With a factory name: the state has that factory.
+  has_country_flag: >-
+    Flags are yes/no markers set with set_country_flag; typical use: let an event
+    happen only once, or remember a choice. In province scope the owner's flags
+    are checked (not verified).
+  has_country_modifier: >-
+    True if the country has the modifier (added with add_country_modifier, or
+    static ones such as national values; not verified for static ones).
+  has_crime: >-
+    True if the province has the given crime from `common/crime.txt`.
+  has_cultural_sphere: >-
+    True if the country has a cultural sphere (not verified what that means in
+    the game).
+  has_culture_core: >-
+    True if a country of the pop's culture has a core on the province (pop or
+    province scope).
+  has_empty_adjacent_province: >-
+    True if a neighbouring province has no owner (uncolonised).
+  has_empty_adjacent_state: >-
+    True if a neighbouring state has no owner (not verified).
+  has_factories: >-
+    True if the state has at least one factory.
+  has_flashpoint: >-
+    True if the state is a flashpoint: a place a crisis may start over (a
+    non-accepted culture with a cultural union or a releasable nation).
+  has_global_flag: >-
+    Global flags are shared by every country; set with set_global_flag. Typical
+    use: something happened in the world once (e.g. a war or a discovery).
+  has_leader: >-
+    True if the country has a general or admiral with exactly this name.
+  has_national_minority: >-
+    True if the province has pops whose culture is not accepted by the owner.
+  has_pop_culture: >-
+    True if there is at least one pop of the culture in the scope.
+  has_pop_religion: >-
+    True if there is at least one pop of the religion in the scope.
+  has_pop_type: >-
+    True if there is at least one pop of the type in the scope (e.g. has_pop_type
+    = slaves).
+  has_province_flag: >-
+    Flags set with set_province_flag on this province.
+  has_province_modifier: >-
+    True if the province has the modifier (added with add_province_modifier).
+  has_recent_imigration: >-
+    True if immigrants arrived in the province in the last N months. The game
+    spells it with one m.
+  has_recently_lost_war: >-
+    True if the country lost a war recently (within some years; not verified how
+    many).
+  has_unclaimed_cores: >-
+    True if the country has cores on provinces owned by other countries.
+  have_core_in: >-
+    True if this country has a core on at least one province owned by the given
+    country.
+  hidden_tab:
+    text: >-
+      The effects inside happen but are not listed in the event's or decision's
+      tooltip; for changes the player should not see in advance.
+    example: hidden_tab = { set_country_flag = my_country_flag }
+  ideology:
+    trigger: >-
+      In pop scope: the pop's dominant ideology. In country scope: the ruling
+      party's ideology (not verified).
+    effect:
+      text: >-
+        Shifts the pop's ideology support towards `value` by `factor` (not
+        verified).
+      example: ideology = { value = liberal factor = 0.1 }
+  in_default: >-
+    True if the country is bankrupt (defaulted on its loans). With a tag: that
+    country is bankrupt.
+  in_sphere: >-
+    True if this country is in the sphere of influence of the given great power.
+  independence: >-
+    Not verified: probably for rebels and liberation movements making a country
+    independent.
+  industrial_score: >-
+    Industrial score (part of the great power score) is at least the number, or at
+    least the score of the given country.
+  infrastructure: >-
+    Adds railroad levels in the province (negative removes), up to the technology
+    limit (not verified).
+  inherit: >-
+    This country takes all provinces of the given country, which stops existing.
+    Unlike annex_to, here the scope is the one that gains.
+  invention: >-
+    True if the country has the invention from `inventions/*.txt`.
+  involved_in_crisis: >-
+    True if the country is a participant of the current crisis (a side or an
+    interested power).
+  is_accepted_culture: >-
+    `yes`: the pop's culture (or the province's main culture) is accepted by its
+    country. With a tag: accepted by that country (not verified).
+  is_blockaded: >-
+    True if an enemy fleet blockades the province's port.
+  is_canal_enabled: >-
+    True if the canal with the number is open: 1 = Kiel, 2 = Suez, 3 = Panama.
+  is_capital: >-
+    True if the province is its owner's capital.
+  is_claim_crisis: >-
+    True if the current crisis is about a claim (a country wants the state), not
+    about liberation.
+  is_coastal: >-
+    True if the province touches the sea and can have a naval base.
+  is_colonial: >-
+    True if the province / state is a colony (or a protectorate); its pops cannot
+    vote and it has no full representation.
+  is_colonial_crisis: >-
+    True if the current crisis is a colonial one (two powers colonising the same
+    land).
+  is_core: >-
+    In province scope: the given country (TAG, THIS, FROM) has a core here. In
+    country scope: the province with the given id is a core of this country.
+  is_cultural_union: >-
+    `yes`: this country is the union tag of its culture group (GER, ITA…). With a
+    tag: this country is the union of that country's culture.
+  is_culture_group: >-
+    True if the culture (pop) or the primary culture (country) belongs to the
+    culture group from `common/cultures.txt`.
+  is_disarmed: >-
+    True if the country is disarmed by a peace treaty (cannot build units for a
+    time).
+  is_greater_power: >-
+    True if the country is one of the 8 great powers at the moment.
+  is_ideology_enabled: >-
+    True if the ideology has appeared in the world (see enable_ideology).
+  is_independant: >-
+    True if the country is not a vassal or substate. The game spells it with
+    "ant".
+  is_liberation_crisis: >-
+    True if the current crisis is about liberating a nation.
+  is_mobilised: >-
+    True if the country has mobilised its reserves.
+  is_next_reform: >-
+    True if the given option is the next step of its reform (one step above the
+    current option).
+  is_our_vassal: >-
+    True if the given country is a vassal or substate of this one.
+  is_overseas: >-
+    True if the province is not on the same continent as its owner's capital.
+  is_possible_vassal: >-
+    True if this country could release the given country as a vassal (it has
+    cores of that country).
+  is_primary_culture: >-
+    `yes`: the pop's culture is the primary culture of its country. With a
+    culture or tag: compares with that culture or country's primary culture.
+  is_releasable_vassal: >-
+    True if the country is a releasable one (not verified exactly when).
+  is_secondary_power: >-
+    True if the country is a secondary power (rank 9-16), which can colonise
+    and lead some crises (not verified).
+  is_slave:
+    trigger: >-
+      In pop scope: the pop is a slave. In state or province scope: slavery is
+      allowed in the state.
+    effect: >-
+      In state scope (not verified): yes makes the state a slave state, no
+      frees it.
+  is_sphere_leader_of: >-
+    True if this great power has the given country in its sphere.
+  is_state_capital: >-
+    True if the province is the capital of its state.
+  is_state_religion: >-
+    True if the pop's (or province's main) religion is the country's state
+    religion.
+  is_substate: >-
+    True if the country is a substate (a special vassal, like the princely states
+    of India).
+  is_vassal: >-
+    True if the country is a vassal of any country. To check whose vassal, use
+    vassal_of.
+  kill_leader: >-
+    Removes the general or admiral with this name from the country.
+  leadership: >-
+    Adds leadership points (used to recruit generals and admirals); negative
+    removes them.
+  leave_alliance: >-
+    Breaks the alliance with the given country.
+  life_needs: >-
+    Share (0..1) of life needs the pop could buy; below 1 the pop starves and its
+    population shrinks.
+  life_rating:
+    trigger: >-
+      Life rating of the province (usually 0..50); low values slow pop growth and
+      colonisation.
+    effect: >-
+      Adds to the life rating (negative lowers it).
+  limit:
+    text: >-
+      Inside a scope change in an effect (any_owned_province, any_pop, …): only
+      the scopes where these conditions hold get the effects. Inside
+      random_owned and similar: picks among those only.
+    example: any_owned_province = { limit = { is_coastal = yes } life_rating = 5 }
+  literacy:
+    trigger: >-
+      Literacy as a share (0..1, 0.5 = 50 %) of the pop or the average of the
+      country or province.
+    effect: >-
+      Adds literacy to the pop (share; negative lowers it).
+  location: >-
+    Moves from a pop to the province it lives in.
+  lost_national: >-
+    Share (0..1) of the country's national provinces (cores of its primary
+    culture) that it no longer owns.
+  luxury_needs: >-
+    Share (0..1) of luxury needs the pop could buy; high values make pops happy
+    and raise consciousness.
+  middle_strata: >-
+    Goes over the middle strata pops (artisans, clerks, bureaucrats, officers,
+    clergymen in vanilla; set by `strata` in `poptypes/*.txt`).
+  middle_strata_everyday_needs: >-
+    Share (0..1) of everyday needs met for the middle strata on average.
+  middle_strata_life_needs: >-
+    Share (0..1) of life needs met for the middle strata on average.
+  middle_strata_luxury_needs: >-
+    Share (0..1) of luxury needs met for the middle strata on average.
+  middle_strata_militancy: >-
+    Average militancy (0..10) of the middle strata.
+  middle_tax: >-
+    Share (0..1) of the middle class tax slider.
+  militancy:
+    trigger: >-
+      Militancy (0..10) of the pop; in country scope the average. Above about 7
+      pops join rebels.
+    effect: >-
+      Adds militancy to the pop (in country scope: every pop); negative lowers
+      it. Limits 0..10.
+  military_access:
+    trigger: >-
+      True if this country may move its armies through the given country.
+    effect: >-
+      This country gets military access in the given country.
+  military_reform:
+    trigger: >-
+      True if the uncivilised country has this military reform step.
+    effect: >-
+      Sets the uncivilised country's military reform to the option at once.
+  military_score: >-
+    Military score (part of the great power score) is at least the number, or at
+    least the score of the given country.
+  military_spending: >-
+    Share (0..1) of the military spending slider; low spending lowers the
+    organisation of the army.
+  minorities: >-
+    True if there are pops of non-accepted cultures (in the province, not
+    verified for the country).
+  modify_relation:
+    text: >-
+      Adds `relation` (from -200 to 200 in total) to the relations between this
+      country and `tag`; negative values worsen them.
+    example: modify_relation = { tag = FRA relation = -50 }
+  money:
+    trigger: >-
+      Money in the treasury (country) or the pop's savings is at least the value
+      (in pounds).
+    effect: >-
+      Adds money to the treasury (country) or the pop's savings; negative takes
+      money and can push the country into debt.
+  month: >-
+    The current month of the year; for events that should happen in a season.
+    Whether January is 0 or 1 is not verified.
+  move_issue_percentage:
+    text: >-
+      Moves `value` (share) of the pops' support from the issue option `from` to
+      the option `to`.
+    example: move_issue_percentage = { from = protectionism to = free_trade value = 0.1 }
+  move_pop: >-
+    The pop moves to the given province (keeps its size, culture and type).
+  national_provinces_occupied: >-
+    Share (0..1) of the country's national provinces that the enemy occupies.
+  nationalize: >-
+    Takes over all foreign investments in the country; the investors lose them
+    and get a casus belli or worse relations (not verified).
+  nationalvalue:
+    trigger: >-
+      True if the country's national value (nv_order, nv_liberty, nv_equality in
+      vanilla) is the given one.
+    effect: >-
+      Changes the national value at once.
+  naval_base: >-
+    Adds naval base levels in the coastal province (negative removes them).
+  neighbour: >-
+    True if the country shares a land border with the given country.
+  neutrality: >-
+    The country leaves all alliances and stops being in a sphere (not verified)
+    and becomes neutral.
+  not:
+    text: >-
+      True if none of the triggers inside is true. With several triggers it is
+      "not (A or B)"; for "not (A and B)" put AND inside.
+    example: NOT = { has_country_flag = my_country_flag }
+  num_of_allies: >-
+    Number of countries allied with this one.
+  num_of_cities: >-
+    Number of provinces the country owns.
+  num_of_ports: >-
+    Number of the country's provinces with a port.
+  num_of_revolts: >-
+    Number of active rebel uprisings in the country.
+  num_of_substates: >-
+    Number of substates of the country.
+  num_of_vassals: >-
+    Number of vassals of the country, substates included.
+  num_of_vassals_no_substates: >-
+    Number of vassals that are not substates.
+  number_of_states: >-
+    Number of states the country owns (whole or in part).
+  or:
+    text: >-
+      True if at least one of the triggers inside is true. Blocks are AND by
+      default, so OR is the usual way to allow alternatives.
+    example: OR = { tag = ENG tag = FRA }
+  overlord: >-
+    Moves from a vassal or substate to its overlord.
+  owned_by: >-
+    True if the given country (TAG, THIS, FROM) owns the province.
+  owner: >-
+    Moves to the country that owns the province (or state). In events about a
+    province this is how you reach its country.
+  owns: >-
+    True if this country owns the province with the given id.
+  part_of_sphere: >-
+    True if the country is in the sphere of some great power.
+  plurality:
+    trigger: >-
+      Plurality of the country in percent (0..100); it drives consciousness and
+      the wish for reforms.
+    effect: >-
+      Adds plurality points (percent).
+  political_movement: >-
+    True if the pop is a member of a political movement.
+  political_movement_strength: >-
+    Strength of the political movements in the country (not verified on what
+    scale).
+  political_reform:
+    trigger: >-
+      True if the given political reform option (from `common/issues.txt`) is in
+      place.
+    effect: >-
+      Sets the reform to the option at once, without the usual voting.
+  political_reform_want: >-
+    Share (0..1) of the pops (or the pop) wanting political reforms.
+  poor_strata: >-
+    Goes over the poor strata pops (farmers, labourers, craftsmen, soldiers,
+    slaves in vanilla).
+  poor_strata_everyday_needs: >-
+    Share (0..1) of everyday needs met for the poor strata on average.
+  poor_strata_life_needs: >-
+    Share (0..1) of life needs met for the poor strata on average.
+  poor_strata_luxury_needs: >-
+    Share (0..1) of luxury needs met for the poor strata on average.
+  poor_strata_militancy: >-
+    Average militancy (0..10) of the poor strata.
+  poor_tax: >-
+    Share (0..1) of the poor tax slider.
+  pop_majority_culture: >-
+    True if the culture with the most pops in the scope is the given one.
+  pop_majority_ideology: >-
+    True if the ideology most pops in the scope support is the given one.
+  pop_majority_issue: >-
+    True if the issue option most pops in the scope support is the given one.
+  pop_majority_religion: >-
+    True if the religion with the most pops in the scope is the given one.
+  pop_militancy: >-
+    Average militancy (0..10) of the pops in the scope (not verified how it
+    differs from average_militancy).
+  pop_type:
+    trigger: >-
+      True if the pop is of the given type (from `poptypes/*.txt`).
+    effect: >-
+      The pop becomes of the given type at once, keeping its size.
+  pop_unemployment:
+    text: >-
+      Unemployment of the pops of `type` as a share (0..1). `type = THIS` means
+      the type of the pop in scope; used in promotion and migration weights.
+    example: pop_unemployment = { value = 0.1 type = craftsmen }
+  port: >-
+    True if the province has a port (it is coastal and ships can dock).
+  prestige:
+    trigger: >-
+      The country's prestige points are at least the value.
+    effect: >-
+      Adds prestige points; negative removes them.
+  prestige_factor: >-
+    Adds prestige in proportion to the current prestige (0.1 = +10 %; not
+    verified).
+  primary_culture:
+    trigger: >-
+      True if the country's primary culture is the given one.
+    effect: >-
+      Changes the country's primary culture; the old one is not automatically
+      accepted.
+  produces: >-
+    True if the scope produces the goods (in an RGO or a factory).
+  province_control_days: >-
+    Number of days the province has been controlled by its current controller
+    (for occupation events).
+  province_event:
+    text: >-
+      Fires the province event with the id for the province in scope; with a
+      block you can delay it by `days`.
+    example: province_event = { id = 10000 days = 30 }
+  province_id: >-
+    True if the province in scope has this id. Handy in limit = { } to pick one
+    province.
+  random:
+    text: >-
+      The effects inside happen with `chance` percent probability; otherwise
+      nothing happens.
+    example: random = { chance = 50 prestige = 5 }
+  random_country: >-
+    Picks one random existing country; use limit = { } to choose among some.
+  random_empty_neighbor_province: >-
+    Picks one random neighbouring province without an owner.
+  random_list:
+    text: >-
+      Picks one of the numbered blocks at random; the numbers are weights (they do
+      not have to add up to 100). Each block holds effects.
+    example: random_list = { 70 = { prestige = 5 } 30 = { badboy = 1 } }
+  random_neighbor_country: >-
+    Picks one random neighbouring country.
+  random_neighbor_province: >-
+    Picks one random neighbouring province.
+  random_owned: >-
+    Picks one random province the country owns; use limit = { } to choose among
+    some.
+  random_pop: >-
+    Picks one random pop of the scope.
+  random_province: >-
+    Picks one random province of the scope (not verified how it differs from
+    random_owned).
+  random_state: >-
+    Picks one random state of the country.
+  rank: >-
+    The country's rank is this number or better (smaller). rank = 8 is true for
+    the great powers, rank = 16 for the secondary powers too.
+  rebel_power_fraction: >-
+    Strength of the rebels compared with the army (not verified on what scale).
+  recruited_percentage: >-
+    Share (0..1) of the possible regiments that are recruited.
+  reduce_pop: >-
+    The pop's size is multiplied by the value (0.9 = loses 10 %); used by
+    disasters and wars.
+  region: >-
+    True if the province belongs to the state region from `map/region.txt`.
+  relation:
+    trigger:
+      text: >-
+        True if relations between this country and `who` are at least `value`
+        (from -200 to 200).
+      example: relation = { who = FRA value = 100 }
+    effect:
+      text: >-
+        Adds `value` to the relations with `who` (same as modify_relation).
+      example: relation = { who = FRA value = 100 }
+  release: >-
+    Releases the given country from this country's cores: it gets its provinces
+    and becomes independent.
+  release_vassal: >-
+    Releases the given country from this country's cores as a vassal of this
+    country.
+  religion:
+    trigger: >-
+      In pop scope: the pop's religion. In country scope: the state religion.
+    effect: >-
+      Changes the country's state religion (not verified whether pops convert).
+  religious_policy: >-
+    Religious policy of the ruling party (an issue option such as moralism,
+    pluralism, secularized).
+  remove_accepted_culture: >-
+    The culture stops being accepted: its pops lose political rights.
+  remove_core: >-
+    In province scope: the given country loses its core on this province. In
+    country scope: this country loses its core on the province with the id.
+  remove_country_modifier: >-
+    Removes a modifier added with add_country_modifier (also one with
+    duration -1).
+  remove_province_modifier: >-
+    Removes a modifier added with add_province_modifier from this province.
+  remove_random_economic_reforms: >-
+    Takes back the given number of random economic reform steps of an
+    uncivilised country.
+  remove_random_military_reforms: >-
+    Takes back the given number of random military reform steps of an
+    uncivilised country.
+  remove_random_political_reforms: >-
+    Takes back the given number of random political reforms (one step each).
+  remove_random_social_reforms: >-
+    Takes back the given number of random social reforms (one step each).
+  research_points: >-
+    Adds research points; negative removes them.
+  revanchism: >-
+    Revanchism of the country (0..1, not verified): grows when it loses national
+    provinces and makes pops want war.
+  revolt_percentage: >-
+    Share (0..1) of the pops that support rebels.
+  rgo_size: >-
+    Changes the size of the province's RGO (more workers can be employed).
+  rich_strata: >-
+    Goes over the rich strata pops (aristocrats, capitalists in vanilla).
+  rich_strata_everyday_needs: >-
+    Share (0..1) of everyday needs met for the rich strata on average.
+  rich_strata_life_needs: >-
+    Share (0..1) of life needs met for the rich strata on average.
+  rich_strata_luxury_needs: >-
+    Share (0..1) of luxury needs met for the rich strata on average.
+  rich_strata_militancy: >-
+    Average militancy (0..10) of the rich strata.
+  rich_tax: >-
+    Share (0..1) of the rich tax slider.
+  rich_tax_above_poor: >-
+    True if the rich tax slider is higher than the poor tax slider.
+  ruling_party: >-
+    True if the ruling party is the given party (not verified whether the value
+    is the party's name or number).
+  ruling_party_ideology:
+    trigger: >-
+      True if the ruling party's ideology is the given one (liberal, conservative,
+      …).
+    effect: >-
+      The country's party of this ideology becomes the ruling party (if it has
+      one available).
+  scaled_consciousness:
+    text: >-
+      Adds consciousness multiplied by `factor` and by the pop's support of
+      `ideology` or `issue`, or by `unemployment`; use one of the three.
+    example: scaled_consciousness = { ideology = liberal factor = 2 }
+  scaled_militancy:
+    text: >-
+      Adds militancy multiplied by `factor` and by the pop's support of
+      `ideology` or `issue`, or by `unemployment`; use one of the three.
+    example: scaled_militancy = { issue = free_trade factor = 3 }
+  sea_zone: >-
+    Moves to the sea zone next to this coastal province.
+  secede_province: >-
+    The province (in state scope: every province of the state) goes to the given
+    country. Use it to transfer land in events.
+  set_country_flag: >-
+    Sets a flag (a yes/no marker with a name you choose) on the country; check it
+    later with has_country_flag and remove with clr_country_flag. Flags last
+    for the whole game.
+  set_global_flag: >-
+    Sets a flag shared by all countries; check it with has_global_flag.
+  set_province_flag: >-
+    Sets a flag on this province; check it with has_province_flag.
+  set_variable:
+    text: >-
+      Sets the country variable named by `which` to `value`.
+    example: set_variable = { which = my_variable value = 0 }
+  slavery: >-
+    True if the slavery issue has the given option (yes_slavery or no_slavery
+    in vanilla; not verified).
+  social_movement: >-
+    True if the pop is a member of a social movement.
+  social_movement_strength: >-
+    Strength of the social movements in the country (not verified on what scale).
+  social_reform:
+    trigger: >-
+      True if the given social reform option is in place.
+    effect: >-
+      Sets the social reform to the option at once.
+  social_reform_want: >-
+    Share (0..1) of the pops (or the pop) wanting social reforms.
+  social_spending: >-
+    Share (0..1) of the social spending slider (pensions, unemployment benefits,
+    health care).
+  sphere_owner: >-
+    Moves to the great power whose sphere this country is in.
+  state_id: >-
+    True if the province is in the same state as the province with the given id.
+  state_scope: >-
+    Moves from a province to its state.
+  strata: >-
+    True if the pop belongs to the given strata: poor, middle or rich (set in
+    `poptypes/*.txt`).
+  stronger_army_than: >-
+    True if this country's army is stronger than the given country's (not
+    verified how the game measures it).
+  sub_unit:
+    text: >-
+      Adds a unit of `type` (from `units/*.txt`) in the province (not verified
+      what `value` means).
+    example: sub_unit = { type = infantry value = current }
+  substate_of: >-
+    True if the country is a substate of the given country.
+  tag: >-
+    True if the country in scope has the given tag. THIS / FROM compare two
+    scopes.
+  tech_school: >-
+    The country's technology school (from `common/technology.txt`), e.g.
+    traditional_academic.
+  terrain: >-
+    True if the province's terrain (from `map/terrain.txt`) is the given one.
+  this: >-
+    Commands inside apply to THIS, the scope the event, decision or effect
+    started in; useful inside other scopes to go back.
+  this_culture_union: >-
+    True if this country is the cultural union of the given country's culture
+    (`this_union` = of the current country's own culture; not verified).
+  total_amount_of_divisions: >-
+    Number of brigades (regiments) the country has.
+  total_amount_of_ships: >-
+    Number of ships the country has.
+  total_defensives: >-
+    Number of defensive wars the country has fought (not verified).
+  total_num_of_ports: >-
+    Number of ports of the country (not verified how it differs from
+    num_of_ports).
+  total_of_ours_sunk: >-
+    Number of the country's ships sunk (in the current war, not verified).
+  total_offensives: >-
+    Number of offensive wars the country has fought (not verified).
+  total_pops: >-
+    Number of people (the sum of pop sizes) in the scope.
+  total_sea_battles: >-
+    Number of sea battles the country has fought (not verified).
+  total_sunk_by_us: >-
+    Number of enemy ships the country has sunk (not verified).
+  trade_goods:
+    trigger: >-
+      True if the province's RGO produces the goods.
+    effect: >-
+      Changes the goods the province's RGO produces.
+  trade_goods_in_state: >-
+    True if a province of the state produces the goods; used in
+    `production_types.txt` bonuses for factories near their inputs.
+  trade_policy: >-
+    Trade policy of the ruling party (protectionism or free_trade in vanilla).
+  treasury:
+    trigger: >-
+      Money in the treasury is at least the value (same as money).
+    effect: >-
+      Adds money to the treasury (same as money); negative takes money.
+  truce_with: >-
+    True if there is a truce with the given country (after a peace, war is not
+    allowed without infamy).
+  type: >-
+    True if the pop is of the given type (same as pop_type in a trigger).
+  unemployment: >-
+    Share (0..1) of the working pops that are unemployed in the scope.
+  unemployment_by_type:
+    text: >-
+      Unemployment (0..1) of the pops of `type` in the province.
+    example: unemployment_by_type = { type = craftsmen value = 0.1 }
+  unit_has_leader: >-
+    True if the unit (army or navy, in unit scopes) has a leader (not verified
+    in which scopes).
+  unit_in_battle: >-
+    True if the unit is fighting a battle (not verified in which scopes).
+  units_in_province: >-
+    Number of units (armies or navies) in the province.
+  upper_house:
+    trigger:
+      text: >-
+        True if the ideology has at least `value` (share 0..1) of the seats in the
+        upper house.
+      example: upper_house = { ideology = liberal value = 0.5 }
+    effect:
+      text: >-
+        Adds `value` (share) to the ideology's seats in the upper house; the other
+        ideologies lose seats.
+      example: upper_house = { ideology = liberal value = 0.1 }
+  vassal_of: >-
+    True if the country is a vassal (or substate) of the given country.
+  war:
+    trigger: >-
+      `war = yes`: the country is fighting any war.
+    effect:
+      text: >-
+        Declares war on `target`. `attacker_goal` / `defender_goal` give each side
+        a war goal (casus_belli and, for state goals, a province of the state);
+        `call_ally = no` keeps allies out.
+      example: war = { target = FRA attacker_goal = { casus_belli = conquest } call_ally = yes }
+  war_countries: >-
+    The countries this one is at war with.
+  war_exhaustion:
+    trigger: >-
+      War exhaustion of the country (0..100) is at least the value.
+    effect: >-
+      Adds war exhaustion; negative lowers it.
+  war_policy: >-
+    War policy of the ruling party (jingoism, pro_military, anti_military,
+    pacifism in vanilla).
+  war_score: >-
+    War score of the current war (-100..100) is at least the value (not
+    verified against which side).
+  war_with: >-
+    True if this country is at war with the given country.
+  work_available:
+    text: >-
+      True if there are jobs for the given pop types in the scope; used in
+      promotion and migration weights.
+    example: work_available = { worker = craftsmen }
+  world_wars_enabled:
+    trigger: >-
+      True once world wars are enabled (a later stage than great_wars_enabled;
+      not verified how they differ in the game).
+    effect: >-
+      Enables world wars for the whole game.
+  year: >-
+    The current year is at least the value (year = 1870 is true from 1870 on).
+  years_of_research: >-
+    Adds research points worth this many years of the country's current research
+    (not verified).

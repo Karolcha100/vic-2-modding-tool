@@ -117,6 +117,9 @@ class Field:
             frame of (``GFX_crime_strip``).
         sprite_from: The value that shows the sprite's first frame (1 for most
             icons; 0 for crimes, whose first frame is empty).
+        picture: For picture names: the folder of the pictures
+            (``gfx/pictures/events``); the value is a file name in it without
+            the extension (``.tga`` or ``.dds``).
     """
 
     value: ValueSpec
@@ -126,6 +129,7 @@ class Field:
     doc: str = ""
     sprite: str = ""
     sprite_from: int = 1
+    picture: str = ""
 
 
 @dataclass(frozen=True)
@@ -177,8 +181,11 @@ class Command:
         value: What may stand after ``=``.
         compare: How a trigger compares its value: ``eq``, ``gte``, ``lte`` or
             ``block`` (for the future trigger tester, K53).
-        doc: Description.
+        doc: Description (one sentence).
         source: Where the entry comes from (``cwtools``, ``author``, ``vanilla``, ``manual``).
+        details: Longer description: what it does in the game, caveats (T006).
+        example: Example of use written by hand (otherwise one is made from
+            the value, see `vic2toolmod.schema.reference`).
     """
 
     name: str
@@ -189,6 +196,8 @@ class Command:
     compare: str | None = None
     doc: str = ""
     source: str = "manual"
+    details: str = ""
+    example: str = ""
 
 
 @dataclass(frozen=True)

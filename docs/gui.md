@@ -7,7 +7,9 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   Modifiers, …) or by folder; mod files only or vanilla too;
 - **code editor** (Monaco) with Paradox syntax colours, errors / warnings /
   notes underlined as you type, completion from the schema and the mod's names,
-  hover with descriptions and localised names;
+  hover with descriptions and localised names: over a trigger or effect it
+  shows what it does, where it may be used, the value in words, how it compares,
+  an example and the syntax (the same text as `docs/commands.md`; T006);
 - **F12** go to definition, **Shift+F12** find usages (bottom panel),
   **F2** rename everywhere in the mod (changed files are left unsaved);
 - **syntax tree** panel: the parsed file, the branch under the cursor
@@ -27,10 +29,12 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   ones, plus **Vanilla (read-only)** - the game's own files, where saving and
   "Create (write files)" are refused. Any other folder can be typed in.
   Recently opened mods are kept in `recent.json` next to the settings file.
-- **icons** (T003): hovering an icon number (`icon = 1` in `crime.txt`,
-  religions, national focuses, modifiers, `sprite` of pop types) shows the
-  icon from the game's graphics (DDS / TGA, decoded by the engine); block
-  cards show it next to the value. Numbers without an icon are errors.
+- **icons** (T003, T006): hovering an icon number (`icon = 1` in `crime.txt`,
+  religions, national focuses, modifiers, `sprite` of pop types, unit types,
+  rebel types) shows the icon from the game's graphics (DDS / TGA, decoded by
+  the engine); block cards show it next to the value. Numbers without an icon
+  are errors. **Pictures** named by `picture = …` in events, decisions and
+  leaders are shown the same way; a missing picture file is a warning.
 - **right click** in the code: Go to definition, Find usages, Test trigger
   (Ctrl+Alt+T), templates, rename. The same menu (without the templates) on a
   card in the block view; there it looks up the card's value

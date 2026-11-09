@@ -39,6 +39,7 @@ API (all under ``/api/``, JSON in and out):
 ``localisation``    GET     ``q, limit`` -> keys whose key or English text contains ``q``
 ``git``             GET     the mod's git status (K37 = B); ``rel`` -> diff of one file
 ``picture``         GET     ``name`` -> event picture (``gfx/pictures/events``) as PNG
+``image``           GET     ``rel`` -> a ``.tga`` / ``.dds`` file under ``gfx/`` as PNG (T006)
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
 ==================  ======  ==================================================
 
@@ -364,6 +365,9 @@ class Engine:
                     icon = self.services._icon(v, n)
                     if icon is not None:
                         out["sprite"] = list(icon)
+                    picture = self.services._picture(v, n)
+                    if picture is not None:
+                        out["picture"] = picture
             elif isinstance(n, Block):
                 out.update(
                     kind="block",
@@ -1028,6 +1032,29 @@ class Engine:
         except ImageError as exc:
             raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
 
+    def image(self, rel: str) -> bytes:
+        """A picture file under ``gfx/`` (``.tga`` / ``.dds``) as PNG (T006)."""
+        from vic2toolmod.images import ImageError, image_to_rgba, png
+
+        low = rel.replace("\\", "/").lower()
+        if not low.startswith("gfx/") or not low.endswith((".tga", ".dds")) or ".." in low:
+            raise ApiError(HTTPStatus.BAD_REQUEST, f"not a picture under gfx/: {rel!r}")
+        f = self.ws.file(rel)
+        if f is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, f"no file {rel!r}")
+        st = f.path.stat()
+        key = (f.rel.lower(), st.st_size, st.st_mtime_ns, 0, 0)
+        cached = self._sprites.get(key)
+        if cached is None:
+            try:
+                cached = png(*image_to_rgba(f.path.read_bytes()))
+            except ImageError as exc:
+                raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+            if len(self._sprites) > 2000:
+                self._sprites.clear()
+            self._sprites[key] = cached
+        return cached
+
     def texture(self, texture: str) -> str | None:
         """Relative path of a texture named in a ``.gfx`` file, if it exists.
 
@@ -1152,11 +1179,13 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
             route = (method, url.path[len("/api/") :])
             if route == ("GET", "changed"):  # takes the lock itself, only briefly
                 return self._json(HTTPStatus.OK, engine.changed())
-            if route in (("GET", "picture"), ("GET", "sprite")):
+            if route in (("GET", "picture"), ("GET", "sprite"), ("GET", "image")):
                 try:
                     with engine.lock:
                         if route[1] == "sprite":
                             image = engine.sprite(q("name"), int(q("frame", "1")))
+                        elif route[1] == "image":
+                            image = engine.image(q("rel"))
                         else:
                             image = engine.picture(q("name"))
                 except ApiError as exc:

@@ -113,6 +113,18 @@ icons, 0 for crimes, whose first frame is empty). The validator then reports
 numbers without a frame, hover and the block view show the icon. Sprites come
 from `interface/*.gfx` (any `…spriteType` with `name`, `texturefile`,
 `noOfFrames`); a texture written as `.tga` may be a `.dds` on disk.
+Icons described so far: crimes, religions, national focuses, modifiers, pop
+types, war goals, unit types (`icon` → `GFX_unit_strip`, `naval_icon` → the
+naval battle strip) and rebel types (T006).
+
+### Pictures
+
+A field whose value names a picture file has `picture: <folder>`, e.g.
+`picture: gfx/pictures/events`; the value is the file name without `.tga` /
+`.dds`. A name without a file is a warning (`schema.missing-picture`); hover
+and the block view show the picture. Used for events, decisions
+(`gfx/pictures/decisions`) and leaders (`gfx/interface/leaders`). The project
+index keeps the files of these folders as the `picture` registry.
 
 ### Descriptions
 
@@ -121,6 +133,29 @@ Every command and modifier has a description (T004; a test keeps it so):
 of `commands/docs.yaml` (a string for both contexts, or `{trigger: …, effect:
 …}`). `modifiers.yaml` entries carry `doc` too. Texts marked "meaning not
 verified" come from the name or the wiki, not from a test in the game.
+
+Longer descriptions (T006) are in the `details` section of
+`commands/details.yaml`: what the command does in the game, how its value is
+read, common mistakes, and optionally a hand-written example:
+
+```yaml
+details:
+  owns: True if this country owns the province with the given id.
+  add_country_modifier:
+    text: '`duration` is in days, -1 = until removed …'
+    example: add_country_modifier = { name = national_confusion duration = 365 }
+  badboy:
+    trigger: Infamy as a share of the infamy limit …
+    effect: Adds infamy points (not a share) …
+```
+
+`vic2toolmod.schema.reference` turns a command into readable text: the value
+in words, where it may be used, how a trigger compares, the syntax and an
+example (hand-written, or made from the value with sample names). The editor's
+hover and completion show that text, and `docs/commands.md` is generated from
+it (`python -m vic2toolmod.schema.reference --write`). Tests keep every
+command described, every example valid against the schema and the document up
+to date.
 
 ### Dynamic keys
 
@@ -174,6 +209,7 @@ not described yet: interface, some map files, units' stats).
 | `schema.wrong-value` | error | value of the wrong type |
 | `schema.missing-field` | error | required key missing |
 | `schema.duplicate-key` | warning | key that may appear once appears again |
+| `schema.missing-picture` | warning | a picture name without a file in its folder (`picture` fields) |
 | `schema.wrong-operator` | warning | Victoria 2 only understands `=` |
 | `schema.unexpected-value` | warning | loose value or block where none is allowed |
 | `ref.unknown-name` | warning | a name that is not defined in the mod or the game |

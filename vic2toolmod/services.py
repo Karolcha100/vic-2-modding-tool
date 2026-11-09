@@ -22,6 +22,7 @@ from vic2toolmod.schema.model import (
     TypeSpec,
     ValueSpec,
 )
+from vic2toolmod.schema.reference import command_hover
 from vic2toolmod.schema.validator import Validator, ValueInfo, _Frame, file_type_for
 from vic2toolmod.script.cst import Assignment, Block, Document, Node, Scalar
 from vic2toolmod.script.tokens import Token
@@ -57,12 +58,14 @@ class Hover:
         start: Start offset of the thing.
         end: End offset.
         sprite: For icon numbers (T003): the sprite and the frame (from 1) to show.
+        picture: For picture names (T006): relative path of the picture file.
     """
 
     text: str
     start: int
     end: int
     sprite: tuple[str, int] | None = None
+    picture: str | None = None
 
 
 @dataclass(frozen=True)
@@ -189,7 +192,7 @@ class LanguageService:
                 continue
             kind = "scope" if c.push_scope else context.value
             scopes = "/".join(sorted({s for a in alts for s in a.scopes})) or "any scope"
-            out.append(Completion(name, kind, scopes, c.doc))
+            out.append(Completion(name, kind, scopes, command_hover(ok[0], self.ws.schema)))
         return out
 
     def _names(self, registry: str, limit: int = MAX_NAMES) -> list[Completion]:
@@ -261,6 +264,11 @@ class LanguageService:
                 assert value is not None
                 text = f"icon {value.to_text().strip()}: frame {icon[1]} of `{icon[0]}`"
                 return Hover(text, value.start, value.end, icon)
+            picture = self._picture(v, place.assignment)
+            if picture is not None:
+                value = place.assignment.value
+                assert value is not None
+                return Hover(f"`{picture}`", value.start, value.end, picture=picture)
         if place.part == "key" and place.assignment is not None:
             info = v.value_info.get(id(place.assignment))
             key = place.assignment.key
@@ -274,11 +282,10 @@ class LanguageService:
                 return Hover(text, key.start, key.end)
             parts = [f"**{key.text}**"]
             if info.command is not None:
-                c = info.command
-                kind = "scope change" if c.push_scope else c.context.value
-                scopes = "/".join(c.scopes) or "any scope"
-                parts.append(f"{kind}, {scopes}; value: `{_short(c.value)}`; source: {c.source}")
-            elif info.modifier:
+                # T006: description, value in words, check, example, syntax
+                text = command_hover(info.command, self.ws.schema)
+                return Hover(text, key.start, key.end)
+            if info.modifier:
                 low = key.text.lower()
                 source = self.ws.schema.modifier_sources.get(low, "")
                 parts.append(
@@ -306,6 +313,14 @@ class LanguageService:
         if frames is None or not 1 <= frame <= frames:
             return None
         return info.sprite, frame
+
+    def _picture(self, v: Validator, a: Assignment) -> str | None:
+        """Relative path of the picture file a picture name names, if it exists."""
+        info = v.value_info.get(id(a))
+        if info is None or not info.picture or a.value is None or isinstance(a.value, Block):
+            return None
+        d = self.ws.registries().get("picture", f"{info.picture}/{a.value.value.strip()}")
+        return d.file if d is not None else None
 
     # -- usages / rename ---------------------------------------------------------
     def references(self, rel: str, offset: int) -> list[Usage]:

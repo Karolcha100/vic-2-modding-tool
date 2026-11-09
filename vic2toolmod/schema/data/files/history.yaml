@@ -141,7 +141,7 @@ rules:
       type: scalar
       personality: ref:trait
       background: ref:trait
-      picture: scalar
+      picture: {value: scalar, picture: gfx/interface/leaders, doc: "Portrait of the leader: gfx/interface/leaders/<name>.dds."}
       prestige: float
 
   diplomacy_history:

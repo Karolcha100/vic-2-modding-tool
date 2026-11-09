@@ -108,6 +108,7 @@ docs:
   country:
     effect: Scope change to the country of this pop / province.
     trigger: Scope change to the country of this pop / province.
+  country_event: 'Fire a country event: country_event = id, or { id = … days = … } to delay it.'
   country_units_in_province: True if units of the given country are in the province.
   country_units_in_state: True if units of the given country are in the state.
   create_alliance: Make an alliance with the given country.
@@ -302,6 +303,7 @@ docs:
     trigger: True if the country's primary culture is the given one.
   produces: True if the country / province produces the given goods.
   province_control_days: Days the province has been controlled is at least the value.
+  province_event: 'Fire a province event: province_event = id, or { id = … days = … } to delay it.'
   province_id: True if the province has the given id.
   random_country: 'Scope: one random country (limit = { } narrows the choice). In a trigger: true if it
     holds for them (any_* = at least one); in an effect: the effects apply to them (any_* = each, random_*

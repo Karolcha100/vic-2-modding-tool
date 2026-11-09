@@ -180,6 +180,7 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .context-menu { position: fixed; z-index: 50; min-width: 220px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.25); padding: 4px 0; }
 .context-menu .row { display: flex; justify-content: space-between; gap: 16px; padding: 4px 12px; }
 .card-icon { height: 24px; image-rendering: auto; margin-left: 6px; vertical-align: middle; }
+.card-picture { max-height: 64px; max-width: 160px; margin-left: 6px; vertical-align: middle; border-radius: 2px; }
 .project-button { font-weight: 600; }
 .project-picker .row { padding: 6px 12px; white-space: normal; }
 .project-picker .row.active { background: var(--hover); }

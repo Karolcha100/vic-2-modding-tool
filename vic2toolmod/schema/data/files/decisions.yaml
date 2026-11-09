@@ -15,7 +15,7 @@ rules:
       allow: {block: trigger}
       effect: {block: effect}
       ai_will_do: {rule: weight}
-      picture: scalar
+      picture: {value: scalar, picture: gfx/pictures/decisions, doc: "Picture of the decision: gfx/pictures/decisions/<name>.tga (without it the game looks for the decision's own name)."}
       alert: bool
       news: bool
       news_title: localisation

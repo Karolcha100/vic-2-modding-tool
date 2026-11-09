@@ -3,7 +3,7 @@
 import * as monaco from "monaco-editor/editor/editor.api.js";
 import "monaco-editor/features/register.all.js"; // suggest, hover, find, folding … (no other languages)
 import EditorWorker from "monaco-editor/editor/editor.worker.js?worker";
-import { api, spriteUrl, type Completion } from "./api";
+import { api, imageUrl, spriteUrl, type Completion } from "./api";
 
 declare global {
   interface Window {
@@ -85,7 +85,7 @@ monaco.languages.registerCompletionItemProvider(LANGUAGE, {
         label: c.label,
         kind: KINDS[c.kind] ?? monaco.languages.CompletionItemKind.Text,
         detail: [c.kind, c.detail].filter(Boolean).join(" · "),
-        documentation: c.doc,
+        documentation: c.doc ? { value: c.doc } : undefined,
         insertText: c.label === "{ }" ? "{\n\t$0\n}" : c.label,
         insertTextRules: c.label === "{ }" ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
         range,
@@ -110,6 +110,8 @@ monaco.languages.registerHoverProvider(LANGUAGE, {
         ...(hover.sprite
           ? [{ value: `![${hover.sprite[0]} ${hover.sprite[1]}](${location.origin}${spriteUrl(hover.sprite[0], hover.sprite[1])})` }]
           : []),
+        // T006: the picture a picture name names (events, decisions, leaders)
+        ...(hover.picture ? [{ value: `![${hover.picture}](${location.origin}${imageUrl(hover.picture)})` }] : []),
       ],
     };
   },

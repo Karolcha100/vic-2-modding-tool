@@ -37,7 +37,7 @@ _TYPE_RE = re.compile(
     r"^(?P<name>[a-z_]+)(?::(?P<arg>[a-z0-9_.]+))?"
     r"(?:\[(?P<lo>-?[\d.]*)\.\.(?P<hi>-?[\d.]*)\])?$"
 )
-_FIELD_PROPS = {"required", "multiple", "push_scope", "doc", "sprite", "sprite_from"}
+_FIELD_PROPS = {"required", "multiple", "push_scope", "doc", "sprite", "sprite_from", "picture"}
 _SPEC_KEYS = {"block", "fields", "rule", "list", "one_of", "value"}
 _OTHER = {"warn", "trigger", "effect", "modifier", "any"}
 _PATTERN_KEYS = {"int", "date", "tag", "any", "float"}
@@ -75,6 +75,7 @@ class _Builder:
         self.problems: list[str] = []
         self.where = ""
         self.docs: dict[str, dict[Context, str]] = {}
+        self.details: dict[str, dict[Context, tuple[str, str]]] = {}
 
     def fail(self, message: str) -> None:
         self.problems.append(f"{self.where}: {message}")
@@ -138,6 +139,7 @@ class _Builder:
                 doc=str(raw.get("doc", "")),
                 sprite=str(raw.get("sprite", "")),
                 sprite_from=int(raw.get("sprite_from", 1)),
+                picture=str(raw.get("picture", "")).strip("/"),
             )
         return Field(value=self.spec(raw))
 
@@ -160,6 +162,8 @@ class _Builder:
                     Context.TRIGGER: str(doc),
                     Context.EFFECT: str(doc),
                 }
+        for name, raw in (data.pop("details", None) or {}).items():
+            self.add_details(str(name).lower(), raw)
         for section, entries in data.items():
             if section not in ("trigger", "effect", "both"):
                 self.fail(f"unknown section {section!r} (use trigger / effect / both)")
@@ -187,6 +191,48 @@ class _Builder:
                 ]
             if not found:
                 self.fail(f"docs for unknown command {name!r}")
+        for name, details in self.details.items():
+            found = False
+            for context, (text, example) in details.items():
+                alts = self.schema.commands.get((context, name))
+                if not alts:
+                    continue
+                found = True
+                self.schema.commands[(context, name)] = [
+                    dataclasses.replace(a, details=a.details or text, example=a.example or example)
+                    for a in alts
+                ]
+            if not found:
+                self.fail(f"details for unknown command {name!r}")
+
+    def add_details(self, name: str, raw: Any) -> None:
+        """``details`` entry: text, or ``{text, example, trigger, effect}`` (T006).
+
+        ``trigger`` / ``effect`` hold a text or ``{text, example}`` for one
+        context; ``text`` / ``example`` apply to both.
+        """
+
+        def pair(value: Any) -> tuple[str, str]:
+            if isinstance(value, dict):
+                bad = set(value) - {"text", "example"}
+                if bad:
+                    self.fail(f"details of {name!r}: unknown keys {sorted(bad)}")
+                return str(value.get("text", "")).strip(), str(value.get("example", "")).strip()
+            return str(value).strip(), ""
+
+        if not isinstance(raw, dict):
+            text, example = pair(raw)
+            self.details[name] = {c: (text, example) for c in Context}
+            return
+        bad = set(raw) - {"text", "example", "trigger", "effect"}
+        if bad:
+            self.fail(f"details of {name!r}: unknown keys {sorted(bad)}")
+        both = pair({k: v for k, v in raw.items() if k in ("text", "example")})
+        out: dict[Context, tuple[str, str]] = {}
+        for context in Context:
+            own = pair(raw[context.value]) if context.value in raw else ("", "")
+            out[context] = (own[0] or both[0], own[1] or both[1])
+        self.details[name] = out
 
     def add_dynamic(self, raw: dict[str, Any]) -> None:
         key = str(raw.get("key", ""))

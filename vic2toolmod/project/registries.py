@@ -307,6 +307,21 @@ def _provinces(project: Project) -> Contribution:
     return c
 
 
+#: Folders of pictures named in scripts (``picture = name``, T006).
+PICTURE_FOLDERS = ("gfx/pictures/events", "gfx/pictures/decisions", "gfx/interface/leaders")
+
+
+def _pictures(project: Project) -> Contribution:
+    """Pictures (``.tga`` / ``.dds``) of `PICTURE_FOLDERS` as ``folder/stem``."""
+    c = Contribution(registries=("picture",))
+    for folder in PICTURE_FOLDERS:
+        for f in project.glob(f"{folder}/*"):
+            p = PurePosixPath(f.rel)
+            if p.suffix.lower() in (".tga", ".dds"):
+                c.add("picture", f"{folder}/{p.stem}", f.rel, 1)
+    return c
+
+
 _FLAG_PATTERNS = (
     "events/*.txt",
     "decisions/*.txt",
@@ -366,6 +381,7 @@ STEPS: list[_Step] = [
     _s("map/continent.txt", _top("continent")),
     _Step(None, whole=_pop_types),
     _Step(None, whole=_provinces),
+    _Step(None, whole=_pictures),
     _s("events/*.txt", _events),
     _s("decisions/*.txt", _decisions),
     _s("map/terrain.txt", _terrain),
