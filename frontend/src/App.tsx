@@ -311,7 +311,9 @@ export function App() {
         <FileTree files={files} current={current} dirty={dirty} onOpen={(rel) => openFile(rel)} />
       </aside>
       <main>
-        {view === "create" && <Creators onStatus={setStatus} />}
+        {view === "create" && (
+          <Creators onStatus={setStatus} files={files.map((f) => f.rel)} onOpen={(rel) => { setView("code"); openFile(rel); }} />
+        )}
         {view === "reforms" && (
           <ReformWindow onStatus={setStatus} onOpen={(rel, line) => { setView("code"); openFile(rel, line); }} />
         )}

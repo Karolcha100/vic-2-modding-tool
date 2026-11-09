@@ -34,6 +34,8 @@ API (all under ``/api/``, JSON in and out):
 ``reforms/window``  GET     reform window layout (K69); POST ``{positions, write?}`` -> diff
 ``create/reform``   POST    ``{spec, write?}`` -> new reform (K70 C): diff, notes
 ``create/ideology`` POST    ``{spec, write?}`` -> new ideology (K70 D): diff, notes
+``create/event``    POST    ``{spec, write?}`` -> new event (K70 A)
+``create/decision`` POST    ``{spec, write?}`` -> new decision (K70 B)
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
 ==================  ======  ==================================================
 
@@ -588,6 +590,36 @@ class Engine:
                     ),
                 )
                 changes, notes = plan.changes, plan.notes
+            elif kind == "event":
+                from vic2toolmod.generators.event_decision import EventSpec, plan_event
+
+                plan3 = plan_event(
+                    self.ws,
+                    EventSpec(
+                        file=str(s["file"]),
+                        title=str(s["title"]),
+                        description=str(s["description"]),
+                        options=[str(o) for o in s.get("options") or ["OK"]],
+                        kind=str(s.get("kind", "country_event")),
+                        triggered_only=bool(s.get("triggered_only", True)),
+                        months=int(s.get("months", 12)),
+                        picture=str(s.get("picture", "")),
+                    ),
+                )
+                changes, notes = plan3.changes, plan3.notes
+            elif kind == "decision":
+                from vic2toolmod.generators.event_decision import DecisionSpec, plan_decision
+
+                plan4 = plan_decision(
+                    self.ws,
+                    DecisionSpec(
+                        file=str(s["file"]),
+                        name=str(s["name"]),
+                        title=str(s["title"]),
+                        description=str(s["description"]),
+                    ),
+                )
+                changes, notes = plan4.changes, plan4.notes
             else:
                 color = s.get("color")
                 plan2 = plan_ideology(
@@ -728,6 +760,10 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.create("reform", body)
                 case ("POST", "create/ideology"):
                     return e.create("ideology", body)
+                case ("POST", "create/event"):
+                    return e.create("event", body)
+                case ("POST", "create/decision"):
+                    return e.create("decision", body)
                 case ("GET", "events/graph"):
                     return e.events_graph()
                 case ("GET", "vanilla/diff"):

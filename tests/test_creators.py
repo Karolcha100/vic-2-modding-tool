@@ -128,3 +128,43 @@ def test_new_ideology(tmp_path):
     assert gov.find("democracy").value.find("christian_democrat").value.text == "yes"
     assert gov.find("absolute_monarchy").value.find("christian_democrat") is None
     assert "christian_democrat;Christian Democrat;" in files["localisation/00_vic2toolmod.csv"]
+
+
+def test_new_event_and_decision(tmp_path):
+    from vic2toolmod.generators.event_decision import (
+        DecisionSpec,
+        EventSpec,
+        plan_decision,
+        plan_event,
+    )
+
+    ws = make(tmp_path)
+    write(
+        ws.project.game_dir / "events/mine.txt",
+        "### Events 500-510 used\ncountry_event = { id = 500 }\n",
+    )
+    ws.refresh()
+    plan = plan_event(
+        ws, EventSpec("mine.txt", "Title", "Text", ["Yes", "No"], triggered_only=False, months=6)
+    )
+    files = by_rel(plan.changes)
+    ev = parse_text(files["events/mine.txt"]).items[-1].value
+    assert ev.find("id").value.text == "501"
+    assert ev.find("mean_time_to_happen").value.find("months").value.text == "6"
+    assert [o.value.find("name").value.value for o in ev.assignments("option")] == [
+        "EVTOPTA501",
+        "EVTOPTB501",
+    ]
+    assert "EVTNAME501;Title;" in files["localisation/00_vic2toolmod.csv"]
+    plan = plan_decision(ws, DecisionSpec("new.txt", "build_homes", "Build Homes", "Homes."))
+    files = by_rel(plan.changes)
+    dec = (
+        parse_text(files["decisions/new.txt"]).find("political_decisions").value.find("build_homes")
+    )
+    assert [a.key_text for a in dec.value.assignments()] == [
+        "potential",
+        "allow",
+        "effect",
+        "ai_will_do",
+    ]
+    assert "build_homes_title;Build Homes;" in files["localisation/00_vic2toolmod.csv"]

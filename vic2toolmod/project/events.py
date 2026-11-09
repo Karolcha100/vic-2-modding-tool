@@ -6,7 +6,9 @@ import re
 
 from vic2toolmod.project.registries import Registries
 
-_RANGE = re.compile(r"events?\s+(\d+)\s*[-–]\s*(\d+)", re.IGNORECASE)
+_RANGE = re.compile(r"events?\b[^\d\n]*?(\d+)\s*[-–]\s*(\d+)", re.IGNORECASE)
+MAX_ID = 2**31 - 1
+"""The game stores event ids as 32-bit numbers; larger ids are not safe."""
 
 
 def declared_range(text: str) -> tuple[int, int] | None:
@@ -24,8 +26,8 @@ def declared_range(text: str) -> tuple[int, int] | None:
 
 
 def used_ids(registries: Registries) -> set[int]:
-    """All numeric event ids defined in the project."""
-    return {int(k) for k in registries.names.get("event", {}) if k.isdigit()}
+    """All numeric event ids defined in the project (only those the game can store)."""
+    return {int(k) for k in registries.names.get("event", {}) if k.isdigit() and int(k) <= MAX_ID}
 
 
 def next_free_id(registries: Registries, file_text: str | None = None) -> int:

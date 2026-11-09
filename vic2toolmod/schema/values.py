@@ -25,6 +25,10 @@ _SHAPES: dict[str, re.Pattern[str]] = {
 }
 
 
+def _fmt(x: float) -> str:
+    return str(int(x)) if float(x).is_integer() else f"{x:g}"
+
+
 def is_tag(text: str) -> bool:
     """Whether ``text`` looks like a country tag (``USA``, ``D01``)."""
     return bool(_TAG.fullmatch(text))
@@ -54,9 +58,9 @@ def check_scalar(text: str, spec: TypeSpec, schema: Schema) -> str | None:
             return "an integer" if name == "int" else "a number"
         number = float(text)
         if spec.minimum is not None and number < spec.minimum:
-            return f"a number >= {spec.minimum:g}"
+            return f"a number >= {_fmt(spec.minimum)}"
         if spec.maximum is not None and number > spec.maximum:
-            return f"a number <= {spec.maximum:g}"
+            return f"a number <= {_fmt(spec.maximum)}"
         return None
     if name == "date":
         return None if _DATE.fullmatch(text) else "a date (year.month.day)"

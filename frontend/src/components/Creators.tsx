@@ -3,7 +3,7 @@ import { api } from "../api";
 
 /** Creators (K70): new reform (C), new ideology (D), parties for an ideology (K58). */
 
-type Kind = "reform" | "ideology" | "parties";
+type Kind = "reform" | "ideology" | "parties" | "event" | "decision";
 
 interface Result {
   diff: string;
@@ -12,6 +12,8 @@ interface Result {
 
 interface Props {
   onStatus: (text: string) => void;
+  files: string[];
+  onOpen: (rel: string) => void;
 }
 
 interface OptionRow { name: string; english: string; description: string; modifiers: string }
@@ -24,7 +26,7 @@ const parseModifiers = (text: string) =>
     }),
   );
 
-export function Creators({ onStatus }: Props) {
+export function Creators({ onStatus, files, onOpen }: Props) {
   const [kind, setKind] = useState<Kind>("reform");
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
@@ -49,6 +51,18 @@ export function Creators({ onStatus }: Props) {
   const [group, setGroup] = useState("");
   const [color, setColor] = useState("#5060c8");
   const [date, setDate] = useState("");
+  // event / decision
+  const [eFile, setEFile] = useState("");
+  const [eTitle, setETitle] = useState("");
+  const [eDesc, setEDesc] = useState("");
+  const [eOptions, setEOptions] = useState("OK");
+  const [eKind, setEKind] = useState("country_event");
+  const [eTriggered, setETriggered] = useState(true);
+  const [eMonths, setEMonths] = useState(12);
+  const [dFile, setDFile] = useState("");
+  const [dName, setDName] = useState("");
+  const [dTitle, setDTitle] = useState("");
+  const [dDesc, setDDesc] = useState("");
   // parties
   const [pIdeology, setPIdeology] = useState("");
   const [copyFrom, setCopyFrom] = useState("conservative");
@@ -81,6 +95,16 @@ export function Creators({ onStatus }: Props) {
         const r = await api.createIdeology(spec, write);
         setResult({ diff: r.diff, lines: [...r.notes, `files: ${r.files.length}`, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
         if (write) { onStatus(`Ideology ${iName} created`); setPIdeology(iName); }
+      } else if (kind === "event") {
+        const spec = { file: eFile, title: eTitle, description: eDesc, options: eOptions.split("\n").map((o) => o.trim()).filter(Boolean),
+          kind: eKind, triggered_only: eTriggered, months: eMonths };
+        const r = await api.createEvent(spec, write);
+        setResult({ diff: r.diff, lines: [...r.notes, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
+        if (write) { onStatus(`Event created (${r.notes.join(", ")})`); onOpen(`events/${eFile}`); }
+      } else if (kind === "decision") {
+        const r = await api.createDecision({ file: dFile, name: dName, title: dTitle, description: dDesc }, write);
+        setResult({ diff: r.diff, lines: [...r.notes, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
+        if (write) { onStatus(`Decision ${dName} created`); onOpen(`decisions/${dFile}`); }
       } else {
         const body = {
           ideology: pIdeology, copy_from: copyFrom ? [copyFrom] : [],
@@ -108,9 +132,9 @@ export function Creators({ onStatus }: Props) {
     <div className="creators">
       <div className="rw-tools">
         <b>Create</b>
-        {(["reform", "ideology", "parties"] as Kind[]).map((k) => (
+        {(["reform", "ideology", "parties", "event", "decision"] as Kind[]).map((k) => (
           <button key={k} className={kind === k ? "on" : ""} onClick={() => { setKind(k); setResult(null); setError(""); }}>
-            {k === "reform" ? "New reform" : k === "ideology" ? "New ideology" : "Parties for an ideology"}
+            {({ reform: "New reform", ideology: "New ideology", parties: "Parties for an ideology", event: "New event", decision: "New decision" } as Record<Kind, string>)[k]}
           </button>
         ))}
       </div>
@@ -152,6 +176,30 @@ export function Creators({ onStatus }: Props) {
             <label>Colour <input type="color" value={color} onChange={(e) => setColor(e.target.value)} /></label>
             <label>Available from <input value={date} onChange={(e) => setDate(e.target.value)} placeholder="1870.1.1 (optional)" /></label>
             <div className="muted">Copies the template's reform preferences, its support in every pop type and the governments that allow it. Parties come next ("Parties for an ideology").</div>
+          </>
+        )}
+        {kind === "event" && (
+          <>
+            <label>File in events/ <input list="event-files" value={eFile} onChange={(e) => setEFile(e.target.value)} placeholder="MyEvents.txt (new or existing)" /></label>
+            <datalist id="event-files">{files.filter((f) => f.startsWith("events/")).map((f) => <option key={f} value={f.slice(7)} />)}</datalist>
+            <label>Kind <select value={eKind} onChange={(e) => setEKind(e.target.value)}>
+              <option>country_event</option><option>province_event</option>
+            </select></label>
+            <label>Title <input value={eTitle} onChange={(e) => setETitle(e.target.value)} /></label>
+            <label>Description <textarea value={eDesc} onChange={(e) => setEDesc(e.target.value)} rows={3} /></label>
+            <label>Options (one per line) <textarea value={eOptions} onChange={(e) => setEOptions(e.target.value)} rows={3} /></label>
+            <label><input type="checkbox" checked={eTriggered} onChange={(e) => setETriggered(e.target.checked)} /> only fired by other events / decisions</label>
+            {!eTriggered && <label>Mean time to happen (months) <input type="number" value={eMonths} onChange={(e) => setEMonths(Number(e.target.value) || 1)} /></label>}
+            <div className="muted">Gets a free id (from the file's "Events N-M" header if it has one) and EVTNAME / EVTDESC / EVTOPT localisation. Fill the trigger and effects in the block view.</div>
+          </>
+        )}
+        {kind === "decision" && (
+          <>
+            <label>File in decisions/ <input list="decision-files" value={dFile} onChange={(e) => setDFile(e.target.value)} placeholder="MyDecisions.txt (new or existing)" /></label>
+            <datalist id="decision-files">{files.filter((f) => f.startsWith("decisions/")).map((f) => <option key={f} value={f.slice(10)} />)}</datalist>
+            <label>Key <input value={dName} onChange={(e) => setDName(e.target.value)} placeholder="build_homes" /></label>
+            <label>Title <input value={dTitle} onChange={(e) => setDTitle(e.target.value)} /></label>
+            <label>Description <textarea value={dDesc} onChange={(e) => setDDesc(e.target.value)} rows={3} /></label>
           </>
         )}
         {kind === "parties" && (

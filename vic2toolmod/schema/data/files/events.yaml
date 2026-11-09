@@ -9,7 +9,7 @@ rules:
   event:
     doc: "A country or province event."
     fields:
-      id: {value: int, required: true}
+      id: {value: "int[1..2147483647]", required: true, doc: "Event id; the game stores ids as 32-bit numbers."}
       title: localisation
       desc: localisation
       picture: scalar
