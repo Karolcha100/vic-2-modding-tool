@@ -12,11 +12,20 @@ Such a *group* is a set of ``modifier`` blocks of one parent block
 (``num_of_cities``), written ``key = N`` or ``NOT = { key = N }``.
 
 Together the modifiers are a step function of the variable: every modifier
-whose condition holds applies its factor. In most blocks factors multiply
-(``mean_time_to_happen``, ``ai_chance``, rebels, pop issues / ideologies); in
-``common/pop_types.txt`` (promotion, migration, … chances) and in the reform
-weights of ``common/ideologies.txt`` they are added (``combine``; not verified
-in the game, the GUI lets you switch).
+whose condition holds applies its factor. How the factors join (`combine`,
+with the reason in `combine_note`, T008):
+
+- **added** in ``poptypes/*.txt`` outside ``issues`` / ``ideologies``
+  (``promote_to`` …), in ``common/pop_types.txt`` (promotion, migration, …
+  chances) and in the reform weights of ``common/ideologies.txt``: the Victoria 2
+  wiki says "Issue and Ideology modifiers are multipliers, all other seem to be
+  additions" for pop files, and these blocks use negative factors (vanilla:
+  494 in ``promote_to``), which only make sense when added;
+- **multiplied** everywhere else (``mean_time_to_happen``, ``ai_chance``,
+  rebels, pop ``issues`` / ``ideologies``: no negative factors, 0 used to
+  block). ``migration_target`` / ``country_migration_target`` in pop files are
+  unclear (the wiki's rule says added, the values look like multipliers); they
+  are taken as multiplied and marked uncertain.
 
 `find_groups` lists the groups of a file, `scan` of the whole mod, and
 `rewrite` replaces the steps of groups by new ``(value, factor)`` pairs: the
@@ -40,8 +49,37 @@ from vic2toolmod.workspace import Workspace
 
 _NUM = re.compile(r"[-+]?(\d+\.?\d*|\.\d+)")
 #: Parent blocks whose modifiers add up instead of multiplying.
-_ADDITIVE_FILES = ("common/pop_types.txt",)
 _ADDITIVE_PARENTS = re.compile(r"(add|remove)_(political|social|economic|military)_reform")
+_UNCLEAR = ("migration_target", "country_migration_target")
+_WIKI = (
+    "Victoria 2 wiki (Folder/File overview): in pop files issue and ideology"
+    " modifiers multiply, others add"
+)
+
+
+def combine_of(rel: str, path: list[str]) -> tuple[str, str]:
+    """How the factors of a block join: ``("add" | "multiply", reason)``."""
+    low = rel.lower()
+    keys = [p.split(" ")[0].lower() for p in path]
+    if low.startswith("poptypes/"):
+        if "issues" in keys or "ideologies" in keys:
+            return "multiply", _WIKI
+        if keys and keys[0] in _UNCLEAR:
+            return (
+                "multiply",
+                "uncertain: the wiki says pop-file weights add, the values look like multipliers",
+            )
+        return "add", _WIKI + "; negative factors are used here"
+    if low == "common/pop_types.txt":
+        return "add", "pop action chances: negative factors are used here (vanilla), so they add"
+    if any(_ADDITIVE_PARENTS.fullmatch(k) for k in keys):
+        return (
+            "add",
+            "reform weights of ideologies: negative factors are used here (vanilla), so they add",
+        )
+    return "multiply", "factors multiply (mean_time_to_happen, ai_chance, rebels …)"
+
+
 #: Keys of a parent block that hold its base value.
 _BASE_KEYS = ("factor", "months", "days", "years")
 
@@ -82,6 +120,7 @@ class Group:
         compare: How the trigger compares (``gte``: at least N; ``lte``: at most N).
         context: The other conditions of the modifiers (the same in all of them).
         combine: ``multiply`` or ``add`` (how factors work in this block).
+        combine_note: Why (the source of the rule).
         base: The parent's own value (``factor``, ``months`` …) or ``None``.
         base_key: Its key.
         steps: The modifiers in file order.
@@ -96,6 +135,7 @@ class Group:
     compare: str
     context: list[str]
     combine: str
+    combine_note: str
     base: str | None
     base_key: str | None
     steps: list[Step] = field(default_factory=list)
@@ -187,7 +227,6 @@ def _parents(doc: Document) -> list[tuple[Assignment, list[str]]]:
 def find_groups(doc: Document, rel: str, schema: Schema | None = None) -> list[Group]:
     """The modifier groups of a file (at least two modifiers with two different numbers)."""
     groups: list[Group] = []
-    additive_file = rel.lower() in _ADDITIVE_FILES
     for parent, path in _parents(doc):
         assert isinstance(parent.value, Block)
         modifiers = [
@@ -219,10 +258,7 @@ def find_groups(doc: Document, rel: str, schema: Schema | None = None) -> list[G
                 if commands and commands[0].compare == "lte":
                     compare = "lte"
             digest = hashlib.sha1("|".join(context).encode()).hexdigest()[:8]
-            parent_key = parent.key_text.lower()
-            add = additive_file or _ADDITIVE_PARENTS.fullmatch(parent_key) is not None
-            if parent_key == "group" and len(path) > 1:
-                add = add or _ADDITIVE_PARENTS.fullmatch(path[-2].lower()) is not None
+            combine, note = combine_of(rel, path)
             groups.append(
                 Group(
                     id=f"{parent.start}:{key}:{'n' if negated else ''}{digest}",
@@ -233,7 +269,8 @@ def find_groups(doc: Document, rel: str, schema: Schema | None = None) -> list[G
                     negated=negated,
                     compare=compare,
                     context=list(context),
-                    combine="add" if add else "multiply",
+                    combine=combine,
+                    combine_note=note,
                     base=base,
                     base_key=base_key,
                     steps=[

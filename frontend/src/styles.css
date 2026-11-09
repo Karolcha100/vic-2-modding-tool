@@ -234,3 +234,5 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .mg-detail { flex: 1; overflow: auto; min-width: 0; }
 .mg-detail .creator-result pre { overflow-x: auto; }
 .pad { padding: 10px; }
+.mg-spark path { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.mg-card > .card-head { gap: 8px; }

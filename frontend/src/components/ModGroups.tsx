@@ -16,7 +16,7 @@ function active(g: ModGroup, threshold: number, x: number): boolean {
 }
 
 /** The group's combined factor at x (product, or sum for additive blocks). */
-function total(g: ModGroup, rows: Row[], combine: string, x: number): number {
+export function total(g: ModGroup, rows: Row[], combine: string, x: number): number {
   let t = combine === "add" ? 0 : 1;
   for (const [v, f] of rows) {
     const value = Number(v), factor = Number(f);
@@ -89,6 +89,35 @@ function Chart({ g, oldRows, rows, combine }: { g: ModGroup; oldRows: Row[]; row
       <path d={path(b)} className="mg-new" />
     </svg>
   );
+}
+
+/** A small chart of the group's combined factor (for the card in the Blocks view). */
+export function Sparkline({ g }: { g: ModGroup }) {
+  const rows: Row[] = g.steps.map((s) => [s.value, s.factor]);
+  const values = rows.map(([v]) => Number(v));
+  const lo = Math.min(...values), hi = Math.max(...values), pad = (hi - lo) * 0.15 || 1;
+  const marks = [lo - pad, ...Array.from(new Set(values)).sort((a, b) => a - b), hi + pad];
+  const ys: [number, number][] = [];
+  for (let i = 0; i < marks.length - 1; i++) {
+    const y = total(g, rows, g.combine, (marks[i] + marks[i + 1]) / 2);
+    ys.push([marks[i], y], [marks[i + 1], y]);
+  }
+  const yl = Math.min(...ys.map((p) => p[1])), yh = Math.max(...ys.map((p) => p[1])) || 1;
+  const W = 90, H = 22;
+  const sx = (x: number) => ((x - marks[0]) / (marks[marks.length - 1] - marks[0])) * W;
+  const sy = (y: number) => H - 2 - ((y - yl) / (yh - yl || 1)) * (H - 4);
+  return <svg className="mg-spark" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+    <path d={ys.map(([x, y], i) => `${i ? "L" : "M"}${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(" ")} />
+  </svg>;
+}
+
+/** "num_of_cities 20 → 75 · all: ×1.464" */
+export function groupSummary(g: ModGroup): string {
+  const values = g.steps.map((s) => Number(s.value));
+  const rows: Row[] = g.steps.map((s) => [s.value, s.factor]);
+  const all = g.combine === "add" ? rows.reduce((a, [, f]) => a + Number(f), 0) : rows.reduce((a, [, f]) => a * Number(f), 1);
+  const span = `${Math.min(...values)} → ${Math.max(...values)}`;
+  return `${g.negated ? `NOT ${g.key}` : g.key} ${span} · all steps: ${g.combine === "add" ? (all >= 0 ? "+" : "") : "×"}${fmt(all, 3)}`;
 }
 
 interface EditorProps {
@@ -196,8 +225,9 @@ export function GroupEditor({ group: g, copies = [], applyLabel, onApply, onPrev
         <div className="mg-side">
           <Chart g={g} oldRows={oldRows} rows={rows} combine={combine} />
           <div className="muted small"><span className="mg-key-old">━ now</span> <span className="mg-key-new">━ new</span> · combined factor of the group by {g.key}
-            {" · factors "}<select value={combine} onChange={(e) => setCombine(e.target.value)} title="How the game joins the factors of one block (guessed from the file; not verified)">
-              <option value="multiply">multiply</option><option value="add">add up</option></select></div>
+            {" · factors "}<select value={combine} onChange={(e) => setCombine(e.target.value)} title={`How the game joins the factors of this block: ${g.combine_note}`}>
+              <option value="multiply">multiply</option><option value="add">add up</option></select>
+            {g.combine_note.startsWith("uncertain") && <span className="problem" title={g.combine_note}> ⚠ uncertain</span>}</div>
           <fieldset className="mg-gen">
             <legend>Make the steps from a function</legend>
             <label>Thresholds from <input value={from} onChange={(e) => setFrom(e.target.value)} /> to <input value={to} onChange={(e) => setTo(e.target.value)} />, steps <input value={count} onChange={(e) => setCount(e.target.value)} /></label>

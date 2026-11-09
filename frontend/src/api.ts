@@ -90,7 +90,7 @@ export interface TemplateInfo {
 export interface ModStep { value: string; factor: string; line: number; start: number; end: number }
 export interface ModGroup {
   id: string; rel: string; line: number; path: string[]; key: string; negated: boolean; compare: "gte" | "lte";
-  context: string[]; combine: "multiply" | "add"; base: string | null; base_key: string | null; steps: ModStep[]; signature: string;
+  context: string[]; combine: "multiply" | "add"; combine_note: string; base: string | null; base_key: string | null; steps: ModStep[]; signature: string;
 }
 export interface ScriptParam { name: string; type: "text" | "int" | "bool"; default: string; help: string }
 export interface ScriptInfo { id: string; name: string; description: string; builtin: boolean; code: string; params: ScriptParam[] }

@@ -86,7 +86,8 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   on Windows).
 - **Modifier groups** (T008): modifiers of one block that differ only in one
   number (`num_of_cities = 20 / 30 / 50 …`) as one curve - **right click →
-  Edit modifier group…** in the code, or **Analyses → Modifier groups** for
+  Edit modifier group…** in the code, one card per group in **Blocks** (with
+  a small chart and "Edit as function"), or **Analyses → Modifier groups** for
   every group of the mod. Table of steps, chart of the combined factor (now /
   new), new steps from a function (same factor each step, a straight line, a
   formula of `x`), identical copies changed together. See

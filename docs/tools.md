@@ -70,16 +70,29 @@ modifier = { factor = 1.1  num_of_cities = 50 }
 with two different numbers make a group. `scan` lists the groups of every
 mod file (RPM: about 3 700 groups in 126 files, ~4 s).
 
-Factors multiply in most blocks; in `common/pop_types.txt` and in the
-reform weights of `common/ideologies.txt` they are added up (`combine`, a
-guess not verified in the game; the GUI can switch it for the chart).
+How the factors of a block join (`combine`, with its reason in
+`combine_note`; the GUI can switch it for the chart):
+
+| Block | Factors | Why |
+|---|---|---|
+| `poptypes/*.txt` → `issues`, `ideologies` | multiply | Victoria 2 wiki (Folder/File overview): "Issue and Ideology modifiers are multipliers, all other seem to be additions"; no negative factors, 0 blocks |
+| `poptypes/*.txt` → `promote_to`, other weights | add | the same wiki note; vanilla uses 494 negative factors in `promote_to` |
+| `poptypes/*.txt` → `migration_target`, `country_migration_target` | multiply (uncertain) | the wiki's rule says add, the values (0.5, 1.5, 0) look like multipliers |
+| `common/pop_types.txt` (promotion, migration … chances) | add | negative factors in vanilla |
+| `common/ideologies.txt` → `add_/remove_*_reform` | add | negative factors in vanilla |
+| everything else (`mean_time_to_happen`, `ai_chance`, rebels …) | multiply | |
+
+The game's executable does not show this: the rule is in compiled code, not
+in names or texts, so only a test in the game could confirm the unclear rows.
 
 `rewrite` / `rewrite_edits` give a group new `(value, factor)` steps: the
 first modifier is the pattern of the new ones (its layout, comments and other
 conditions stay), the others are removed. Identical groups in other blocks or
 files have the same `signature` and can be changed together.
 
-GUI: **Analyses → Modifier groups** (every group of the mod; table, chart,
+GUI: in the **Blocks** view a group is one card (`modifier × 4`, the range,
+the combined factor, a small chart, **Edit as function**; open it for the
+single modifiers, K85 = A), **Analyses → Modifier groups** (every group of the mod; table, chart,
 "make the steps from a function", identical copies, preview and write with a
 backup) and **right click → Edit modifier group…** in the code editor
 (the change goes into the editor, one undo step, not saved yet).

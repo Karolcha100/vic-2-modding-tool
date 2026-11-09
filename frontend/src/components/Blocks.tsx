@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { api, imageUrl, spriteUrl, type BlockNode, type Diagnostic, type TextEdit } from "../api";
+import { api, imageUrl, spriteUrl, type BlockNode, type Diagnostic, type ModGroup, type TextEdit } from "../api";
 import { EventPreview } from "./EventPreview";
+import { groupSummary, Sparkline } from "./ModGroups";
 
 /**
  * Block view (K32 = B): the file as nested cards built from the schema.
@@ -25,6 +26,8 @@ export interface BlockActions {
   definition: (offset: number) => void;
   usages: (offset: number, word: string) => void;
   tester: (offset: number) => void;
+  /** Open the editor of a modifier group (T008, K85). */
+  editGroup?: (group: ModGroup) => void;
 }
 
 interface Menu { x: number; y: number; node: BlockNode }
@@ -47,6 +50,7 @@ const namesOf = (registry: string) => {
 
 export function Blocks({ rel, version, diagnostics, apply, sync, select, width, actions }: Props) {
   const [items, setItems] = useState<BlockNode[]>([]);
+  const [groups, setGroups] = useState<ModGroup[]>([]);
   const [error, setError] = useState("");
   const [menu, setMenu] = useState<Menu | null>(null);
   useEffect(() => {
@@ -63,8 +67,8 @@ export function Blocks({ rel, version, diagnostics, apply, sync, select, width, 
     const t = window.setTimeout(async () => {
       try {
         await sync();
-        const r = await api.blocks(rel);
-        if (alive) { setItems(r.items); setError(""); }
+        const [r, g] = await Promise.all([api.blocks(rel), api.modGroups(rel).catch(() => ({ groups: [] as ModGroup[] }))]);
+        if (alive) { setItems(r.items); setGroups(g.groups); setError(""); }
       } catch (e) {
         if (alive) setError((e as Error).message);
       }
@@ -82,8 +86,10 @@ export function Blocks({ rel, version, diagnostics, apply, sync, select, width, 
     }
   };
 
+  const firsts = new Map(groups.map((g) => [g.steps[0].start, g]));
+  const members = new Set(groups.flatMap((g) => g.steps.slice(1).map((st) => st.start)));
   const ctx: Ctx = {
-    run, select, diagnostics, rel,
+    run, select, diagnostics, rel, firsts, members, editGroup: actions?.editGroup,
     menu: actions ? (e, node) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, node }); } : undefined,
   };
   const m = menu?.node;
@@ -103,7 +109,7 @@ export function Blocks({ rel, version, diagnostics, apply, sync, select, width, 
         </div>
       )}
       {error && <div className="creator-error">{error}</div>}
-      {items.map((n, i) => <Card key={`${n.start}-${i}`} node={n} ctx={ctx} depth={0} />)}
+      <Children nodes={items} ctx={ctx} depth={0} />
       <AddButton parent={-1} offset={1e9} ctx={ctx} />
     </div>
   );
@@ -115,6 +121,46 @@ interface Ctx {
   diagnostics: Diagnostic[];
   rel: string;
   menu?: (e: React.MouseEvent, node: BlockNode) => void;
+  /** Modifier groups (K85): first modifier's offset -> group; offsets of the other modifiers. */
+  firsts: Map<number, ModGroup>;
+  members: Set<number>;
+  editGroup?: (group: ModGroup) => void;
+}
+
+/** Cards of a list of nodes; the modifiers of a group become one card (K85 = A). */
+function Children({ nodes, ctx, depth }: { nodes: BlockNode[]; ctx: Ctx; depth: number }) {
+  return (
+    <>
+      {nodes.map((c, i) => {
+        if (ctx.members.has(c.start)) return null;
+        const g = ctx.firsts.get(c.start);
+        if (g) {
+          const parts = nodes.filter((n) => g.steps.some((st) => st.start === n.start));
+          return <GroupCard key={`g${c.start}`} group={g} parts={parts} ctx={ctx} depth={depth} />;
+        }
+        return <Card key={`${c.start}-${i}`} node={c} ctx={ctx} depth={depth} />;
+      })}
+    </>
+  );
+}
+
+function GroupCard({ group: g, parts, ctx, depth }: { group: ModGroup; parts: BlockNode[]; ctx: Ctx; depth: number }) {
+  const [open, setOpen] = useState(false);
+  const last = g.steps[g.steps.length - 1];
+  return (
+    <div className="card mg-card">
+      <div className="card-head" title={`${g.steps.length} modifiers that differ only in ${g.key}; factors ${g.combine === "add" ? "add up" : "multiply"} (${g.combine_note})`}>
+        <span className="twisty" onClick={() => setOpen(!open)}>{open ? "▾" : "▸"}</span>
+        <span className="card-key role-field" onClick={() => ctx.select(g.steps[0].start, last.end)}>modifier × {g.steps.length}</span>
+        <span className="chip">group</span>
+        <span className="muted">{groupSummary(g)}</span>
+        <Sparkline g={g} />
+        <span className="spacer" />
+        {ctx.editGroup && <button className="mini" onClick={() => ctx.editGroup!(g)}>Edit as function</button>}
+      </div>
+      {open && <div className="card-body">{parts.map((c, i) => <Card key={`${c.start}-${i}`} node={c} ctx={ctx} depth={depth + 1} />)}</div>}
+    </div>
+  );
 }
 
 function problemsOf(node: BlockNode, ctx: Ctx) {
@@ -136,7 +182,7 @@ function Card({ node, ctx, depth }: { node: BlockNode; ctx: Ctx; depth: number }
     return (
       <div className={cls}>
         <div className="card-head"><span className="muted">{"{ }"}</span></div>
-        <div className="card-body">{node.children?.map((c, i) => <Card key={`${c.start}-${i}`} node={c} ctx={ctx} depth={depth + 1} />)}</div>
+        <div className="card-body"><Children nodes={node.children ?? []} ctx={ctx} depth={depth + 1} /></div>
       </div>
     );
   }
@@ -159,7 +205,7 @@ function Card({ node, ctx, depth }: { node: BlockNode; ctx: Ctx; depth: number }
       {preview && <EventPreview event={node} onClose={() => setPreview(false)} />}
       {node.block && open && (
         <div className="card-body">
-          {node.children?.map((c, i) => <Card key={`${c.start}-${i}`} node={c} ctx={ctx} depth={depth + 1} />)}
+          <Children nodes={node.children ?? []} ctx={ctx} depth={depth + 1} />
           <AddButton parent={node.lbrace ?? -1} offset={node.rbrace ?? node.end} ctx={ctx} />
         </div>
       )}

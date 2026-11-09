@@ -455,6 +455,7 @@ export function App() {
                 definition: (o) => definitionAt(cur.rel, o),
                 usages: (o, w) => usagesAt(cur.rel, o, w),
                 tester: (o) => testerAt(cur.rel, o),
+                editGroup: (g) => setMgModal({ rel: cur.rel, group: g }),
               }}
               rel={cur.rel}
               version={cur.model.getVersionId()}

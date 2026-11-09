@@ -150,3 +150,17 @@ def test_api(tmp_path):
     assert done["written"] and "num_of_cities = 5" in (tmp_path / "mod/events/a.txt").read_text()
     with pytest.raises(ApiError):
         engine.modgroup_edits({"rel": "events/a.txt", "id": g["id"], "steps": []})  # id changed
+
+
+def test_combine_rule():
+    from vic2toolmod.analysis.modifier_groups import combine_of
+
+    assert combine_of("poptypes/artisans.txt", ["promote_to", "farmers"])[0] == "add"
+    assert combine_of("poptypes/artisans.txt", ["issues", "trinket_pensions"])[0] == "multiply"
+    assert combine_of("poptypes/artisans.txt", ["ideologies", "liberal"])[0] == "multiply"
+    kind, note = combine_of("poptypes/artisans.txt", ["migration_target"])
+    assert kind == "multiply" and note.startswith("uncertain")
+    assert combine_of("common/pop_types.txt", ["promotion_chance", "group"])[0] == "add"
+    path = ["conservative_group", "conservative", "add_political_reform", "group"]
+    assert combine_of("common/ideologies.txt", path)[0] == "add"
+    assert combine_of("events/a.txt", ["country_event 7", "mean_time_to_happen"])[0] == "multiply"
