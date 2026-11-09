@@ -6,6 +6,7 @@ import { Outline } from "./components/Outline";
 import { ReformWindow } from "./components/ReformWindow";
 import { Creators } from "./components/Creators";
 import { Blocks } from "./components/Blocks";
+import { Analyses } from "./components/Analyses";
 
 interface OpenFile {
   rel: string;
@@ -39,8 +40,8 @@ export function App() {
   const [mode, setMode] = useState<"code" | "blocks" | "split">(
     (new URLSearchParams(location.search).get("mode") as "blocks" | "split" | null) ?? "code",
   );
-  const [view, setView] = useState<"code" | "reforms" | "create">(
-    (new URLSearchParams(location.search).get("view") as "reforms" | "create" | null) ?? "code",
+  const [view, setView] = useState<"code" | "reforms" | "create" | "analyses">(
+    (new URLSearchParams(location.search).get("view") as "reforms" | "create" | "analyses" | null) ?? "code",
   );
   const [, force] = useState(0);
   const host = useRef<HTMLDivElement>(null);
@@ -304,6 +305,7 @@ export function App() {
         <button className={view === "code" ? "on" : ""} onClick={() => setView("code")}>Editor</button>
         <button className={view === "reforms" ? "on" : ""} onClick={() => setView("reforms")}>Reform window</button>
         <button className={view === "create" ? "on" : ""} onClick={() => setView("create")}>Create</button>
+        <button className={view === "analyses" ? "on" : ""} onClick={() => setView("analyses")}>Analyses</button>
         <button onClick={() => save(current)} disabled={!current || !dirty.has(current)}>Save (Ctrl+S)</button>
         <button onClick={async () => { setStatus("Checking the whole mod…"); setBottom({ kind: "mod", files: (await api.check()).files }); setStatus(""); }}>Check mod</button>
       </header>
@@ -311,6 +313,9 @@ export function App() {
         <FileTree files={files} current={current} dirty={dirty} onOpen={(rel) => openFile(rel)} />
       </aside>
       <main>
+        {view === "analyses" && (
+          <Analyses onStatus={setStatus} onOpen={(rel, line) => { setView("code"); openFile(rel, line); }} />
+        )}
         {view === "create" && (
           <Creators onStatus={setStatus} files={files.map((f) => f.rel)} onOpen={(rel) => { setView("code"); openFile(rel); }} />
         )}

@@ -29,7 +29,14 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
 - **Reform window** view (K69): drag the issue boxes of `reforms_window`,
   automatic grid, boxes outside the window in red, preview and save.
 - **Create** view (K70): new reform, new ideology (with pop support and
-  governments copied from a template), parties for an ideology (K58).
+  governments copied from a template), parties for an ideology (K58), new
+  event (free id, EVTNAME / EVTDESC / EVTOPT localisation), new decision.
+- **Analyses** view: interactive pop promotion graph (K59; drag the pop
+  types, click a pop type or an arrow for the modifiers and their conditions),
+  event chains around an event (who fires it, what it fires; missing and
+  never-fired events, K6 C), mod vs vanilla with diffs (K6 H), pop statistics
+  at the start (K6 I), localisation search and editing (K6 E), git changes of
+  the mod folder (K37 = B).
 
 ## Running
 

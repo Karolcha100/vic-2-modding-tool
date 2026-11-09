@@ -36,6 +36,8 @@ API (all under ``/api/``, JSON in and out):
 ``create/ideology`` POST    ``{spec, write?}`` -> new ideology (K70 D): diff, notes
 ``create/event``    POST    ``{spec, write?}`` -> new event (K70 A)
 ``create/decision`` POST    ``{spec, write?}`` -> new decision (K70 B)
+``localisation``    GET     ``q, limit`` -> keys whose key or English text contains ``q``
+``git``             GET     the mod's git status (K37 = B); ``rel`` -> diff of one file
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
 ==================  ======  ==================================================
 
@@ -647,6 +649,32 @@ class Engine:
             result["backup"] = str(backup) if backup else None
         return result
 
+    def localisation_search(self, q: str, limit: int) -> dict[str, Any]:
+        """Localisation entries whose key or English text contains ``q`` (any case)."""
+        loc = self.ws.registries().localisation
+        if loc is None:
+            return {"entries": [], "total": 0}
+        low = q.lower()
+        hits = [e for e in loc.entries.values() if low in e.key.lower() or low in e.text().lower()]
+        return {
+            "entries": [
+                {"key": e.key, "english": e.text(), "file": e.file, "line": e.line}
+                for e in hits[:limit]
+            ],
+            "total": len(hits),
+        }
+
+    def git(self, rel: str) -> dict[str, Any]:
+        """Git status of the mod, or the diff of one file (K37 = B)."""
+        from vic2toolmod import gitinfo
+
+        mod = self.ws.project.mod_dir
+        if mod is None:
+            return {"repo": False}
+        if rel:
+            return {"diff": gitinfo.diff(mod, rel)}
+        return asdict(gitinfo.status(mod))
+
     def poptypes_graph(self) -> dict[str, Any]:
         """Promotion graph of the pop types (K59)."""
         from vic2toolmod.analysis.poptypes import pop_weights, promotion_graph
@@ -772,6 +800,10 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.stats()
                 case ("POST", "localisation"):
                     return e.localisation(body)
+                case ("GET", "localisation"):
+                    return e.localisation_search(q("q"), int(q("limit", "200")))
+                case ("GET", "git"):
+                    return e.git(q("rel"))
                 case ("POST", "trigger"):
                     return e.trigger(body["rel"], int(body["offset"]), body.get("answers") or {})
             return None

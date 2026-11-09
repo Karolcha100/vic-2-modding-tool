@@ -16,7 +16,7 @@ body { margin: 0; background: var(--bg); color: var(--text); }
   display: grid; height: 100vh;
   grid-template-columns: 280px minmax(0, 1fr) 300px;
   width: 100vw; overflow: hidden;
-  grid-template-rows: 36px 1fr 180px 24px;
+  grid-template-rows: 36px minmax(0, 1fr) 180px 24px;
   grid-template-areas: "head head head" "left main right" "left bottom right" "foot foot foot";
 }
 header { grid-area: head; display: flex; gap: 12px; align-items: center; padding: 0 10px; border-bottom: 1px solid var(--border); background: var(--panel); }
@@ -114,3 +114,30 @@ button.add { margin: 4px 0; }
 .add-menu { border: 1px solid var(--border); border-radius: 6px; padding: 4px; margin: 4px 0; background: var(--bg); max-width: 420px; }
 .add-menu input { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 2px 4px; }
 .add-list { max-height: 220px; overflow: auto; font: 12px ui-monospace, monospace; }
+.analyses { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.analyses-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.split-view { display: flex; flex: 1; min-height: 0; }
+.graph { flex: 1; min-width: 0; height: 100%; background: var(--panel); user-select: none; }
+.graph-edge { stroke: var(--muted); cursor: pointer; opacity: .35; }
+.graph-edge:hover { opacity: 1; stroke: var(--accent); }
+.graph-edge.hl { stroke: var(--accent); opacity: 1; }
+.graph-arrow { fill: var(--muted); }
+.graph-node { cursor: grab; }
+.graph-node text { font: 600 16px system-ui, sans-serif; fill: var(--text); pointer-events: none; }
+.graph-node.sel circle { stroke: var(--text); stroke-width: 3; }
+.side-list { width: 340px; border-left: 1px solid var(--border); overflow: auto; padding: 4px; }
+.side-list.wide { width: 420px; border-left: none; border-right: 1px solid var(--border); }
+.side-list input { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 3px 5px; }
+.side-list .row.small { font-size: 11px; padding-left: 16px; white-space: normal; }
+.weight { border-bottom: 1px solid var(--border); padding: 3px 0; }
+.diff-pane { flex: 1; min-width: 0; overflow: auto; margin: 0; padding: 8px; font-size: 12px; }
+.pad { padding: 8px; }
+.stats { overflow: auto; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; padding: 8px; }
+.stat-table .row { position: relative; }
+.stat-table .bar { position: absolute; left: 0; top: 2px; bottom: 2px; background: var(--accent); opacity: .15; }
+.loc-editor { overflow: auto; }
+.loc-editor input { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 2px 5px; }
+.loc-editor .pad input { width: 420px; }
+.loc-row { display: grid; grid-template-columns: 300px 1fr 50px; gap: 6px; padding: 2px 8px; align-items: center; }
+.loc-key { font: 12px ui-monospace, monospace; cursor: pointer; overflow: hidden; text-overflow: ellipsis; }

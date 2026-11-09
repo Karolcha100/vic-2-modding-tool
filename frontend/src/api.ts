@@ -92,6 +92,18 @@ export const api = {
   parties: (body: unknown, write: boolean) =>
     call<{ diff: string; created: string[]; skipped: Record<string, string>; backup?: string | null }>(
       write ? "parties/write" : "parties/plan", body),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  poptypesGraph: () => call<any>("poptypes/graph"),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  eventsGraph: () => call<any>("events/graph"),
+  vanillaFiles: () => call<{ files: { rel: string; status: string; added: number; removed: number }[] }>("vanilla/diff"),
+  vanillaDiff: (rel: string) => call<{ diff: string }>(`vanilla/diff?${q({ rel })}`),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  stats: () => call<any>("stats"),
+  localisationSearch: (text: string, limit = 200) =>
+    call<{ entries: { key: string; english: string; file: string; line: number }[]; total: number }>(`localisation?${q({ q: text, limit })}`),
+  git: () => call<{ repo: boolean; branch?: string; changed?: [string, string][]; error?: string }>("git"),
+  gitDiff: (rel: string) => call<{ diff: string }>(`git?${q({ rel })}`),
   reformWindow: () => call<ReformLayout>("reforms/window"),
   reformWindowPlan: (positions: Record<string, [number, number]>, write: boolean) =>
     call<{ diff: string; backup?: string | null }>("reforms/window", { positions, add_missing: true, write }),
