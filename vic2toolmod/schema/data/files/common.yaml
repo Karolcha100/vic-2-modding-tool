@@ -42,8 +42,8 @@ rules:
 
   country_definition:
     fields:
-      color: {list: int, min: 3, max: 3}
-      graphical_culture: scalar
+      color: {list: int, min: 3, max: 3, required: true}
+      graphical_culture: {value: scalar, required: true}
       party: {rule: party, multiple: true}
       unit_names: {rule: unit_names}
     patterns:
@@ -79,9 +79,9 @@ rules:
       - {key: any, rule: culture}
   culture:
     fields:
-      color: {list: int, min: 3, max: 3}
-      first_names: {list: scalar}
-      last_names: {list: scalar}
+      color: {list: int, min: 3, max: 3, required: true}
+      first_names: {list: scalar, required: true}
+      last_names: {list: scalar, required: true}
       radicalism: float
       primary: ref:country
 
@@ -93,8 +93,8 @@ rules:
       - {key: any, rule: religion}
   religion:
     fields:
-      icon: int
-      color: {list: float, min: 3, max: 3}
+      icon: {value: int, required: true, sprite: GFX_icon_religion, doc: "Icon of the religion: a frame of gfx/interface/icon_religion."}
+      color: {list: float, min: 3, max: 3, required: true, doc: "Map colour, three numbers 0..1."}
       pagan: bool
 
   ideologies:
@@ -105,7 +105,7 @@ rules:
       - {key: any, rule: ideology}
   ideology:
     fields:
-      color: {list: int, min: 3, max: 3}
+      color: {list: int, min: 3, max: 3, required: true}
       date: date
       uncivilized: bool
       can_reduce_militancy: bool
@@ -170,8 +170,8 @@ rules:
       - {key: any, rule: good}
   good:
     fields:
-      cost: float
-      color: {list: int, min: 3, max: 3}
+      cost: {value: float, required: true}
+      color: {list: int, min: 3, max: 3, required: true}
       available_from_start: bool
       overseas_penalty: bool
       tradeable: bool
@@ -203,7 +203,7 @@ rules:
       - {key: any, rule: triggered_modifier}
   triggered_modifier:
     fields:
-      icon: int
+      icon: {value: int, sprite: GFX_modifier_icons, doc: "Icon of the modifier: a frame of gfx/interface/modifiers."}
       trigger: {block: trigger}
     other: modifier
 
@@ -212,9 +212,9 @@ rules:
       - {key: any, rule: crime_entry}
   crime_entry:
     fields:
-      icon: int
-      trigger: {block: trigger}
-      active: bool
+      icon: {value: int, required: true, sprite: GFX_crime_strip, sprite_from: 0, doc: "Icon of the crime: a frame of gfx/interface/crime_strip.dds (0 is the empty frame)."}
+      trigger: {block: trigger, doc: "When the crime may appear in a province (province scope)."}
+      active: {value: bool, doc: "Whether the crime is on from the start (else an invention enables it)."}
     other: modifier
 
   cb_types:
@@ -258,7 +258,7 @@ rules:
       - {key: any, rule: focus}
   focus:
     fields:
-      icon: int
+      icon: {value: int, required: true, sprite: GFX_province_natfocus_strip, doc: "Icon of the national focus: a frame of gfx/interface/province_natfocus_strip.dds."}
       limit: {block: trigger}
       has_flashpoint: bool
       flashpoint_tension: float

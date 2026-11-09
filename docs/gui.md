@@ -22,6 +22,10 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   scroll bar) on / off above the editor. Sizes and the minimap are remembered
   in the browser. Close a file with its `×`, a middle click on the tab or
   **Alt+W** (Ctrl+W closes the browser tab).
+- **icons** (T003): hovering an icon number (`icon = 1` in `crime.txt`,
+  religions, national focuses, modifiers, `sprite` of pop types) shows the
+  icon from the game's graphics (DDS / TGA, decoded by the engine); block
+  cards show it next to the value. Numbers without an icon are errors.
 - **right click** in the code: Go to definition, Find usages, Test trigger
   (Ctrl+Alt+T), templates, rename. The same menu (without the templates) on a
   card in the block view; there it looks up the card's value

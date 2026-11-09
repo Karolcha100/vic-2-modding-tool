@@ -37,7 +37,7 @@ _TYPE_RE = re.compile(
     r"^(?P<name>[a-z_]+)(?::(?P<arg>[a-z0-9_.]+))?"
     r"(?:\[(?P<lo>-?[\d.]*)\.\.(?P<hi>-?[\d.]*)\])?$"
 )
-_FIELD_PROPS = {"required", "multiple", "push_scope", "doc"}
+_FIELD_PROPS = {"required", "multiple", "push_scope", "doc", "sprite", "sprite_from"}
 _SPEC_KEYS = {"block", "fields", "rule", "list", "one_of", "value"}
 _OTHER = {"warn", "trigger", "effect", "modifier", "any"}
 _PATTERN_KEYS = {"int", "date", "tag", "any", "float"}
@@ -136,6 +136,8 @@ class _Builder:
                 multiple=bool(raw.get("multiple", False)),
                 push_scope=push,
                 doc=str(raw.get("doc", "")),
+                sprite=str(raw.get("sprite", "")),
+                sprite_from=int(raw.get("sprite_from", 1)),
             )
         return Field(value=self.spec(raw))
 

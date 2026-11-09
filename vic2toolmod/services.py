@@ -56,11 +56,13 @@ class Hover:
         text: Markdown text.
         start: Start offset of the thing.
         end: End offset.
+        sprite: For icon numbers (T003): the sprite and the frame (from 1) to show.
     """
 
     text: str
     start: int
     end: int
+    sprite: tuple[str, int] | None = None
 
 
 @dataclass(frozen=True)
@@ -122,7 +124,8 @@ class LanguageService:
     # -- analysis ------------------------------------------------------------
     def _analyse(self, rel: str) -> tuple[Document, Validator]:
         doc = self.ws.document(rel)
-        validator = Validator(self.ws.schema, self.ws.registries().has)
+        reg = self.ws.registries()
+        validator = Validator(self.ws.schema, reg.has, reg.frames)
         f = self.ws.file(rel)
         ft = file_type_for(f.rel if f else rel, self.ws.schema)
         if ft is not None:
@@ -251,6 +254,13 @@ class LanguageService:
                 lines.append(f"“{entry.text()}”")
             lines.append(f"defined in `{d.file}:{d.line}`" if d else "**not defined anywhere**")
             return Hover("\n\n".join(lines), tok.start, tok.end)
+        if place.part == "value" and place.assignment is not None:
+            icon = self._icon(v, place.assignment)
+            if icon is not None:
+                value = place.assignment.value
+                assert value is not None
+                text = f"icon {value.to_text().strip()}: frame {icon[1]} of `{icon[0]}`"
+                return Hover(text, value.start, value.end, icon)
         if place.part == "key" and place.assignment is not None:
             info = v.value_info.get(id(place.assignment))
             key = place.assignment.key
@@ -279,8 +289,23 @@ class LanguageService:
                 parts.append(f"value: `{_short(info.spec)}`")
             if info.doc:
                 parts.append(info.doc)
-            return Hover("\n\n".join(parts), key.start, key.end)
+            return Hover("\n\n".join(parts), key.start, key.end, self._icon(v, place.assignment))
         return None
+
+    def _icon(self, v: Validator, a: Assignment) -> tuple[str, int] | None:
+        """``(sprite, frame from 1)`` when the assignment is a valid icon number."""
+        info = v.value_info.get(id(a))
+        if info is None or not info.sprite or a.value is None or isinstance(a.value, Block):
+            return None
+        try:
+            n = int(a.value.value)
+        except ValueError:
+            return None
+        frames = self.ws.registries().frames(info.sprite)
+        frame = n - info.sprite_from + 1
+        if frames is None or not 1 <= frame <= frames:
+            return None
+        return info.sprite, frame
 
     # -- usages / rename ---------------------------------------------------------
     def references(self, rel: str, offset: int) -> list[Usage]:

@@ -179,3 +179,4 @@ button.add { margin: 4px 0; }
 textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-size: 4; }
 .context-menu { position: fixed; z-index: 50; min-width: 220px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.25); padding: 4px 0; }
 .context-menu .row { display: flex; justify-content: space-between; gap: 16px; padding: 4px 12px; }
+.card-icon { height: 24px; image-rendering: auto; margin-left: 6px; vertical-align: middle; }

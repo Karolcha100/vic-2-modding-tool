@@ -33,6 +33,25 @@ class Definition:
     line: int = 0
 
 
+@dataclass(frozen=True, slots=True)
+class Sprite:
+    """A ``spriteType`` of ``interface/*.gfx``.
+
+    Attributes:
+        name: Original spelling (``GFX_crime_strip``).
+        texture: Texture file as written in the ``.gfx`` file (with backslashes).
+        frames: ``noOfFrames`` (1 when absent): frames side by side.
+        file: Defining file.
+        line: Line of the definition.
+    """
+
+    name: str
+    texture: str
+    frames: int
+    file: str
+    line: int
+
+
 @dataclass
 class Registries:
     """All registries of a project.
@@ -50,6 +69,13 @@ class Registries:
     duplicates: dict[str, list[Definition]] = field(default_factory=dict)
     tested: dict[str, dict[str, Definition]] = field(default_factory=dict)
     localisation: Localisation | None = None
+    sprites: dict[str, Sprite] = field(default_factory=dict)
+    """Sprites of ``interface/*.gfx`` by lower-case name (first definition wins)."""
+
+    def frames(self, sprite: str) -> int | None:
+        """Number of frames of a sprite (``None`` if the sprite is not defined)."""
+        s = self.sprites.get(sprite.lower())
+        return s.frames if s else None
 
     def add(self, registry: str, name: str, file: str, line: int = 0) -> None:
         """Register a name (the first definition wins, later ones go to `duplicates`)."""
@@ -91,6 +117,7 @@ class Contribution:
     adds: list[tuple[str, str, str, int]] = field(default_factory=list)
     tested: list[tuple[str, str, str, int]] = field(default_factory=list)
     registries: tuple[str, ...] = ()
+    sprites: list[Sprite] = field(default_factory=list)
 
     def add(self, registry: str, name: str, file: str, line: int = 0) -> None:
         """Record a definition."""
@@ -98,9 +125,11 @@ class Contribution:
 
     def names(self) -> list[tuple[str, str]]:
         """What the contribution defines, without positions (to spot real changes)."""
-        return [(r, n.lower()) for r, n, _, _ in self.adds] + [
-            ("?" + r, n.lower()) for r, n, _, _ in self.tested
-        ]
+        return (
+            [(r, n.lower()) for r, n, _, _ in self.adds]
+            + [("?" + r, n.lower()) for r, n, _, _ in self.tested]
+            + [("#sprite", f"{s.name.lower()}|{s.texture}|{s.frames}") for s in self.sprites]
+        )
 
 
 def _blocks(items: Sequence[Node]) -> Iterator[Assignment]:
@@ -217,6 +246,41 @@ def _flags(c: Contribution, f: ProjectFile, doc: Document) -> None:
             )
 
 
+def _sprites(c: Contribution, f: ProjectFile, doc: Document) -> None:
+    """Sprites: ``spriteType = { name = "GFX_x" texturefile = … noOfFrames = 9 }``.
+
+    Any kind of sprite type counts (``spriteType``, ``textSpriteType``,
+    ``corneredTileSpriteType`` …).
+    """
+    for node in doc.walk():
+        if not (
+            isinstance(node, Assignment)
+            and isinstance(node.value, Block)
+            and node.key_text.lower().endswith("spritetype")
+        ):
+            continue
+        values: dict[str, str] = {}
+        for a in node.value.assignments():
+            if a.value is not None and not isinstance(a.value, Block):
+                values[a.key_text.lower()] = a.value.value
+        name = values.get("name")
+        if not name:
+            continue
+        try:
+            frames = max(1, int(values.get("noofframes", "1")))
+        except ValueError:
+            frames = 1
+        c.sprites.append(
+            Sprite(
+                name,
+                values.get("texturefile", ""),
+                frames,
+                f.rel,
+                doc.position(node.start)[0],
+            )
+        )
+
+
 _ListStep = Callable[[Project], Contribution]
 
 
@@ -307,6 +371,7 @@ STEPS: list[_Step] = [
     _s("map/terrain.txt", _terrain),
     *(_s(pattern, _flags, _FLAG_REGISTRIES) for pattern in _FLAG_PATTERNS),
     _s("common/production_types.txt", _top("production_type")),
+    _s("interface/*.gfx", _sprites),
 ]
 
 
@@ -403,6 +468,8 @@ class RegistryIndex:
                     reg.tested.setdefault(registry, {}).setdefault(
                         name.lower(), Definition(name, file, line)
                     )
+                for sprite in c.sprites:
+                    reg.sprites.setdefault(sprite.name.lower(), sprite)
         for registry in _FLAG_REGISTRIES:
             reg.names.setdefault(registry, {})
         loc = self._loc

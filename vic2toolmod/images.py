@@ -1,7 +1,10 @@
-"""Game images for the GUI: Targa (``.tga``) to PNG with the standard library only.
+"""Game images for the GUI: Targa and DirectDraw files to PNG (standard library only).
 
 Victoria 2 event pictures (``gfx/pictures/events/*.tga``) are 24- or 32-bit
 true-colour Targa files, uncompressed (type 2) or run-length encoded (type 10).
+Interface graphics (``gfx/interface/*.dds``) are DDS files, uncompressed
+(``crime_strip.dds``: 32-bit ARGB) or compressed with DXT1 / DXT3 / DXT5.
+Icon strips hold several frames side by side (`frame`).
 """
 
 from __future__ import annotations
@@ -89,3 +92,125 @@ def png(width: int, height: int, rgba: bytes) -> bytes:
 def tga_to_png(data: bytes) -> bytes:
     """Convert a Targa file to PNG."""
     return png(*tga_to_rgba(data))
+
+
+def dds_to_rgba(data: bytes) -> tuple[int, int, bytes]:
+    """Decode the first image of a DDS file (uncompressed RGB(A), DXT1, DXT3, DXT5).
+
+    Returns:
+        Width, height and the pixels as RGBA rows from the top.
+
+    Raises:
+        ImageError: For other formats (DX10 headers, cube maps' extra faces are ignored).
+    """
+    if len(data) < 128 or data[:4] != b"DDS ":
+        raise ImageError("not a DDS file")
+    height, width = struct.unpack_from("<II", data, 12)
+    pf_flags, fourcc, bits, rmask, gmask, bmask, amask = struct.unpack_from("<I4s5I", data, 80)
+    body = data[128:]
+    if pf_flags & 0x4:  # FourCC: compressed
+        kind = fourcc.decode("latin-1")
+        if kind not in ("DXT1", "DXT3", "DXT5"):
+            raise ImageError(f"unsupported DDS compression {kind!r}")
+        return width, height, _dxt(body, width, height, kind)
+    if not pf_flags & 0x40 or bits not in (16, 24, 32):
+        raise ImageError(f"unsupported DDS pixel format (flags {pf_flags:#x}, {bits} bits)")
+    step = bits // 8
+    has_alpha = bool(pf_flags & 0x1) and amask != 0
+    need = width * height * step
+    if len(body) < need:
+        raise ImageError("DDS file is cut short")
+
+    def channel(mask: int) -> tuple[int, int]:
+        if not mask:
+            return 0, 0
+        shift = (mask & -mask).bit_length() - 1
+        return shift, (mask >> shift)
+
+    chans = [channel(m) for m in (rmask, gmask, bmask, amask if has_alpha else 0)]
+    out = bytearray(width * height * 4)
+    for i in range(width * height):
+        v = int.from_bytes(body[i * step : (i + 1) * step], "little")
+        o = i * 4
+        for c, (shift, top) in enumerate(chans):
+            if top:
+                out[o + c] = ((v >> shift) & top) * 255 // top
+            else:
+                out[o + c] = 255 if c == 3 else 0
+    return width, height, bytes(out)
+
+
+def _rgb565(c: int) -> tuple[int, int, int]:
+    r, g, b = (c >> 11) & 31, (c >> 5) & 63, c & 31
+    return (r * 255 + 15) // 31, (g * 255 + 31) // 63, (b * 255 + 15) // 31
+
+
+def _dxt(body: bytes, width: int, height: int, kind: str) -> bytes:
+    out = bytearray(width * height * 4)
+    block = 8 if kind == "DXT1" else 16
+    bw, bh = max(1, (width + 3) // 4), max(1, (height + 3) // 4)
+    if len(body) < bw * bh * block:
+        raise ImageError("DDS file is cut short")
+    pos = 0
+    for by in range(bh):
+        for bx in range(bw):
+            alpha = [255] * 16
+            if kind == "DXT3":
+                bits = int.from_bytes(body[pos : pos + 8], "little")
+                alpha = [((bits >> (4 * i)) & 15) * 17 for i in range(16)]
+                pos += 8
+            elif kind == "DXT5":
+                a0, a1 = body[pos], body[pos + 1]
+                bits = int.from_bytes(body[pos + 2 : pos + 8], "little")
+                if a0 > a1:
+                    table = [a0, a1] + [((7 - i) * a0 + i * a1) // 7 for i in range(1, 7)]
+                else:
+                    table = [a0, a1] + [((5 - i) * a0 + i * a1) // 5 for i in range(1, 5)]
+                    table += [0, 255]
+                alpha = [table[(bits >> (3 * i)) & 7] for i in range(16)]
+                pos += 8
+            c0, c1, idx = struct.unpack_from("<HHI", body, pos)
+            pos += 8
+            p0, p1 = _rgb565(c0), _rgb565(c1)
+            if kind != "DXT1" or c0 > c1:
+                colors = [
+                    (*p0, 255),
+                    (*p1, 255),
+                    (*((2 * a + b) // 3 for a, b in zip(p0, p1, strict=True)), 255),
+                    (*((a + 2 * b) // 3 for a, b in zip(p0, p1, strict=True)), 255),
+                ]
+            else:
+                colors = [
+                    (*p0, 255),
+                    (*p1, 255),
+                    (*((a + b) // 2 for a, b in zip(p0, p1, strict=True)), 255),
+                    (0, 0, 0, 0),
+                ]
+            for i in range(16):
+                x, y = bx * 4 + (i & 3), by * 4 + (i >> 2)
+                if x >= width or y >= height:
+                    continue
+                r, g, b, a = colors[(idx >> (2 * i)) & 3]
+                o = (y * width + x) * 4
+                out[o : o + 4] = bytes((r, g, b, a if kind == "DXT1" else alpha[i]))
+    return bytes(out)
+
+
+def image_to_rgba(data: bytes) -> tuple[int, int, bytes]:
+    """Decode a DDS or Targa file (by its content)."""
+    if data[:4] == b"DDS ":
+        return dds_to_rgba(data)
+    return tga_to_rgba(data)
+
+
+def frame(width: int, height: int, rgba: bytes, frames: int, index: int) -> tuple[int, int, bytes]:
+    """One frame of an icon strip (frames side by side; ``index`` from 1)."""
+    if frames <= 1:
+        return width, height, rgba
+    if not 1 <= index <= frames:
+        raise ImageError(f"frame {index} is outside 1..{frames}")
+    fw = width // frames
+    x0 = (index - 1) * fw * 4
+    row = width * 4
+    pixels = b"".join(rgba[y * row + x0 : y * row + x0 + fw * 4] for y in range(height))
+    return fw, height, pixels

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type BlockNode, type Diagnostic, type TextEdit } from "../api";
+import { api, spriteUrl, type BlockNode, type Diagnostic, type TextEdit } from "../api";
 import { EventPreview } from "./EventPreview";
 
 /**
@@ -149,6 +149,7 @@ function Card({ node, ctx, depth }: { node: BlockNode; ctx: Ctx; depth: number }
         {ROLE_LABEL[node.role ?? ""] && <span className="chip">{ROLE_LABEL[node.role ?? ""]}</span>}
         {node.block && node.scope && <span className="chip scope">{node.scope}</span>}
         {!node.block && node.value !== undefined && <ValueEditor node={node} ctx={ctx} />}
+        {node.sprite && <img className="card-icon" src={spriteUrl(node.sprite[0], node.sprite[1])} alt="" title={`${node.sprite[0]}, icon ${node.sprite[1]}`} />}
         {problems.length > 0 && <span className="problem" title={title}>⚠ {problems[0].message}</span>}
         <span className="spacer" />
         {isEvent && <button className="mini" onClick={() => setPreview(true)}>preview</button>}

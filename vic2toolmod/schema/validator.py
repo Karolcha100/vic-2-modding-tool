@@ -69,6 +69,8 @@ class ValueInfo:
         doc: Description of the key.
         command: The command, when the key is one.
         modifier: Whether the key is a modifier (``pop_militancy_modifier``).
+        sprite: Sprite whose frame an icon number picks (see `Field.sprite`).
+        sprite_from: Value of the sprite's first frame.
     """
 
     spec: ValueSpec
@@ -77,6 +79,8 @@ class ValueInfo:
     doc: str = ""
     command: Command | None = None
     modifier: bool = False
+    sprite: str = ""
+    sprite_from: int = 1
 
 
 @dataclass
@@ -117,9 +121,16 @@ class Validator:
             ``ref:`` values are checked (``ref.unknown-name`` warnings).
     """
 
-    def __init__(self, schema: Schema, names: Names | None = None) -> None:
+    def __init__(
+        self,
+        schema: Schema,
+        names: Names | None = None,
+        frames: Callable[[str], int | None] | None = None,
+    ) -> None:
         self.schema = schema
         self.names = names
+        #: Number of frames of a sprite (for icon numbers); ``None`` = unknown.
+        self.frames = frames
         #: ``(registry, name, token)`` of every reference to a named thing found
         #: by the last `validate` call (values such as ``ref:culture`` and
         #: dynamic keys such as ``ENG = { }``); used for "find usages".
@@ -241,9 +252,16 @@ class Validator:
                     item,
                 )
             self.value_info[id(item)] = ValueInfo(
-                fld.value, fld.push_scope or frame.scope, None, fld.doc
+                fld.value,
+                fld.push_scope or frame.scope,
+                None,
+                fld.doc,
+                sprite=fld.sprite,
+                sprite_from=fld.sprite_from,
             )
             self._value(item, fld.value, fld.push_scope or frame.scope, None)
+            if fld.sprite:
+                self._icon(item, fld.sprite, fld.sprite_from)
             return
         if frame.rule is not None:
             for pattern in frame.rule.patterns:
@@ -283,6 +301,24 @@ class Validator:
                 "schema.unknown-key",
                 f"unknown key '{item.key_text}' in {where}",
                 item,
+            )
+
+    def _icon(self, item: Assignment, sprite: str, first: int) -> None:
+        """An icon number must pick one of the sprite's frames."""
+        if self.frames is None or item.value is None or isinstance(item.value, Block):
+            return
+        frames = self.frames(sprite)
+        try:
+            n = int(item.value.value)
+        except ValueError:
+            return  # reported as a wrong value already
+        if frames is not None and not first <= n < first + frames:
+            self._report(
+                Severity.ERROR,
+                "schema.wrong-value",
+                f"icon {n} does not exist: {sprite} has {frames} icons"
+                f" ({first}..{first + frames - 1})",
+                item.value,
             )
 
     def _not_in_game(self, item: Assignment) -> bool:

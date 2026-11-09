@@ -113,6 +113,7 @@ class Engine:
         """Own templates folder (default: next to the settings file)."""
         self.services = LanguageService(workspace)
         self.lock = threading.Lock()
+        self._sprites: dict[tuple[str, int, int, int, int], bytes] = {}
         self._stamps = self._snapshot()
 
     # -- helpers -----------------------------------------------------------------
@@ -291,6 +292,9 @@ class Engine:
                     if vk == "loc" and loc is not None:
                         entry = loc.get(n.value.value)
                         out["loc_text"] = entry.text() if entry else None
+                    icon = self.services._icon(v, n)
+                    if icon is not None:
+                        out["sprite"] = list(icon)
             elif isinstance(n, Block):
                 out.update(
                     kind="block",
@@ -821,6 +825,51 @@ class Engine:
         except ImageError as exc:
             raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
 
+    def texture(self, texture: str) -> str | None:
+        """Relative path of a texture named in a ``.gfx`` file, if it exists.
+
+        ``.gfx`` files write paths with backslashes and often ``.tga`` while the
+        file is ``.dds`` (the game tries the other extension too).
+        """
+        rel = texture.replace("\\", "/").strip().lstrip("/")
+        while "//" in rel:
+            rel = rel.replace("//", "/")
+        stem, dot, ext = rel.rpartition(".")
+        candidates = [rel]
+        if dot and ext.lower() in ("tga", "dds"):
+            candidates.append(f"{stem}.{'dds' if ext.lower() == 'tga' else 'tga'}")
+        for c in candidates:
+            f = self.ws.file(c)
+            if f is not None:
+                return f.rel
+        return None
+
+    def sprite(self, name: str, frame: int) -> bytes:
+        """One frame (from 1) of a sprite of ``interface/*.gfx`` as PNG (T003)."""
+        from vic2toolmod.images import ImageError, image_to_rgba, png
+        from vic2toolmod.images import frame as crop
+
+        s = self.ws.registries().sprites.get(name.lower())
+        if s is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, f"no sprite {name!r}")
+        rel = self.texture(s.texture)
+        if rel is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, f"texture {s.texture!r} not found")
+        f = self.ws.file(rel)
+        assert f is not None
+        st = f.path.stat()
+        key = (rel.lower(), st.st_size, st.st_mtime_ns, s.frames, frame)
+        cached = self._sprites.get(key)
+        if cached is None:
+            try:
+                cached = png(*crop(*image_to_rgba(f.path.read_bytes()), s.frames, frame))
+            except ImageError as exc:
+                raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+            if len(self._sprites) > 2000:
+                self._sprites.clear()
+            self._sprites[key] = cached
+        return cached
+
     def poptypes_graph(self) -> dict[str, Any]:
         """Promotion graph of the pop types (K59)."""
         from vic2toolmod.analysis.poptypes import pop_weights, promotion_graph
@@ -876,12 +925,17 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
             route = (method, url.path[len("/api/") :])
             if route == ("GET", "changed"):  # takes the lock itself, only briefly
                 return self._json(HTTPStatus.OK, engine.changed())
-            if route == ("GET", "picture"):
+            if route in (("GET", "picture"), ("GET", "sprite")):
                 try:
                     with engine.lock:
-                        image = engine.picture(q("name"))
+                        if route[1] == "sprite":
+                            image = engine.sprite(q("name"), int(q("frame", "1")))
+                        else:
+                            image = engine.picture(q("name"))
                 except ApiError as exc:
                     return self._json(exc.status, {"error": str(exc)})
+                except ValueError as exc:
+                    return self._json(HTTPStatus.BAD_REQUEST, {"error": f"bad request: {exc}"})
                 return self._send(HTTPStatus.OK, image, "image/png")
             try:
                 with engine.lock:

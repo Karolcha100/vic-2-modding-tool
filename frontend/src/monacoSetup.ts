@@ -3,7 +3,7 @@
 import * as monaco from "monaco-editor/editor/editor.api.js";
 import "monaco-editor/features/register.all.js"; // suggest, hover, find, folding … (no other languages)
 import EditorWorker from "monaco-editor/editor/editor.worker.js?worker";
-import { api, type Completion } from "./api";
+import { api, spriteUrl, type Completion } from "./api";
 
 declare global {
   interface Window {
@@ -104,7 +104,13 @@ monaco.languages.registerHoverProvider(LANGUAGE, {
     return {
       range: new monaco.Range(a.lineNumber, a.column, b.lineNumber, b.column),
       // Plain markdown from our own server; Monaco sanitises it (DOMPurify).
-      contents: [{ value: hover.text, isTrusted: false, supportHtml: false }],
+      contents: [
+        { value: hover.text, isTrusted: false, supportHtml: false },
+        // T003: the icon an icon number picks (served by the engine as PNG)
+        ...(hover.sprite
+          ? [{ value: `![${hover.sprite[0]} ${hover.sprite[1]}](${location.origin}${spriteUrl(hover.sprite[0], hover.sprite[1])})` }]
+          : []),
+      ],
     };
   },
 });

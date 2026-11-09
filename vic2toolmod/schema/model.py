@@ -113,6 +113,10 @@ class Field:
         multiple: Whether the key may appear more than once.
         push_scope: Scope inside the value block (``None`` = unchanged).
         doc: Description.
+        sprite: For icon numbers: the sprite of ``interface/*.gfx`` they pick a
+            frame of (``GFX_crime_strip``).
+        sprite_from: The value that shows the sprite's first frame (1 for most
+            icons; 0 for crimes, whose first frame is empty).
     """
 
     value: ValueSpec
@@ -120,6 +124,8 @@ class Field:
     multiple: bool = False
     push_scope: str | None = None
     doc: str = ""
+    sprite: str = ""
+    sprite_from: int = 1
 
 
 @dataclass(frozen=True)

@@ -201,7 +201,8 @@ class Workspace:
         else:
             # The validator asks the registries only whether names exist, so its
             # result stays valid while the document and the set of names do.
-            validator = Validator(self.schema, self.registries().has)
+            reg = self.registries()
+            validator = Validator(self.schema, reg.has, reg.frames)
             found = list(doc.diagnostics)
             if ft is not None:
                 found += validator.validate(doc, ft.rule, ft.scope)

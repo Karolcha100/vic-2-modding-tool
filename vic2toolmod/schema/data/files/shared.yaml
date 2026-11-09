@@ -25,7 +25,7 @@ rules:
   modifier_block:
     doc: "A block of modifier keys (country / province modifiers)."
     fields:
-      icon: int
+      icon: {value: int, sprite: GFX_modifier_icons, doc: "Icon of the modifier: a frame of gfx/interface/modifiers."}
     other: modifier
   color:
     doc: "color = { R G B }"

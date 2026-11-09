@@ -29,13 +29,13 @@ rules:
       - {key: ref:building, value: int}
   state_building:
     fields:
-      level: int
-      building: ref:building
+      level: {value: int, required: true}
+      building: {value: ref:building, required: true}
       upgrade: bool
   party_loyalty:
     fields:
-      ideology: ref:ideology
-      loyalty_value: float
+      ideology: {value: ref:ideology, required: true}
+      loyalty_value: {value: float, required: true}
 
   pops_history:
     patterns:
@@ -95,8 +95,8 @@ rules:
       - {key: tag, value: float}
   govt_flag:
     fields:
-      government: ref:government
-      flag: ref:government
+      government: {value: ref:government, required: true}
+      flag: {value: ref:government, required: true}
 
   units_history:
     values: any
@@ -116,24 +116,24 @@ rules:
   army:
     fields:
       name: scalar
-      location: ref:province
+      location: {value: ref:province, required: true}
       regiment: {rule: regiment, multiple: true}
       leader: {rule: leader}
   navy:
     fields:
       name: scalar
-      location: ref:province
+      location: {value: ref:province, required: true}
       ship: {rule: ship, multiple: true}
       leader: {rule: leader}
   regiment:
     fields:
       name: scalar
-      type: ref:unit
+      type: {value: ref:unit, required: true}
       home: ref:province
   ship:
     fields:
       name: scalar
-      type: ref:unit
+      type: {value: ref:unit, required: true}
   leader:
     fields:
       name: scalar
@@ -150,10 +150,10 @@ rules:
   treaty:
     doc: "alliance / vassal / union / substate / casus_belli / warsubsidy ..."
     fields:
-      first: ref:country
-      second: ref:country
-      start_date: date
-      end_date: date
+      first: {value: ref:country, required: true}
+      second: {value: ref:country, required: true}
+      start_date: {value: date, required: true}
+      end_date: {value: date, required: true}
       type: ref:cb_type
       months: int
 
@@ -171,8 +171,8 @@ rules:
       war_goal: {rule: war_goal, multiple: true}
   war_goal:
     fields:
-      casus_belli: ref:cb_type
-      actor: ref:country
-      receiver: ref:country
+      casus_belli: {value: ref:cb_type, required: true}
+      actor: {value: ref:country, required: true}
+      receiver: {value: ref:country, required: true}
       state_province_id: ref:province
       country: ref:country

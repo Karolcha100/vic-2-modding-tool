@@ -15,9 +15,9 @@ rules:
       - {key: any, rule: technology}
   technology:
     fields:
-      area: scalar
-      year: int
-      cost: int
+      area: {value: scalar, required: true}
+      year: {value: int, required: true}
+      cost: {value: int, required: true}
       unciv_military: bool
       ai_chance: {rule: weight}
       activate_unit: {value: ref:unit, multiple: true}
@@ -81,8 +81,8 @@ rules:
     other: modifier
   rebel_org_gain:
     fields:
-      faction: scalar
-      value: float
+      faction: {value: scalar, required: true}
+      value: {value: float, required: true}
 
   units:
     patterns:
@@ -97,9 +97,9 @@ rules:
   poptype:
     doc: "One pop type (the file name is the pop type)."
     fields:
-      sprite: int
-      color: {list: int, min: 3, max: 3}
-      strata: enum:strata
+      sprite: {value: int, required: true, sprite: GFX_pops_small, doc: "Icon of the pop type: a frame of gfx/interface/pops_small."}
+      color: {list: int, min: 3, max: 3, required: true}
+      strata: {value: enum:strata, required: true}
       life_needs: {rule: goods_amounts}
       everyday_needs: {rule: goods_amounts}
       luxury_needs: {rule: goods_amounts}

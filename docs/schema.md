@@ -105,6 +105,15 @@ not_in_game:
   is_subject: 'a Hearts of Iron IV trigger; in Victoria 2 use is_vassal or is_substate'
 ```
 
+### Icons
+
+A field may name the sprite its number picks a frame of: `sprite:
+GFX_crime_strip` and `sprite_from` (the value of the first frame: 1 for most
+icons, 0 for crimes, whose first frame is empty). The validator then reports
+numbers without a frame, hover and the block view show the icon. Sprites come
+from `interface/*.gfx` (any `…spriteType` with `name`, `texturefile`,
+`noOfFrames`); a texture written as `.tga` may be a `.dds` on disk.
+
 ### Descriptions
 
 Every command and modifier has a description (T004; a test keeps it so):
