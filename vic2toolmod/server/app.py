@@ -20,6 +20,7 @@ API (all under ``/api/``, JSON in and out):
 ``references``      GET     ``rel, offset`` -> usages
 ``rename``          POST    ``{rel, offset, new_name}`` -> edits per file
 ``changed``         GET     files changed on disk since the last call (K30)
+``outline``         GET     ``rel`` -> the syntax tree for the side panel
 ``parties/plan``    POST    party generator (K58): diff and summary
 ``parties/write``   POST    same, and write the files
 ``poptypes/graph``  GET     promotion graph (K59)
@@ -46,12 +47,14 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from vic2toolmod.changes import FileChange, diff, write_changes
-from vic2toolmod.script.cst import Block, Document
+from vic2toolmod.script.cst import Assignment, Block, Document, Node, Scalar
 from vic2toolmod.script.diagnostics import Diagnostic
 from vic2toolmod.services import LanguageService
 from vic2toolmod.workspace import Workspace
 
 STATIC = Path(__file__).parent / "static"
+BUILD = Path(__file__).parent / "static_build"
+"""The built frontend (``npm run build`` in ``frontend/``); not in the repository (K49)."""
 _TYPES = {
     ".html": "text/html",
     ".js": "text/javascript",
@@ -59,6 +62,9 @@ _TYPES = {
     ".json": "application/json",
     ".svg": "image/svg+xml",
     ".png": "image/png",
+    ".ttf": "font/ttf",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
 }
 
 
@@ -130,8 +136,13 @@ class Engine:
         }
 
     def file(self, rel: str) -> dict[str, Any]:
-        """Text, encoding and diagnostics of a file."""
+        """Text, encoding and diagnostics of a file as it is on disk.
+
+        Any editor content the server still holds for the file is dropped: the
+        GUI keeps unsaved text itself, and a reloaded page must start from disk.
+        """
         rel = self._file_or_404(rel)
+        self.ws.revert(rel)
         doc = self.ws.document(rel)
         return {"text": doc.text, "encoding": self.ws.encoding(rel).value, **self._report(rel)}
 
@@ -162,6 +173,28 @@ class Engine:
         self.ws.refresh()
         self._stamps = self._snapshot()
         return {"ok": True, "path": str(target), "backup": str(backup) if backup else None}
+
+    def outline(self, rel: str) -> dict[str, Any]:
+        """The syntax tree of a file: nested ``{kind, key, value, start, end, line, children}``."""
+        doc = self.ws.document(self._file_or_404(rel))
+
+        def node(n: Node) -> dict[str, Any]:
+            out: dict[str, Any] = {"start": n.start, "end": n.end, "line": doc.position(n.start)[0]}
+            if isinstance(n, Assignment):
+                out.update(kind="assignment", key=n.key.text)
+                if isinstance(n.value, Block):
+                    out["children"] = [node(c) for c in n.value.items]
+                elif n.value is not None:
+                    out["value"] = n.value.to_text().strip()
+            elif isinstance(n, Block):
+                out.update(kind="block", children=[node(c) for c in n.items])
+            elif isinstance(n, Scalar):
+                out.update(kind="value", value=n.text)
+            else:
+                out.update(kind="error", value=n.to_text().strip())
+            return out
+
+        return {"items": [node(i) for i in doc.items]}
 
     def check(self, only_mod: bool) -> dict[str, Any]:
         """Diagnostics of every file (only the mod's own files when ``only_mod``)."""
@@ -394,6 +427,8 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.rename(body["rel"], int(body["offset"]), str(body["new_name"]))
                 case ("GET", "changed"):
                     return e.changed()
+                case ("GET", "outline"):
+                    return e.outline(q("rel"))
                 case ("POST", "parties/plan"):
                     return e.parties(body, write=False)
                 case ("POST", "parties/write"):
@@ -413,10 +448,11 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
             return None
 
         def _static(self, path: str) -> None:
+            root = BUILD if (BUILD / "index.html").is_file() else STATIC
             rel = path.lstrip("/") or "index.html"
-            target = (STATIC / rel).resolve()
-            if not target.is_relative_to(STATIC.resolve()) or not target.is_file():
-                target = STATIC / "index.html"
+            target = (root / rel).resolve()
+            if not target.is_relative_to(root.resolve()) or not target.is_file():
+                target = root / "index.html"
             self._send(
                 HTTPStatus.OK,
                 target.read_bytes(),

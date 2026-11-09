@@ -18,6 +18,7 @@ Commands:
   which pop weights (K59); ``--json`` saves the promotion graph;
 * ``gui [--port N] [--no-browser]`` - start the local server for the GUI
   (127.0.0.1 only, with a random token in the address);
+* ``install-desktop`` - add a "vic2toolmod" shortcut to the Linux application menu;
 * ``generate-parties IDEOLOGY [options] [--write]`` - add a party of an
   ideology to many countries (K58); shows a diff, writes only with ``--write``.
 
@@ -281,6 +282,13 @@ def _cmd_poptypes(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_install_desktop(args: argparse.Namespace) -> int:
+    from vic2toolmod.desktop import install_desktop
+
+    print(f"menu shortcut written: {install_desktop()}")
+    return 0
+
+
 def _cmd_gui(args: argparse.Namespace) -> int:
     import webbrowser
 
@@ -324,6 +332,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--vanilla", action="store_true", help="check the game itself, no mod")
     p.add_argument("--summary", action="store_true", help="counts instead of every problem")
     p.set_defaults(func=_cmd_check)
+
+    p = sub.add_parser("install-desktop", help="add a shortcut to the Linux application menu")
+    p.set_defaults(func=_cmd_install_desktop)
 
     p = sub.add_parser("gui", help="start the local server for the GUI")
     p.add_argument("--mod", type=Path, help="mod folder (default: configured)")

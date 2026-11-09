@@ -21,3 +21,7 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# frontend: dependencies and the built bundle are not in the repository (K49)
+frontend/node_modules/
+vic2toolmod/server/static_build/

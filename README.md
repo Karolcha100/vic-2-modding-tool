@@ -17,8 +17,8 @@ Status:
   definition, find usages, rename.
 - **Tools**: event chains, pop type analysis and promotion graph, party generator,
   trigger tester, mod-vs-vanilla diff, start statistics (`docs/tools.md`).
-- **GUI backend** done (local HTTP JSON API, `gui` command); the frontend
-  (TypeScript + React + Monaco) comes next.
+- **GUI MVP** (Phase 5): file tree, Monaco editor with live errors, completion, hover,
+  go to definition, usages, rename, syntax tree, save with backup (`docs/gui.md`).
 
 ## Setup
 
@@ -35,6 +35,13 @@ mod_dirs = ["/home/me/Victoria 2 mods/MyMod"]
 ```
 
 (or set `VIC2_GAME_DIR` / `VIC2_MOD_DIR`).
+
+## GUI
+
+```sh
+(cd frontend && npm ci --ignore-scripts && npm run build)
+.venv/bin/python -m vic2toolmod gui            # or: install-desktop for a menu shortcut
+```
 
 ## Command line
 
@@ -71,7 +78,7 @@ assert doc.to_text() == doc.text
 Documentation: [`docs/architecture.md`](docs/architecture.md),
 [`docs/script-syntax.md`](docs/script-syntax.md), [`docs/schema.md`](docs/schema.md),
 [`docs/index.md`](docs/index.md), [`docs/editing.md`](docs/editing.md),
-[`docs/tools.md`](docs/tools.md).
+[`docs/tools.md`](docs/tools.md), [`docs/gui.md`](docs/gui.md).
 
 The schema uses data from [cwtools-vic2-config](https://github.com/cwtools/cwtools-vic2-config)
 (MIT licence) and the [Victoria 2 wiki](https://vic2.paradoxwikis.com/Modifier_effects).

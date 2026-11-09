@@ -101,3 +101,8 @@ def test_trigger_and_localisation_endpoints(api):
     r = api("/api/localisation", {"key": "K1", "english": "Hello"})
     assert "+K1;Hello" in r["diff"]
     assert "files" in api("/api/vanilla/diff") and "nodes" in api("/api/events/graph")
+
+
+def test_file_drops_old_editor_buffer(api):
+    api("/api/buffer", {"rel": "events/b.txt", "text": "country_event = { id = 77 }"})
+    assert "id = 2" in api("/api/file?rel=events/b.txt")["text"]  # disk, not the stale buffer

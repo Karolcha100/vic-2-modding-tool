@@ -27,3 +27,20 @@ jobs:
         run: python -m mypy
       - name: Tests
         run: python -m pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install (no install scripts, K47)
+        run: npm ci --ignore-scripts
+        working-directory: frontend
+      - name: Audit
+        run: npm audit
+        working-directory: frontend
+      - name: Build
+        run: npm run build
+        working-directory: frontend
