@@ -15,7 +15,19 @@ interface Props {
   apply: (edits: TextEdit[]) => void;
   sync: () => Promise<void>;
   select: (start: number, end: number) => void;
+  /** Width in the split view (px); undefined = share the row with the code. */
+  width?: number;
+  /** Commands of the right-click menu (the same as in the code editor). */
+  actions?: BlockActions;
 }
+
+export interface BlockActions {
+  definition: (offset: number) => void;
+  usages: (offset: number, word: string) => void;
+  tester: (offset: number) => void;
+}
+
+interface Menu { x: number; y: number; node: BlockNode }
 
 const ROLE_LABEL: Record<string, string> = {
   trigger: "trigger", effect: "effect", scope: "scope", field: "", dynamic: "name", unknown: "unknown",
@@ -33,9 +45,18 @@ const namesOf = (registry: string) => {
   return nameCache.get(registry)!;
 };
 
-export function Blocks({ rel, version, diagnostics, apply, sync, select }: Props) {
+export function Blocks({ rel, version, diagnostics, apply, sync, select, width, actions }: Props) {
   const [items, setItems] = useState<BlockNode[]>([]);
   const [error, setError] = useState("");
+  const [menu, setMenu] = useState<Menu | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", key);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", key); };
+  }, [menu]);
 
   useEffect(() => {
     let alive = true;
@@ -61,9 +82,26 @@ export function Blocks({ rel, version, diagnostics, apply, sync, select }: Props
     }
   };
 
-  const ctx: Ctx = { run, select, diagnostics, rel };
+  const ctx: Ctx = {
+    run, select, diagnostics, rel,
+    menu: actions ? (e, node) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, node }); } : undefined,
+  };
+  const m = menu?.node;
+  // A name to look up: the value when there is one (has_global_flag = x), else the key.
+  const at = m ? (m.value_start ?? m.key_start ?? m.start) : 0;
+  const word = m ? (m.value !== undefined && !m.block ? m.value : m.key ?? "") : "";
   return (
-    <div className="blocks">
+    <div className="blocks" style={width ? { flex: `0 0 ${width}px` } : undefined}>
+      {menu && m && actions && (
+        <div className="context-menu" style={{ left: menu.x, top: menu.y }} onClick={(e) => e.stopPropagation()}>
+          <div className="row" onClick={() => { setMenu(null); actions.definition(at); }}>Go to definition <span className="muted">F12</span></div>
+          <div className="row" onClick={() => { setMenu(null); actions.usages(at, word); }}>Find usages <span className="muted">Shift+F12</span></div>
+          {m.block && m.context === "trigger" && m.lbrace !== undefined && (
+            <div className="row" onClick={() => { setMenu(null); actions.tester(m.lbrace! + 1); }}>Test trigger <span className="muted">Ctrl+Alt+T</span></div>
+          )}
+          <div className="row" onClick={() => { setMenu(null); select(m.start, m.end); }}>Show in code</div>
+        </div>
+      )}
       {error && <div className="creator-error">{error}</div>}
       {items.map((n, i) => <Card key={`${n.start}-${i}`} node={n} ctx={ctx} depth={0} />)}
       <AddButton parent={-1} offset={1e9} ctx={ctx} />
@@ -76,6 +114,7 @@ interface Ctx {
   select: (start: number, end: number) => void;
   diagnostics: Diagnostic[];
   rel: string;
+  menu?: (e: React.MouseEvent, node: BlockNode) => void;
 }
 
 function problemsOf(node: BlockNode, ctx: Ctx) {
@@ -104,7 +143,7 @@ function Card({ node, ctx, depth }: { node: BlockNode; ctx: Ctx; depth: number }
   const title = problems.map((p) => p.message).join("\n") || node.doc || node.spec;
   return (
     <div className={cls}>
-      <div className="card-head" title={title}>
+      <div className="card-head" title={title} onContextMenu={(e) => ctx.menu?.(e, node)}>
         {node.block && <span className="twisty" onClick={() => setOpen(!open)}>{open ? "▾" : "▸"}</span>}
         <span className={`card-key role-${node.role}`} onClick={() => ctx.select(node.start, node.end)}>{node.key}</span>
         {ROLE_LABEL[node.role ?? ""] && <span className="chip">{ROLE_LABEL[node.role ?? ""]}</span>}

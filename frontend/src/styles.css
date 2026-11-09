@@ -23,10 +23,20 @@ header { grid-area: head; display: flex; gap: 12px; align-items: center; padding
 header .spacer { flex: 1; }
 button { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
 button:disabled { opacity: .5; cursor: default; }
-.left { grid-area: left; border-right: 1px solid var(--border); overflow: hidden; background: var(--panel); }
-.right { grid-area: right; border-left: 1px solid var(--border); overflow: auto; background: var(--panel); min-width: 0; }
+.left { grid-area: left; border-right: 1px solid var(--border); overflow: hidden; background: var(--panel); position: relative; }
+.right { grid-area: right; border-left: 1px solid var(--border); overflow: hidden; background: var(--panel); min-width: 0; position: relative; display: flex; flex-direction: column; }
+.right > .outline { flex: 1; overflow: auto; min-height: 0; }
 main { grid-area: main; display: flex; flex-direction: column; min-width: 0; position: relative; }
-.bottom { grid-area: bottom; border-top: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.bottom { grid-area: bottom; border-top: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; min-width: 0; position: relative; overflow: hidden; }
+/* Panel borders to drag (T005) */
+.splitter { position: absolute; z-index: 5; background: transparent; touch-action: none; }
+.splitter:hover, .splitter:active { background: var(--accent); opacity: .5; }
+.splitter.right { top: 0; bottom: 0; right: 0; width: 6px; cursor: col-resize; }
+.splitter.left { top: 0; bottom: 0; left: 0; width: 6px; cursor: col-resize; }
+.splitter.top { left: 0; right: 0; top: 0; height: 6px; cursor: row-resize; }
+.splitter.between { position: relative; flex: 0 0 6px; cursor: col-resize; margin: 0 -3px; }
+body.resizing-x, body.resizing-x * { cursor: col-resize !important; user-select: none; }
+body.resizing-y, body.resizing-y * { cursor: row-resize !important; user-select: none; }
 footer { grid-area: foot; padding: 3px 10px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); background: var(--panel); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .muted { color: var(--muted); }
 .tree { display: flex; flex-direction: column; height: 100%; }
@@ -41,7 +51,9 @@ footer { grid-area: foot; padding: 3px 10px; font-size: 12px; color: var(--muted
 .tabs { display: flex; overflow-x: auto; background: var(--panel); border-bottom: 1px solid var(--border); min-height: 30px; }
 .tab { padding: 6px 10px; border-right: 1px solid var(--border); cursor: pointer; white-space: nowrap; }
 .tab.active { background: var(--bg); }
-.tab .close { margin-left: 8px; color: var(--muted); }
+.tab { display: flex; align-items: center; }
+.tab .close { margin-left: 8px; color: var(--muted); font-size: 16px; line-height: 18px; width: 20px; height: 20px; text-align: center; border-radius: 4px; }
+.tab .close:hover { background: #e53935; color: #fff; }
 .editor-row { flex: 1; min-height: 0; display: flex; }
 .editor { flex: 1; min-height: 0; min-width: 0; }
 .empty { position: absolute; top: 45%; width: 100%; text-align: center; color: var(--muted); pointer-events: none; }
@@ -165,3 +177,5 @@ button.add { margin: 4px 0; }
 .modal .creator-form { max-width: none; }
 .template-use { display: contents; }
 textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-size: 4; }
+.context-menu { position: fixed; z-index: 50; min-width: 220px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.25); padding: 4px 0; }
+.context-menu .row { display: flex; justify-content: space-between; gap: 16px; padding: 4px 12px; }

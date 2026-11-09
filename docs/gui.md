@@ -16,6 +16,16 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
 - **Ctrl+S** saves into the mod folder with a backup of the old file (K36);
   files changed by another editor reload automatically (K30);
 - deep links: `…/?token=…&open=events/x.txt&line=12&mode=split&view=reforms`.
+- **layout** (Phase 8): drag the borders of the file tree, the syntax tree,
+  the bottom panel and (in Split) between code and blocks; double click a
+  border for the default size. **Minimap** (the code overview next to the
+  scroll bar) on / off above the editor. Sizes and the minimap are remembered
+  in the browser. Close a file with its `×`, a middle click on the tab or
+  **Alt+W** (Ctrl+W closes the browser tab).
+- **right click** in the code: Go to definition, Find usages, Test trigger
+  (Ctrl+Alt+T), templates, rename. The same menu (without the templates) on a
+  card in the block view; there it looks up the card's value
+  (`has_global_flag = x` → the flag `x`) or else its key.
 - **blocks** (Phase 6b, K32 = B): the open file as nested cards built from the
   schema - key coloured by role (trigger / effect / scope), scope of each
   block, value editors (yes/no and enum lists, names from the mod's
@@ -50,7 +60,9 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   kept in `~/.config/vic2toolmod/templates/` (`%APPDATA%\vic2toolmod\templates`
   on Windows).
 - **Analyses** view: interactive pop promotion graph (K59; drag the pop
-  types, click a pop type or an arrow for the modifiers and their conditions),
+  types, click a pop type or an arrow for the modifiers and their conditions;
+  with a pop type selected its outgoing arrows are red, incoming blue; click
+  the background to clear),
   event chains around an event (who fires it, what it fires; missing and
   never-fired events, K6 C), mod vs vanilla with diffs (K6 H), pop statistics
   at the start (K6 I), localisation search and editing (K6 E), git changes of

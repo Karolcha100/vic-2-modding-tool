@@ -10,6 +10,7 @@ import { Analyses } from "./components/Analyses";
 import { Tester } from "./components/Tester";
 import { TemplateSave, TemplateUse } from "./components/Templates";
 import type { Fact } from "./api";
+import { Splitter, useStored } from "./components/Layout";
 
 interface OpenFile {
   rel: string;
@@ -52,6 +53,12 @@ export function App() {
   );
   const [tplModal, setTplModal] = useState<null | { kind: "insert" } | { kind: "save"; text: string; folder: string }>(null);
   const [, force] = useState(0);
+  // Panel sizes and the minimap, remembered in this browser (T005).
+  const [leftW, setLeftW] = useStored("vic2.left", 280);
+  const [rightW, setRightW] = useStored("vic2.right", 300);
+  const [bottomH, setBottomH] = useStored("vic2.bottom", 180);
+  const [blocksW, setBlocksW] = useStored("vic2.blocks", 0); // 0 = half of the editor row
+  const [minimap, setMinimap] = useStored("vic2.minimap", true);
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const files_ = useRef(new Map<string, OpenFile>());
@@ -144,6 +151,30 @@ export function App() {
     }
   }, []);
 
+  // -- navigation shared by the code editor and the block view --------------------------
+  const definitionAt = useCallback(async (rel: string, offset: number) => {
+    await sync(rel);
+    const { definition } = await api.definition(rel, offset);
+    if (definition) openFile(definition.file, definition.line);
+    else setStatus("No definition here");
+  }, [sync, openFile]);
+  const usagesAt = useCallback(async (rel: string, offset: number, word: string) => {
+    await sync(rel);
+    setStatus("Finding usages…");
+    const { usages } = await api.references(rel, offset);
+    setBottom({ kind: "usages", title: `${usages.length} usages of ${word}`, usages });
+    setStatus("");
+  }, [sync]);
+  const testerAt = useCallback(async (rel: string, offset: number) => {
+    await sync(rel);
+    try {
+      const r = await api.trigger(rel, offset);
+      setBottom({ kind: "tester", rel, offset, facts: r.facts });
+    } catch (e) {
+      setStatus(`Trigger tester: ${(e as Error).message}`);
+    }
+  }, [sync]);
+
   /** Insert text at the cursor, indented like the cursor's line (one undo step). */
   const insertAtCursor = (text: string) => {
     const ed = editor.current; const m = ed?.getModel(); const p = ed?.getPosition();
@@ -160,6 +191,8 @@ export function App() {
     ed.focus();
   };
 
+  useEffect(() => { editor.current?.updateOptions({ minimap: { enabled: minimap } }); }, [minimap]);
+
   // -- editor + actions ------------------------------------------------------------
   useEffect(() => {
     if (!host.current) return;
@@ -167,7 +200,7 @@ export function App() {
       automaticLayout: true,
       theme: dark ? "vs-dark" : "vs",
       fontSize: 13,
-      minimap: { enabled: true },
+      minimap: { enabled: minimap },
       tabSize: 4,
       insertSpaces: false,
       renderWhitespace: "boundary",
@@ -190,39 +223,23 @@ export function App() {
     });
     ed.addAction({
       id: "vic2.definition", label: "Go to definition", keybindings: [monaco.KeyCode.F12], contextMenuGroupId: "navigation",
-      run: async () => {
-        const h = here(); if (!h) return;
-        await sync(h.rel);
-        const { definition } = await api.definition(h.rel, h.offset);
-        if (definition) openFile(definition.file, definition.line);
-        else setStatus("No definition here");
-      },
+      run: () => { const h = here(); if (h) definitionAt(h.rel, h.offset); },
     });
     ed.addAction({
       id: "vic2.references", label: "Find usages", keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.F12], contextMenuGroupId: "navigation",
-      run: async () => {
+      run: () => {
         const h = here(); if (!h) return;
-        await sync(h.rel);
-        setStatus("Finding usages (the first time checks the whole mod)…");
-        const { usages } = await api.references(h.rel, h.offset);
-        const word = h.m.getWordAtPosition(ed.getPosition()!)?.word ?? "";
-        setBottom({ kind: "usages", title: `${usages.length} usages of ${word}`, usages });
-        setStatus("");
+        usagesAt(h.rel, h.offset, h.m.getWordAtPosition(ed.getPosition()!)?.word ?? "");
       },
     });
     ed.addAction({
       id: "vic2.tester", label: "Test trigger (K53)", keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyT],
       contextMenuGroupId: "navigation",
-      run: async () => {
-        const h = here(); if (!h) return;
-        await sync(h.rel);
-        try {
-          const r = await api.trigger(h.rel, h.offset);
-          setBottom({ kind: "tester", rel: h.rel, offset: h.offset, facts: r.facts });
-        } catch (e) {
-          setStatus(`Trigger tester: ${(e as Error).message}`);
-        }
-      },
+      run: () => { const h = here(); if (h) testerAt(h.rel, h.offset); },
+    });
+    ed.addAction({
+      id: "vic2.close", label: "Close file", keybindings: [monaco.KeyMod.Alt | monaco.KeyCode.KeyW],
+      run: () => { if (currentRef.current) closeRef.current(currentRef.current); },
     });
     ed.addAction({
       id: "vic2.template.insert", label: "Insert template…", keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyI],
@@ -333,6 +350,7 @@ export function App() {
     ed.revealRangeInCenter(new monaco.Range(a.lineNumber, a.column, b.lineNumber, b.column));
   };
 
+  const closeRef = useRef<(rel: string) => void>(() => undefined);
   const closeTab = (rel: string) => {
     const f = fileOf(rel);
     if (!f) return;
@@ -347,9 +365,10 @@ export function App() {
       else { editor.current?.setModel(null); setCurrent(null); setOutline([]); }
     }
   };
+  closeRef.current = closeTab;
 
   return (
-    <div className="app">
+    <div className="app" style={{ gridTemplateColumns: `${leftW}px minmax(0, 1fr) ${rightW}px`, gridTemplateRows: `36px minmax(0, 1fr) ${bottomH}px 24px` }}>
       <header>
         <b>vic2toolmod</b>
         <span className="muted">{modDir ?? "no mod"}</span>
@@ -363,6 +382,7 @@ export function App() {
       </header>
       <aside className="left">
         <FileTree files={files} current={current} dirty={dirty} onOpen={(rel) => openFile(rel)} />
+        <Splitter edge="right" size={leftW} setSize={setLeftW} min={140} max={700} reset={280} />
       </aside>
       <main>
         {view === "analyses" && (
@@ -379,18 +399,31 @@ export function App() {
             {(["code", "blocks", "split"] as const).map((m) => (
               <button key={m} className={mode === m ? "on" : ""} onClick={() => setMode(m)}>{m === "code" ? "Code" : m === "blocks" ? "Blocks" : "Split"}</button>
             ))}
+            <button className={minimap ? "on" : ""} title="Code overview next to the scroll bar" onClick={() => setMinimap(!minimap)}>Minimap</button>
           </div>
           {open.map((f) => (
-            <div key={f.rel} className={"tab" + (f.rel === current ? " active" : "")} onClick={() => openFile(f.rel)} title={f.rel}>
+            <div key={f.rel} className={"tab" + (f.rel === current ? " active" : "")} onClick={() => openFile(f.rel)}
+              onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); closeTab(f.rel); } }}
+              title={`${f.rel}\nMiddle click or Alt+W closes it`}>
               {dirty.has(f.rel) ? "● " : ""}{f.rel.slice(f.rel.lastIndexOf("/") + 1)}
-              <span className="close" onClick={(e) => { e.stopPropagation(); closeTab(f.rel); }}>×</span>
+              <span className="close" title="Close (Alt+W)" onClick={(e) => { e.stopPropagation(); closeTab(f.rel); }}>×</span>
             </div>
           ))}
         </div>
         <div className="editor-row" style={view === "code" ? undefined : { display: "none" }}>
           <div className="editor" ref={host} style={mode === "blocks" ? { display: "none" } : undefined} />
+          {mode === "split" && cur && (
+            <Splitter edge="between" size={blocksW} setSize={setBlocksW} min={200} max={2000} reset={0}
+              measure={(el) => el.nextElementSibling?.getBoundingClientRect().width ?? 0} />
+          )}
           {mode !== "code" && cur && (
             <Blocks
+              width={mode === "split" && blocksW ? blocksW : undefined}
+              actions={{
+                definition: (o) => definitionAt(cur.rel, o),
+                usages: (o, w) => usagesAt(cur.rel, o, w),
+                tester: (o) => testerAt(cur.rel, o),
+              }}
               rel={cur.rel}
               version={cur.model.getVersionId()}
               diagnostics={cur.diagnostics}
@@ -403,10 +436,12 @@ export function App() {
         {!current && view === "code" && <div className="empty">Open a file from the tree on the left.</div>}
       </main>
       <aside className="right">
+        <Splitter edge="left" size={rightW} setSize={setRightW} min={40} max={800} reset={300} />
         <div className="panel-title">Syntax tree</div>
         <Outline items={outline} cursor={cursor} onSelect={selectNode} />
       </aside>
       <section className="bottom">
+        <Splitter edge="top" size={bottomH} setSize={setBottomH} min={40} max={900} reset={180} />
         <div className="panel-title">
           <span className={bottom.kind === "problems" ? "on" : ""} onClick={() => setBottom({ kind: "problems" })}>
             This file: {c.e} errors, {c.w} warnings, {c.i} notes
