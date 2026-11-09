@@ -21,7 +21,9 @@ const q = (params: Record<string, string | number>) =>
     .join("&");
 
 export interface FileEntry { rel: string; origin: "game" | "mod" }
-export interface Project { game_dir: string | null; mod_dir: string | null; files: FileEntry[] }
+export interface Project { game_dir: string | null; mod_dir: string | null; read_only?: boolean; files: FileEntry[] }
+export interface ModEntry { name: string; path: string; source: "game" | "settings" | "recent" }
+export interface Projects { current: string | null; game_dir: string | null; recent: string[]; mods: ModEntry[] }
 export interface Diagnostic {
   severity: "error" | "warning" | "info";
   code: string; message: string; start: number; end: number;
@@ -74,6 +76,8 @@ export interface TemplateFill { text: string; diff: string; files: string[]; not
 
 export const api = {
   project: () => call<Project>("project"),
+  projects: () => call<Projects>("projects"),
+  openProject: (mod: string | null) => call<{ mod_dir: string | null }>("project/open", { mod }),
   file: (rel: string) => call<FileData>(`file?${q({ rel })}`),
   buffer: (rel: string, text: string) => call<Report>("buffer", { rel, text }),
   revert: (rel: string) => call<{ ok: boolean }>("revert", { rel }),

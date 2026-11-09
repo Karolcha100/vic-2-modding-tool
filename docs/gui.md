@@ -22,6 +22,11 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   scroll bar) on / off above the editor. Sizes and the minimap are remembered
   in the browser. Close a file with its `×`, a middle click on the tab or
   **Alt+W** (Ctrl+W closes the browser tab).
+- **another project** (K81 = A): the button with the mod's name in the header
+  lists the mods in the game's `mod/` folder, the settings and recently opened
+  ones, plus **Vanilla (read-only)** - the game's own files, where saving and
+  "Create (write files)" are refused. Any other folder can be typed in.
+  Recently opened mods are kept in `recent.json` next to the settings file.
 - **icons** (T003): hovering an icon number (`icon = 1` in `crime.txt`,
   religions, national focuses, modifiers, `sprite` of pop types) shows the
   icon from the game's graphics (DDS / TGA, decoded by the engine); block

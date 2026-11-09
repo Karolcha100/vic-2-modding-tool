@@ -11,6 +11,7 @@ import { Tester } from "./components/Tester";
 import { TemplateSave, TemplateUse } from "./components/Templates";
 import type { Fact } from "./api";
 import { Splitter, useStored } from "./components/Layout";
+import { ProjectPicker } from "./components/ProjectPicker";
 
 interface OpenFile {
   rel: string;
@@ -39,6 +40,8 @@ const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
 export function App() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [modDir, setModDir] = useState<string | null>(null);
+  const [readOnly, setReadOnly] = useState(false);
+  const [picker, setPicker] = useState(false);
   const [open, setOpen] = useState<OpenFile[]>([]);
   const [current, setCurrent] = useState<string | null>(null);
   const [outline, setOutline] = useState<OutlineNode[]>([]);
@@ -281,6 +284,7 @@ export function App() {
     api.project().then((p) => {
       setFiles(p.files);
       setModDir(p.mod_dir);
+      setReadOnly(!!p.read_only);
       setStatus(`${p.files.length} files · mod: ${p.mod_dir ?? "(none)"}`);
       // Deep link: ?token=…&open=events/x.txt&line=12
       const params = new URLSearchParams(location.search);
@@ -371,13 +375,17 @@ export function App() {
     <div className="app" style={{ gridTemplateColumns: `${leftW}px minmax(0, 1fr) ${rightW}px`, gridTemplateRows: `36px minmax(0, 1fr) ${bottomH}px 24px` }}>
       <header>
         <b>vic2toolmod</b>
-        <span className="muted">{modDir ?? "no mod"}</span>
+        <button className="project-button" title="Open another mod or the game's own files" onClick={() => setPicker(true)}>
+          {modDir ? modDir.split(/[\\/]/).filter(Boolean).pop() : "Vanilla"} ▾
+        </button>
+        {readOnly && <span className="chip">read-only</span>}
+        <span className="muted small">{modDir ?? "the game's own files"}</span>
         <span className="spacer" />
         <button className={view === "code" ? "on" : ""} onClick={() => setView("code")}>Editor</button>
         <button className={view === "reforms" ? "on" : ""} onClick={() => setView("reforms")}>Reform window</button>
         <button className={view === "create" ? "on" : ""} onClick={() => setView("create")}>Create</button>
         <button className={view === "analyses" ? "on" : ""} onClick={() => setView("analyses")}>Analyses</button>
-        <button onClick={() => save(current)} disabled={!current || !dirty.has(current)}>Save (Ctrl+S)</button>
+        <button onClick={() => save(current)} disabled={readOnly || !current || !dirty.has(current)}>Save (Ctrl+S)</button>
         <button onClick={async () => { setStatus("Checking the whole mod…"); setBottom({ kind: "mod", files: (await api.check()).files }); setStatus(""); }}>Check mod</button>
       </header>
       <aside className="left">
@@ -470,6 +478,13 @@ export function App() {
           )))}
         </div>
       </section>
+      {picker && (
+        <div className="preview-backdrop" onClick={() => setPicker(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <ProjectPicker dirty={dirty.size > 0} onClose={() => setPicker(false)} />
+          </div>
+        </div>
+      )}
       {tplModal && (
         <div className="preview-backdrop" onClick={() => setTplModal(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>

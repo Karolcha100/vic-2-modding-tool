@@ -183,3 +183,29 @@ def test_create_country_endpoint(api, tmp_path, monkeypatch):
     r = api("/api/create/country", {"spec": spec, "write": True})
     assert (api.mod / "gfx/flags/BOE.tga").read_bytes() == b"flag"
     assert 'BOE\t= "countries/Boer.txt"' in (api.mod / "common/countries.txt").read_text()
+
+
+def test_open_another_project_and_read_only_game(api, tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "cfg"))
+    # a second mod, registered in the game's mod/ folder like the launcher does
+    other = tmp_path / "game" / "mod" / "Other"
+    write(other / "events/c.txt", "country_event = { id = 3 }\n")
+    write(tmp_path / "game" / "mod" / "Other.mod", 'name = "Other mod"\npath = "mod/Other"\n')
+    listed = api("/api/projects")
+    assert listed["current"] == str(api.mod)
+    assert {"name": "Other mod", "path": str(other), "source": "game"} in listed["mods"]
+
+    api("/api/project/open", {"mod": str(other)})
+    project = api("/api/project")
+    assert project["mod_dir"] == str(other) and not project["read_only"]
+    assert "events/c.txt" in {f["rel"] for f in project["files"]}
+    assert api("/api/projects")["recent"] == [str(other)]
+
+    # the game alone: everything readable, nothing writable
+    api("/api/project/open", {"mod": None})
+    assert api("/api/project")["read_only"]
+    assert api("/api/file?rel=events/a.txt")["text"].startswith("country_event")
+    with pytest.raises(urllib.error.HTTPError) as err:
+        api("/api/save", {"rel": "events/a.txt", "text": "x = 1\n"})
+    assert err.value.code == 409

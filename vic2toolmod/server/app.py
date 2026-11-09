@@ -120,6 +120,67 @@ class Engine:
     def _snapshot(self) -> dict[str, tuple[int, int]]:
         return self.ws.project.mod_files_on_disk()
 
+    def _write(self, changes: list[FileChange]) -> Path | None:
+        """Write changes into the mod folder (refused when only the game is open)."""
+        if self.ws.project.mod_dir is None:
+            raise ApiError(
+                HTTPStatus.CONFLICT,
+                "the game's own files are read-only: open a mod to change files",
+            )
+        return write_changes(changes)
+
+    # -- projects (K81 = A) ----------------------------------------------------------
+    def projects(self) -> dict[str, Any]:
+        """Mods that can be opened: the game's ``mod/*.mod``, the settings, recent ones."""
+        from vic2toolmod.config import load_settings
+        from vic2toolmod.project.layout import read_mod_file
+
+        game = self.ws.project.game_dir
+        current = self.ws.project.mod_dir
+        here = current.resolve() if current else None
+        found: dict[str, dict[str, Any]] = {}
+
+        def add(path: Path, name: str, source: str) -> None:
+            if path.is_dir():
+                real = path.resolve()
+                # the open mod keeps its own path (the game's mod/ folder often links to it)
+                shown = current if real == here and current is not None else path
+                found.setdefault(str(real), {"path": str(shown), "name": name, "source": source})
+
+        if game is not None:
+            for mod_file in sorted((game / "mod").glob("*.mod")):
+                try:
+                    m = read_mod_file(mod_file)
+                except (OSError, ValueError):
+                    continue
+                folder = m.path.replace("\\", "/").strip("/") or f"mod/{mod_file.stem}"
+                add(game / folder, m.name or mod_file.stem, "game")
+        for d in load_settings().mod_dirs:
+            add(d, d.name, "settings")
+        for recent in _recent():
+            add(Path(recent), Path(recent).name, "recent")
+        return {
+            "current": str(current) if current else None,
+            "game_dir": str(game) if game else None,
+            "recent": _recent(),
+            "mods": list(found.values()),
+        }
+
+    def open_project(self, mod: str | None) -> dict[str, Any]:
+        """Open another mod (``None``: the game alone, read-only) instead of this one."""
+        mod_dir = Path(mod).expanduser() if mod else None
+        if mod_dir is not None and not mod_dir.is_dir():
+            raise ApiError(HTTPStatus.NOT_FOUND, f"no such folder: {mod}")
+        ws = Workspace.open(self.ws.project.game_dir, mod_dir)
+        self.ws = ws
+        self.services = LanguageService(ws)
+        self._stamps = self._snapshot()
+        self._sprites.clear()
+        if mod_dir is not None:
+            _remember(mod_dir)
+        threading.Thread(target=self.warm_up, name="warm-up", daemon=True).start()
+        return {"mod_dir": str(mod_dir) if mod_dir else None}
+
     def _file_or_404(self, rel: str) -> str:
         if not rel or self.ws.file(rel) is None:
             raise ApiError(HTTPStatus.NOT_FOUND, f"no such file: {rel}")
@@ -141,10 +202,16 @@ class Engine:
         full collections over them made typing stutter (0.5 s pauses).
         """
         with self.lock:
-            files = [f.rel for f in self.ws.script_files(only_mod=True)]
+            ws = self.ws
+            files = [f.rel for f in ws.script_files(only_mod=True)]
         for rel in files:
             with self.lock:
-                self.ws.check_file(rel)
+                if self.ws is not ws:
+                    return  # another project was opened meanwhile
+                try:
+                    ws.check_file(rel)
+                except KeyError:
+                    continue  # the file vanished
         gc.collect()
         gc.freeze()
 
@@ -155,6 +222,7 @@ class Engine:
         return {
             "game_dir": str(p.game_dir) if p.game_dir else None,
             "mod_dir": str(p.mod_dir) if p.mod_dir else None,
+            "read_only": p.mod_dir is None,
             "files": [{"rel": f.rel, "origin": f.origin} for _, f in sorted(p.files().items())],
         }
 
@@ -185,12 +253,13 @@ class Engine:
         f = self.ws.file(self._file_or_404(rel))
         assert f is not None
         if self.ws.project.mod_dir is None:
-            raise ApiError(HTTPStatus.BAD_REQUEST, "no mod folder: nothing can be saved")
+            self._write([])  # refused: only the game is open
+        assert self.ws.project.mod_dir is not None
         target = self.ws.project.mod_dir / f.rel
         old = target.read_bytes().decode("latin-1") if target.exists() else None
         change = FileChange(f.rel, target, old, text, self.ws.encoding(rel))
         try:
-            backup = write_changes([change])
+            backup = self._write([change])
         except ValueError as exc:  # EncodingError: text not writable as Windows-1252
             raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
         self.ws.refresh()
@@ -500,7 +569,7 @@ class Engine:
             "skipped": plan.skipped,
         }
         if write and plan.changes:
-            backup = write_changes(plan.changes)
+            backup = self._write(plan.changes)
             self.ws.refresh()
             result["backup"] = str(backup) if backup else None
         return result
@@ -537,7 +606,7 @@ class Engine:
         )
         result: dict[str, Any] = {"diff": diff([change])}
         if body.get("write"):
-            write_changes([change])
+            self._write([change])
             self.ws.refresh()
         return result
 
@@ -579,7 +648,7 @@ class Engine:
         change = plan_layout(self.ws, positions, add_missing=bool(body.get("add_missing", True)))
         result: dict[str, Any] = {"diff": diff([change])}
         if body.get("write"):
-            backup = write_changes([change])
+            backup = self._write([change])
             self.ws.refresh()
             result["backup"] = str(backup) if backup else None
         return result
@@ -694,7 +763,7 @@ class Engine:
             "notes": notes,
         }
         if body.get("write"):
-            backup = write_changes(changes)
+            backup = self._write(changes)
             if copies:
                 from vic2toolmod.generators.country import write_copies
 
@@ -754,7 +823,7 @@ class Engine:
             "notes": filled.notes,
         }
         if body.get("write") and filled.changes:
-            backup = write_changes(filled.changes)
+            backup = self._write(filled.changes)
             self.ws.refresh()
             result["backup"] = str(backup) if backup else None
         return result
@@ -877,6 +946,30 @@ class Engine:
         return promotion_graph(pop_weights(self.ws))
 
 
+def _recent_file() -> Path:
+    from vic2toolmod.config import config_path
+
+    return config_path().parent / "recent.json"
+
+
+def _recent() -> list[str]:
+    """Recently opened mod folders, newest first."""
+    try:
+        data = json.loads(_recent_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return [str(d) for d in data if isinstance(d, str)] if isinstance(data, list) else []
+
+
+def _remember(mod_dir: Path) -> None:
+    items = [str(mod_dir)] + [d for d in _recent() if d != str(mod_dir)]
+    try:
+        _recent_file().parent.mkdir(parents=True, exist_ok=True)
+        _recent_file().write_text(json.dumps(items[:10], indent=1), encoding="utf-8")
+    except OSError:
+        pass  # not remembered; opening still works
+
+
 def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
     """Request handler class bound to an engine and a token."""
 
@@ -953,6 +1046,10 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
             match route:
                 case ("GET", "project"):
                     return e.project()
+                case ("GET", "projects"):
+                    return e.projects()
+                case ("POST", "project/open"):
+                    return e.open_project(body.get("mod"))
                 case ("GET", "file"):
                     return e.file(q("rel"))
                 case ("POST", "buffer"):
