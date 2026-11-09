@@ -101,36 +101,50 @@ def set_entry(
 ) -> FileChange:
     """Plan adding or changing one localisation key in the mod (K35: edit text in place).
 
-    If the mod already defines the key, that line is changed (other columns are
-    kept unless given); otherwise a line is appended to ``new_file`` (created if
-    needed). Untouched lines stay byte for byte; the file keeps its line breaks.
+    See `set_entries`; this is the one-key form.
+    """
+    return set_entries(project, [(key, english, other or {})], new_file=new_file)[0]
+
+
+def set_entries(
+    project: Project,
+    entries: list[tuple[str, str, dict[str, str]]],
+    *,
+    new_file: str = "localisation/00_vic2toolmod.csv",
+) -> list[FileChange]:
+    """Plan adding or changing several localisation keys (one change per file).
+
+    A key the mod already defines is changed on its line (other columns kept
+    unless given); new keys are appended to ``new_file`` (created if needed),
+    with the English text in every language column not given. Untouched lines
+    stay byte for byte; files keep their line breaks.
 
     Args:
         project: The project (its mod folder is written).
-        key: The key.
-        english: English text.
-        other: Texts for other languages (``french``, ``german``, ``spanish``);
-            missing ones get the English text for a new line.
+        entries: ``(key, english, {language: text})`` for each key.
         new_file: Where new keys go.
-
-    Returns:
-        The planned change (write it with `vic2toolmod.changes.write_changes`).
     """
     if project.mod_dir is None:
         raise ValueError("a mod folder is needed")
-    other = other or {}
-    if ";" in english or any(";" in t for t in other.values()):
-        raise ValueError("localisation text cannot contain ';'")
+    for _, english, other in entries:
+        if ";" in english or any(";" in t for t in other.values()):
+            raise ValueError("localisation text cannot contain ';'")
+    wanted = {k.lower(): (k, e, o) for k, e, o in entries}
+    texts: dict[str, tuple[ProjectFile, str, textio.Encoding, list[str]]] = {}
     for f in sorted(
         project.glob("localisation/*.csv"), key=lambda f: PurePosixPath(f.rel).name.lower()
     ):
         if f.origin != "mod":
             continue
         for entry in read_csv(f):
-            if entry.key.lower() != key.lower():
+            low = entry.key.lower()
+            if low not in wanted:
                 continue
-            text, encoding = textio.decode(f.path.read_bytes())
-            lines = text.splitlines(keepends=True)
+            if f.rel not in texts:
+                text, encoding = textio.decode(f.path.read_bytes())
+                texts[f.rel] = (f, text, encoding, text.splitlines(keepends=True))
+            _, english, other = wanted.pop(low)
+            lines = texts[f.rel][3]
             raw = lines[entry.line - 1]
             body = raw.rstrip("\r\n")
             ending = raw[len(body) :]
@@ -140,14 +154,20 @@ def set_entry(
             for lang, value in other.items():
                 cols[1 + LANGUAGES.index(lang)] = value
             lines[entry.line - 1] = ";".join(cols) + ending
-            return FileChange(f.rel, f.path, text, "".join(lines), encoding)
-    path = project.mod_dir / new_file
-    old = textio.decode(path.read_bytes())[0] if path.exists() else None
-    nl = "\r\n" if old is None or "\r\n" in old else "\n"
-    texts = [other.get(lang, english) if lang != "polish" else "" for lang in LANGUAGES]
-    texts[0] = english
-    line = ";".join([key, *texts]) + ";;;;;;;;;x" + nl
-    base = old or ""
-    if base and not base.endswith(("\n", "\r")):
-        base += nl
-    return FileChange(new_file, path, old, base + line)
+    changes = [
+        FileChange(f.rel, f.path, text, "".join(lines), encoding)
+        for f, text, encoding, lines in texts.values()
+    ]
+    if wanted:
+        path = project.mod_dir / new_file
+        old = textio.decode(path.read_bytes())[0] if path.exists() else None
+        nl = "\r\n" if old is None or "\r\n" in old else "\n"
+        base = old or ""
+        if base and not base.endswith(("\n", "\r")):
+            base += nl
+        for key, english, other in wanted.values():
+            cols = [other.get(lang, english) if lang != "polish" else "" for lang in LANGUAGES]
+            cols[0] = english
+            base += ";".join([key, *cols]) + ";;;;;;;;;x" + nl
+        changes.append(FileChange(new_file, path, old, base))
+    return changes

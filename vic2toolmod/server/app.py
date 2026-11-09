@@ -19,6 +19,7 @@ API (all under ``/api/``, JSON in and out):
 ``definition``      GET     ``rel, offset`` -> file and line
 ``references``      GET     ``rel, offset`` -> usages
 ``rename``          POST    ``{rel, offset, new_name}`` -> edits per file
+``names``           GET     ``registry`` -> names defined in the project (sorted)
 ``changed``         GET     files changed on disk since the last call (K30)
 ``outline``         GET     ``rel`` -> the syntax tree for the side panel
 ``parties/plan``    POST    party generator (K58): diff and summary
@@ -29,6 +30,8 @@ API (all under ``/api/``, JSON in and out):
 ``stats``           GET     pops at the start (K6 I)
 ``localisation``    POST    ``{key, english, other?, write?}`` -> plan / write a key (K35)
 ``reforms/window``  GET     reform window layout (K69); POST ``{positions, write?}`` -> diff
+``create/reform``   POST    ``{spec, write?}`` -> new reform (K70 C): diff, notes
+``create/ideology`` POST    ``{spec, write?}`` -> new ideology (K70 D): diff, notes
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
 ==================  ======  ==================================================
 
@@ -234,6 +237,11 @@ class Engine:
         edits = self.services.rename(self._file_or_404(rel), offset, new_name)
         return {"edits": {k: [asdict(e) for e in v] for k, v in edits.items()}}
 
+    def names(self, registry: str) -> dict[str, Any]:
+        """Names of a registry (``ideology``, ``issue``, ``country`` …), sorted."""
+        defs = self.ws.registries().names.get(registry, {})
+        return {"names": sorted(d.name for d in defs.values())}
+
     def changed(self) -> dict[str, Any]:
         """Files whose size / time changed (or appeared, vanished) since the last call."""
         self.ws.project._files = None
@@ -356,6 +364,61 @@ class Engine:
             result["backup"] = str(backup) if backup else None
         return result
 
+    def create(self, kind: str, body: dict[str, Any]) -> dict[str, Any]:
+        """Plan (and with ``write`` write) a new reform or ideology (K70 C, D)."""
+        from vic2toolmod.generators.ideology import IdeologySpec, plan_ideology
+        from vic2toolmod.generators.reform import OptionSpec, ReformSpec, plan_reform
+
+        s = body["spec"]
+        try:
+            if kind == "reform":
+                plan = plan_reform(
+                    self.ws,
+                    ReformSpec(
+                        category=str(s["category"]),
+                        name=str(s["name"]),
+                        english=str(s["english"]),
+                        options=[
+                            OptionSpec(
+                                str(o["name"]),
+                                str(o["english"]),
+                                str(o.get("description", "")),
+                                {str(k): str(v) for k, v in (o.get("modifiers") or {}).items()},
+                            )
+                            for o in s["options"]
+                        ],
+                        next_step_only=bool(s.get("next_step_only", True)),
+                        administrative=bool(s.get("administrative", False)),
+                    ),
+                )
+                changes, notes = plan.changes, plan.notes
+            else:
+                color = s.get("color")
+                plan2 = plan_ideology(
+                    self.ws,
+                    IdeologySpec(
+                        name=str(s["name"]),
+                        english=str(s["english"]),
+                        template=str(s["template"]),
+                        group=s.get("group") or None,
+                        color=(int(color[0]), int(color[1]), int(color[2])) if color else None,
+                        date=s.get("date") or None,
+                    ),
+                )
+                changes, notes = plan2.changes, plan2.notes
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        result: dict[str, Any] = {
+            "diff": diff(changes),
+            "files": [c.rel for c in changes],
+            "notes": notes,
+        }
+        if body.get("write"):
+            backup = write_changes(changes)
+            self.ws.refresh()
+            result["backup"] = str(backup) if backup else None
+        return result
+
     def poptypes_graph(self) -> dict[str, Any]:
         """Promotion graph of the pop types (K59)."""
         from vic2toolmod.analysis.poptypes import pop_weights, promotion_graph
@@ -445,6 +508,8 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.references(q("rel"), int(q("offset")))
                 case ("POST", "rename"):
                     return e.rename(body["rel"], int(body["offset"]), str(body["new_name"]))
+                case ("GET", "names"):
+                    return e.names(q("registry"))
                 case ("GET", "changed"):
                     return e.changed()
                 case ("GET", "outline"):
@@ -459,6 +524,10 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.reform_window()
                 case ("POST", "reforms/window"):
                     return e.reform_window_plan(body)
+                case ("POST", "create/reform"):
+                    return e.create("reform", body)
+                case ("POST", "create/ideology"):
+                    return e.create("ideology", body)
                 case ("GET", "events/graph"):
                     return e.events_graph()
                 case ("GET", "vanilla/diff"):

@@ -239,6 +239,22 @@ def insert_after(doc: Document, node: Node, items: Items) -> TextEdit:
     return TextEdit(at, at, prefix + render_items(items, unit, _depth(doc, node, unit), nl))
 
 
+def clone_after(doc: Document, node: Assignment, new_key: str) -> TextEdit:
+    """Insert a copy of an assignment (with a new key) on the lines right after it.
+
+    The copy keeps the original's text and inner layout; only the key changes.
+    """
+    text = doc.text
+    nl = newline_of(text)
+    m = re.compile(r"[^\r\n]*(\r\n|\n|\r|$)").match(text, node.end)
+    assert m is not None
+    at = m.end()
+    indent = _line_indent(text, node.start)
+    body = text[node.key.end : node.end]
+    prefix = "" if m.group(1) else nl
+    return TextEdit(at, at, f"{prefix}{indent}{new_key}{body}{nl}")
+
+
 # -- buffer with undo / redo ---------------------------------------------------------
 @dataclass
 class Buffer:

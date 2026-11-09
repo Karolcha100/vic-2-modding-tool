@@ -245,7 +245,7 @@ def _reparse(text: str) -> Document:
 
 
 def _clone(box: Assignment, old: str, new: str, x: int, y: int) -> str:
-    """Text of a copy of a box with another name and position."""
-    text = box.to_text().strip()
+    """Text of a copy of a box with another name and position (without comments above it)."""
+    text = box.to_text()[len(box.key.leading) :].strip()
     text = re.sub(rf'(name\s*=\s*)"?{re.escape(old)}"?', rf'\1"{new}"', text, count=1)
     return re.sub(r"position\s*=\s*\{[^}]*\}", f"position = {{ x = {x} y = {y} }}", text, count=1)

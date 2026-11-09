@@ -74,3 +74,15 @@ button.on { background: var(--accent); color: #fff; border-color: var(--accent);
 .rw-diff { position: absolute; left: 24px; right: 24px; top: 70px; bottom: 24px; overflow: auto; background: var(--bg); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0,0,0,.25); }
 .rw-diff pre { margin: 0; padding: 8px; font-size: 12px; }
 .rw-diff .panel-title span { margin-left: auto; color: var(--accent); }
+.creators { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
+.creator-form { display: flex; flex-direction: column; gap: 6px; padding: 10px; max-width: 900px; }
+.creator-form label { display: flex; gap: 8px; align-items: center; }
+.creator-form input:not([type="checkbox"]):not([type="color"]), .creator-form select, .creator-form textarea {
+  background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 3px 5px; font: inherit; }
+.creator-form label > input:not([type="checkbox"]):not([type="color"]), .creator-form label > select, .creator-form label > textarea { flex: 1; }
+.option-row { display: grid; grid-template-columns: 160px 180px 1fr 1fr 28px; gap: 6px; }
+.option-row textarea { font: 12px ui-monospace, monospace; }
+.creator-buttons { display: flex; gap: 8px; margin-top: 6px; }
+.creator-error { color: var(--error); }
+.creator-result { border-top: 1px solid var(--border); padding: 8px 10px; }
+.creator-result pre { font-size: 12px; margin: 6px 0 0; }

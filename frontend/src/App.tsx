@@ -4,6 +4,7 @@ import { hooks, LANGUAGE, monaco, uriOf } from "./monacoSetup";
 import { FileTree } from "./components/FileTree";
 import { Outline } from "./components/Outline";
 import { ReformWindow } from "./components/ReformWindow";
+import { Creators } from "./components/Creators";
 
 interface OpenFile {
   rel: string;
@@ -34,8 +35,8 @@ export function App() {
   const [cursor, setCursor] = useState(0);
   const [bottom, setBottom] = useState<Bottom>({ kind: "problems" });
   const [status, setStatus] = useState("Loading…");
-  const [view, setView] = useState<"code" | "reforms">(
-    new URLSearchParams(location.search).get("view") === "reforms" ? "reforms" : "code",
+  const [view, setView] = useState<"code" | "reforms" | "create">(
+    (new URLSearchParams(location.search).get("view") as "reforms" | "create" | null) ?? "code",
   );
   const [, force] = useState(0);
   const host = useRef<HTMLDivElement>(null);
@@ -275,6 +276,7 @@ export function App() {
         <span className="spacer" />
         <button className={view === "code" ? "on" : ""} onClick={() => setView("code")}>Code</button>
         <button className={view === "reforms" ? "on" : ""} onClick={() => setView("reforms")}>Reform window</button>
+        <button className={view === "create" ? "on" : ""} onClick={() => setView("create")}>Create</button>
         <button onClick={() => save(current)} disabled={!current || !dirty.has(current)}>Save (Ctrl+S)</button>
         <button onClick={async () => { setStatus("Checking the whole mod…"); setBottom({ kind: "mod", files: (await api.check()).files }); setStatus(""); }}>Check mod</button>
       </header>
@@ -282,6 +284,7 @@ export function App() {
         <FileTree files={files} current={current} dirty={dirty} onOpen={(rel) => openFile(rel)} />
       </aside>
       <main>
+        {view === "create" && <Creators onStatus={setStatus} />}
         {view === "reforms" && (
           <ReformWindow onStatus={setStatus} onOpen={(rel, line) => { setView("code"); openFile(rel, line); }} />
         )}

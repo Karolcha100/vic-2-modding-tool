@@ -63,6 +63,14 @@ export const api = {
     call<{ edits: Record<string, TextEdit[]> }>("rename", { rel, offset, new_name: newName }),
   changed: () => call<{ changed: string[] }>("changed"),
   outline: (rel: string) => call<{ items: OutlineNode[] }>(`outline?${q({ rel })}`),
+  names: (registry: string) => call<{ names: string[] }>(`names?${q({ registry })}`),
+  createReform: (spec: unknown, write: boolean) =>
+    call<{ diff: string; files: string[]; notes: string[]; backup?: string | null }>("create/reform", { spec, write }),
+  createIdeology: (spec: unknown, write: boolean) =>
+    call<{ diff: string; files: string[]; notes: string[]; backup?: string | null }>("create/ideology", { spec, write }),
+  parties: (body: unknown, write: boolean) =>
+    call<{ diff: string; created: string[]; skipped: Record<string, string>; backup?: string | null }>(
+      write ? "parties/write" : "parties/plan", body),
   reformWindow: () => call<ReformLayout>("reforms/window"),
   reformWindowPlan: (positions: Record<string, [number, number]>, write: boolean) =>
     call<{ diff: string; backup?: string | null }>("reforms/window", { positions, add_missing: true, write }),
