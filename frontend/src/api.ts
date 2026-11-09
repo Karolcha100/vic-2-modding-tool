@@ -39,6 +39,15 @@ export interface OutlineNode {
   key?: string; value?: string; start: number; end: number; line: number; children?: OutlineNode[];
 }
 
+export interface Box {
+  name: string; x: number; y: number; w: number; h: number;
+  category: string | null; line: number; outside: boolean; clipped: boolean;
+}
+export interface ReformLayout {
+  file: string; width: number; height: number; boxes: Box[];
+  missing: Record<string, string[]>; unknown: string[]; categories: Record<string, string[]>;
+}
+
 export const api = {
   project: () => call<Project>("project"),
   file: (rel: string) => call<FileData>(`file?${q({ rel })}`),
@@ -54,6 +63,9 @@ export const api = {
     call<{ edits: Record<string, TextEdit[]> }>("rename", { rel, offset, new_name: newName }),
   changed: () => call<{ changed: string[] }>("changed"),
   outline: (rel: string) => call<{ items: OutlineNode[] }>(`outline?${q({ rel })}`),
+  reformWindow: () => call<ReformLayout>("reforms/window"),
+  reformWindowPlan: (positions: Record<string, [number, number]>, write: boolean) =>
+    call<{ diff: string; backup?: string | null }>("reforms/window", { positions, add_missing: true, write }),
 };
 
 /** Apply edits (offsets into `text`) - same semantics as vic2toolmod.edit.apply_edits. */

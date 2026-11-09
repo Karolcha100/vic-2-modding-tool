@@ -57,3 +57,20 @@ footer { grid-area: foot; padding: 3px 10px; font-size: 12px; color: var(--muted
 .outline-row.error { color: var(--error); }
 .outline-value { color: var(--muted); }
 .twisty { display: inline-block; width: 14px; color: var(--muted); }
+button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.reform-window { display: flex; flex-direction: column; flex: 1; min-height: 0; position: relative; }
+.rw-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel); }
+.rw-tools .spacer { flex: 1; }
+.rw-tools input[type="number"] { width: 64px; background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.rw-tools select { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.rw-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.rw-canvas { flex: 1; min-width: 0; height: 100%; display: block; background: var(--panel); user-select: none; }
+.rw-window { fill: var(--bg); stroke: var(--border); stroke-width: 2; }
+.rw-label { font: 600 15px system-ui, sans-serif; fill: var(--text); pointer-events: none; }
+.rw-sub { font: 13px ui-monospace, monospace; fill: var(--muted); pointer-events: none; }
+.rw-side { width: 260px; border-left: 1px solid var(--border); overflow: auto; }
+.rw-side .row button { padding: 0 6px; font-size: 11px; }
+.rw-help { padding: 8px; font-size: 12px; }
+.rw-diff { position: absolute; left: 24px; right: 24px; top: 70px; bottom: 24px; overflow: auto; background: var(--bg); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+.rw-diff pre { margin: 0; padding: 8px; font-size: 12px; }
+.rw-diff .panel-title span { margin-left: auto; color: var(--accent); }

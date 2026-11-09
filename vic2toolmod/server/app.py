@@ -28,6 +28,7 @@ API (all under ``/api/``, JSON in and out):
 ``vanilla/diff``    GET     mod files vs vanilla; ``rel`` -> diff of one file (K6 H)
 ``stats``           GET     pops at the start (K6 I)
 ``localisation``    POST    ``{key, english, other?, write?}`` -> plan / write a key (K35)
+``reforms/window``  GET     reform window layout (K69); POST ``{positions, write?}`` -> diff
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
 ==================  ======  ==================================================
 
@@ -336,6 +337,25 @@ class Engine:
             "result": asdict(result) if result else None,
         }
 
+    def reform_window(self) -> dict[str, Any]:
+        """Layout of the reform window and the issue categories (K69)."""
+        from vic2toolmod.analysis.reform_window import issue_categories, read_layout
+
+        return asdict(read_layout(self.ws)) | {"categories": issue_categories(self.ws)}
+
+    def reform_window_plan(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Plan (and with ``write`` write) a new reform window layout."""
+        from vic2toolmod.analysis.reform_window import plan_layout
+
+        positions = {str(k): (int(v[0]), int(v[1])) for k, v in body["positions"].items()}
+        change = plan_layout(self.ws, positions, add_missing=bool(body.get("add_missing", True)))
+        result: dict[str, Any] = {"diff": diff([change])}
+        if body.get("write"):
+            backup = write_changes([change])
+            self.ws.refresh()
+            result["backup"] = str(backup) if backup else None
+        return result
+
     def poptypes_graph(self) -> dict[str, Any]:
         """Promotion graph of the pop types (K59)."""
         from vic2toolmod.analysis.poptypes import pop_weights, promotion_graph
@@ -435,6 +455,10 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.parties(body, write=True)
                 case ("GET", "poptypes/graph"):
                     return e.poptypes_graph()
+                case ("GET", "reforms/window"):
+                    return e.reform_window()
+                case ("POST", "reforms/window"):
+                    return e.reform_window_plan(body)
                 case ("GET", "events/graph"):
                     return e.events_graph()
                 case ("GET", "vanilla/diff"):

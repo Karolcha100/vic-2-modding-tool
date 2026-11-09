@@ -3,6 +3,7 @@ import { api, applyEdits, type Diagnostic, type FileEntry, type OutlineNode, typ
 import { hooks, LANGUAGE, monaco, uriOf } from "./monacoSetup";
 import { FileTree } from "./components/FileTree";
 import { Outline } from "./components/Outline";
+import { ReformWindow } from "./components/ReformWindow";
 
 interface OpenFile {
   rel: string;
@@ -33,6 +34,9 @@ export function App() {
   const [cursor, setCursor] = useState(0);
   const [bottom, setBottom] = useState<Bottom>({ kind: "problems" });
   const [status, setStatus] = useState("Loading…");
+  const [view, setView] = useState<"code" | "reforms">(
+    new URLSearchParams(location.search).get("view") === "reforms" ? "reforms" : "code",
+  );
   const [, force] = useState(0);
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -269,6 +273,8 @@ export function App() {
         <b>vic2toolmod</b>
         <span className="muted">{modDir ?? "no mod"}</span>
         <span className="spacer" />
+        <button className={view === "code" ? "on" : ""} onClick={() => setView("code")}>Code</button>
+        <button className={view === "reforms" ? "on" : ""} onClick={() => setView("reforms")}>Reform window</button>
         <button onClick={() => save(current)} disabled={!current || !dirty.has(current)}>Save (Ctrl+S)</button>
         <button onClick={async () => { setStatus("Checking the whole mod…"); setBottom({ kind: "mod", files: (await api.check()).files }); setStatus(""); }}>Check mod</button>
       </header>
@@ -276,7 +282,10 @@ export function App() {
         <FileTree files={files} current={current} dirty={dirty} onOpen={(rel) => openFile(rel)} />
       </aside>
       <main>
-        <div className="tabs">
+        {view === "reforms" && (
+          <ReformWindow onStatus={setStatus} onOpen={(rel, line) => { setView("code"); openFile(rel, line); }} />
+        )}
+        <div className="tabs" style={view === "code" ? undefined : { display: "none" }}>
           {open.map((f) => (
             <div key={f.rel} className={"tab" + (f.rel === current ? " active" : "")} onClick={() => openFile(f.rel)} title={f.rel}>
               {dirty.has(f.rel) ? "● " : ""}{f.rel.slice(f.rel.lastIndexOf("/") + 1)}
@@ -284,8 +293,8 @@ export function App() {
             </div>
           ))}
         </div>
-        <div className="editor" ref={host} />
-        {!current && <div className="empty">Open a file from the tree on the left.</div>}
+        <div className="editor" ref={host} style={view === "code" ? undefined : { display: "none" }} />
+        {!current && view === "code" && <div className="empty">Open a file from the tree on the left.</div>}
       </main>
       <aside className="right">
         <div className="panel-title">Syntax tree</div>
