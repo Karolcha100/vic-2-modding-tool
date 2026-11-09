@@ -573,6 +573,7 @@ class Engine:
         from vic2toolmod.generators.reform import OptionSpec, ReformSpec, plan_reform
 
         s = body["spec"]
+        copies: list[tuple[Path, Path]] = []
         try:
             if kind == "reform":
                 plan = plan_reform(
@@ -625,6 +626,33 @@ class Engine:
                     ),
                 )
                 changes, notes = plan4.changes, plan4.notes
+            elif kind == "country":
+                from vic2toolmod.generators.country import CountrySpec, plan_country
+
+                def opt(key: str) -> str | None:
+                    v = s.get(key)
+                    return str(v).strip() if v not in (None, "") else None
+
+                cultures = s.get("cultures")
+                civilized = s.get("civilized")
+                plan5 = plan_country(
+                    self.ws,
+                    CountrySpec(
+                        tag=str(s["tag"]),
+                        name=str(s["name"]),
+                        adjective=str(s.get("adjective", "")),
+                        template=str(s["template"]),
+                        color=(int(s["color"][0]), int(s["color"][1]), int(s["color"][2])),
+                        capital=int(s["capital"]) if opt("capital") else None,
+                        primary_culture=opt("primary_culture"),
+                        cultures=None if cultures is None else [str(c) for c in cultures],
+                        religion=opt("religion"),
+                        government=opt("government"),
+                        civilized=None if civilized in (None, "") else bool(civilized),
+                        copy_flags=bool(s.get("copy_flags", True)),
+                    ),
+                )
+                changes, notes, copies = plan5.changes, plan5.notes, plan5.copies
             else:
                 color = s.get("color")
                 plan2 = plan_ideology(
@@ -641,13 +669,19 @@ class Engine:
                 changes, notes = plan2.changes, plan2.notes
         except ValueError as exc:
             raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        mod = self.ws.project.mod_dir
         result: dict[str, Any] = {
             "diff": diff(changes),
-            "files": [c.rel for c in changes],
+            "files": [c.rel for c in changes]
+            + [dest.relative_to(mod).as_posix() for _, dest in copies if mod is not None],
             "notes": notes,
         }
         if body.get("write"):
             backup = write_changes(changes)
+            if copies:
+                from vic2toolmod.generators.country import write_copies
+
+                write_copies(copies)
             self.ws.refresh()
             result["backup"] = str(backup) if backup else None
         return result
@@ -898,6 +932,8 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.create("event", body)
                 case ("POST", "create/decision"):
                     return e.create("decision", body)
+                case ("POST", "create/country"):
+                    return e.create("country", body)
                 case ("GET", "events/graph"):
                     return e.events_graph()
                 case ("GET", "vanilla/diff"):

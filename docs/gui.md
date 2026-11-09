@@ -34,6 +34,12 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
 - **Create** view (K70): new reform, new ideology (with pop support and
   governments copied from a template), parties for an ideology (K58), new
   event (free id, EVTNAME / EVTDESC / EVTOPT localisation), new decision.
+- **New country** (K70 E): copies an existing country (the template) - tag in
+  `common/countries.txt` (before `dynamic_tags = yes`), country file with the
+  new colour and the parties renamed to the new tag, history without dated
+  blocks / units / investments, name, adjective and party localisation,
+  placeholder flags; capital, cultures, religion, government and
+  civilisation can be changed. The country starts without provinces.
 - **Templates** (K39 = B): **Create → From a template** fills a template's
   fields (free event ids proposed, known names offered for `ref:` fields) and
   appends the code to a mod file, with its localisation; in the editor

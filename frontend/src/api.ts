@@ -101,6 +101,8 @@ export const api = {
     call<{ diff: string; files: string[]; notes: string[]; backup?: string | null }>("create/event", { spec, write }),
   createDecision: (spec: unknown, write: boolean) =>
     call<{ diff: string; files: string[]; notes: string[]; backup?: string | null }>("create/decision", { spec, write }),
+  createCountry: (spec: unknown, write: boolean) =>
+    call<{ diff: string; files: string[]; notes: string[]; backup?: string | null }>("create/country", { spec, write }),
   parties: (body: unknown, write: boolean) =>
     call<{ diff: string; created: string[]; skipped: Record<string, string>; backup?: string | null }>(
       write ? "parties/write" : "parties/plan", body),

@@ -4,7 +4,7 @@ import { TemplateUse } from "./Templates";
 
 /** Creators (K70): new reform (C), new ideology (D), parties for an ideology (K58). */
 
-type Kind = "reform" | "ideology" | "parties" | "event" | "decision" | "template";
+type Kind = "reform" | "ideology" | "parties" | "event" | "decision" | "country" | "template";
 
 interface Result {
   diff: string;
@@ -64,6 +64,20 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   const [dName, setDName] = useState("");
   const [dTitle, setDTitle] = useState("");
   const [dDesc, setDDesc] = useState("");
+  // country
+  const [cTag, setCTag] = useState("");
+  const [cName, setCName] = useState("");
+  const [cAdj, setCAdj] = useState("");
+  const [cTemplate, setCTemplate] = useState("");
+  const [cColor, setCColor] = useState("#3c8c50");
+  const [cCapital, setCCapital] = useState("");
+  const [cCulture, setCCulture] = useState("");
+  const [cCultures, setCCultures] = useState<string | null>(null); // null = keep the template's
+  const [cReligion, setCReligion] = useState("");
+  const [cGovernment, setCGovernment] = useState("");
+  const [cCivilized, setCCivilized] = useState<"" | "yes" | "no">("");
+  const [cFlags, setCFlags] = useState(true);
+  const [names, setNames] = useState<Record<string, string[]>>({});
   // parties
   const [pIdeology, setPIdeology] = useState("");
   const [copyFrom, setCopyFrom] = useState("conservative");
@@ -78,6 +92,11 @@ export function Creators({ onStatus, files, onOpen }: Props) {
     api.names("ideology_group").then((r) => setGroups(r.names)).catch(() => undefined);
     api.names("issue").then((r) => setIssues(r.names)).catch(() => undefined);
   }, []);
+  useEffect(() => {
+    if (kind !== "country" || names.country) return;
+    Promise.all(["country", "culture", "religion", "government"].map((r) => api.names(r).then((x) => [r, x.names] as const)))
+      .then((all) => setNames(Object.fromEntries(all))).catch(() => undefined);
+  }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async (write: boolean) => {
     setError("");
@@ -102,6 +121,18 @@ export function Creators({ onStatus, files, onOpen }: Props) {
         const r = await api.createEvent(spec, write);
         setResult({ diff: r.diff, lines: [...r.notes, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
         if (write) { onStatus(`Event created (${r.notes.join(", ")})`); onOpen(`events/${eFile}`); }
+      } else if (kind === "country") {
+        const spec = {
+          tag: cTag, name: cName, adjective: cAdj, template: cTemplate,
+          color: [1, 3, 5].map((i) => parseInt(cColor.slice(i, i + 2), 16)),
+          capital: cCapital || null, primary_culture: cCulture || null,
+          cultures: cCultures === null ? null : cCultures.split(/[ ,]+/).filter(Boolean),
+          religion: cReligion || null, government: cGovernment || null,
+          civilized: cCivilized === "" ? null : cCivilized === "yes", copy_flags: cFlags,
+        };
+        const r = await api.createCountry(spec, write);
+        setResult({ diff: r.diff, lines: [...r.notes, `files: ${r.files.join(", ")}`, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
+        if (write) { onStatus(`Country ${cTag} created`); onOpen(r.files.find((f) => f.startsWith("history/")) ?? r.files[0]); }
       } else if (kind === "decision") {
         const r = await api.createDecision({ file: dFile, name: dName, title: dTitle, description: dDesc }, write);
         setResult({ diff: r.diff, lines: [...r.notes, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
@@ -133,9 +164,9 @@ export function Creators({ onStatus, files, onOpen }: Props) {
     <div className="creators">
       <div className="rw-tools">
         <b>Create</b>
-        {(["reform", "ideology", "parties", "event", "decision", "template"] as Kind[]).map((k) => (
+        {(["reform", "ideology", "parties", "event", "decision", "country", "template"] as Kind[]).map((k) => (
           <button key={k} className={kind === k ? "on" : ""} onClick={() => { setKind(k); setResult(null); setError(""); }}>
-            {({ reform: "New reform", ideology: "New ideology", parties: "Parties for an ideology", event: "New event", decision: "New decision", template: "From a template" } as Record<Kind, string>)[k]}
+            {({ reform: "New reform", ideology: "New ideology", parties: "Parties for an ideology", event: "New event", decision: "New decision", country: "New country", template: "From a template" } as Record<Kind, string>)[k]}
           </button>
         ))}
       </div>
@@ -202,6 +233,32 @@ export function Creators({ onStatus, files, onOpen }: Props) {
             <label>Key <input value={dName} onChange={(e) => setDName(e.target.value)} placeholder="build_homes" /></label>
             <label>Title <input value={dTitle} onChange={(e) => setDTitle(e.target.value)} /></label>
             <label>Description <textarea value={dDesc} onChange={(e) => setDDesc(e.target.value)} rows={3} /></label>
+          </>
+        )}
+        {kind === "country" && (
+          <>
+            <label>Tag <input value={cTag} onChange={(e) => setCTag(e.target.value.toUpperCase())} maxLength={3} placeholder="BOE" /></label>
+            <label>English name <input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Boer Republic (also the file names)" /></label>
+            <label>Adjective <input value={cAdj} onChange={(e) => setCAdj(e.target.value)} placeholder="Boer" /></label>
+            <label>Copy from <input list="c-tags" value={cTemplate} onChange={(e) => setCTemplate(e.target.value.toUpperCase())} placeholder="SAF (tag of an existing country)" /></label>
+            <label>Colour <input type="color" value={cColor} onChange={(e) => setCColor(e.target.value)} /></label>
+            <label>Capital province <input value={cCapital} onChange={(e) => setCCapital(e.target.value)} placeholder="(the template's)" /></label>
+            <label>Primary culture <input list="c-cultures" value={cCulture} onChange={(e) => setCCulture(e.target.value)} placeholder="(the template's)" /></label>
+            <label><input type="checkbox" checked={cCultures === null} onChange={(e) => setCCultures(e.target.checked ? null : "")} /> keep the template's accepted cultures</label>
+            {cCultures !== null && <label>Accepted cultures <input value={cCultures} onChange={(e) => setCCultures(e.target.value)} placeholder="afrikaner, british (empty = none)" /></label>}
+            <label>Religion <input list="c-religions" value={cReligion} onChange={(e) => setCReligion(e.target.value)} placeholder="(the template's)" /></label>
+            <label>Government <select value={cGovernment} onChange={(e) => setCGovernment(e.target.value)}>
+              <option value="">(the template's)</option>
+              {(names.government ?? []).map((g) => <option key={g}>{g}</option>)}
+            </select></label>
+            <label>Civilized <select value={cCivilized} onChange={(e) => setCCivilized(e.target.value as "" | "yes" | "no")}>
+              <option value="">(the template's)</option><option value="yes">yes</option><option value="no">no</option>
+            </select></label>
+            <label><input type="checkbox" checked={cFlags} onChange={(e) => setCFlags(e.target.checked)} /> copy the template's flags as placeholders</label>
+            <datalist id="c-tags">{(names.country ?? []).map((t) => <option key={t} value={t.toUpperCase()} />)}</datalist>
+            <datalist id="c-cultures">{(names.culture ?? []).map((t) => <option key={t} value={t} />)}</datalist>
+            <datalist id="c-religions">{(names.religion ?? []).map((t) => <option key={t} value={t} />)}</datalist>
+            <div className="muted">Makes the tag in common/countries.txt, the country file (parties renamed to the new tag), the history (without dated blocks and units), the name / adjective / party localisation and placeholder flags. The country starts without provinces: release it or create it with an event or decision.</div>
           </>
         )}
         {kind === "parties" && (

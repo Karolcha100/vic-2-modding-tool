@@ -164,3 +164,22 @@ def test_template_endpoints(api, tmp_path, monkeypatch):
     with pytest.raises(urllib.error.HTTPError) as info:
         api("/api/template/delete", {"id": "builtin/event_chain"})
     assert info.value.code == 422
+
+
+def test_create_country_endpoint(api, tmp_path, monkeypatch):
+    monkeypatch.setattr("vic2toolmod.changes.backup_dir", lambda: tmp_path / "backup")
+    write(tmp_path / "game/common/countries/UK.txt", "color = { 1 2 3 }\n")
+    write(tmp_path / "game/gfx/flags/ENG.tga", "flag")
+    api("/api/changed")  # the engine notices the new files
+    spec = {
+        "tag": "BOE",
+        "name": "Boer",
+        "adjective": "Boer",
+        "template": "ENG",
+        "color": [1, 2, 3],
+    }
+    r = api("/api/create/country", {"spec": spec})
+    assert "gfx/flags/BOE.tga" in r["files"] and not (api.mod / "gfx/flags/BOE.tga").exists()
+    r = api("/api/create/country", {"spec": spec, "write": True})
+    assert (api.mod / "gfx/flags/BOE.tga").read_bytes() == b"flag"
+    assert 'BOE\t= "countries/Boer.txt"' in (api.mod / "common/countries.txt").read_text()
