@@ -158,8 +158,10 @@ def test_combine_rule():
     assert combine_of("poptypes/artisans.txt", ["promote_to", "farmers"])[0] == "add"
     assert combine_of("poptypes/artisans.txt", ["issues", "trinket_pensions"])[0] == "multiply"
     assert combine_of("poptypes/artisans.txt", ["ideologies", "liberal"])[0] == "multiply"
-    kind, note = combine_of("poptypes/artisans.txt", ["migration_target"])
-    assert kind == "multiply" and note.startswith("uncertain")
+    assert combine_of("poptypes/artisans.txt", ["migration_target"])[0] == "multiply"
+    assert combine_of("poptypes/artisans.txt", ["country_migration_target"])[0] == "multiply"
+    assert combine_of("inventions/army_inventions.txt", ["x", "chance"])[0] == "add"
+    assert combine_of("common/rebel_types.txt", ["x", "spawn_chance"])[0] == "multiply"
     assert combine_of("common/pop_types.txt", ["promotion_chance", "group"])[0] == "add"
     path = ["conservative_group", "conservative", "add_political_reform", "group"]
     assert combine_of("common/ideologies.txt", path)[0] == "add"

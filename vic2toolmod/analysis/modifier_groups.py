@@ -13,19 +13,20 @@ Such a *group* is a set of ``modifier`` blocks of one parent block
 
 Together the modifiers are a step function of the variable: every modifier
 whose condition holds applies its factor. How the factors join (`combine`,
-with the reason in `combine_note`, T008):
+with the reason in `combine_note`, T008) follows the rules that Project Alice,
+the open-source reimplementation of Victoria 2, found by studying the game
+(its ``docs/rules.md`` and source); the values in vanilla agree (negative
+factors only where factors add, ``factor = 0`` only where they multiply):
 
-- **added** in ``poptypes/*.txt`` outside ``issues`` / ``ideologies``
-  (``promote_to`` …), in ``common/pop_types.txt`` (promotion, migration, …
-  chances) and in the reform weights of ``common/ideologies.txt``: the Victoria 2
-  wiki says "Issue and Ideology modifiers are multipliers, all other seem to be
-  additions" for pop files, and these blocks use negative factors (vanilla:
-  494 in ``promote_to``), which only make sense when added;
-- **multiplied** everywhere else (``mean_time_to_happen``, ``ai_chance``,
-  rebels, pop ``issues`` / ``ideologies``: no negative factors, 0 used to
-  block). ``migration_target`` / ``country_migration_target`` in pop files are
-  unclear (the wiki's rule says added, the values look like multipliers); they
-  are taken as multiplied and marked uncertain.
+- **added**: ``promote_to`` in ``poptypes/*.txt``, the chances of
+  ``common/pop_types.txt`` (promotion, demotion, migration, colonial migration,
+  emigration, assimilation, conversion), the reform weights of
+  ``common/ideologies.txt`` (``add_political_reform`` …) and the ``chance`` of
+  inventions;
+- **multiplied**: everything else - ``issues``, ``ideologies``,
+  ``migration_target`` and ``country_migration_target`` in ``poptypes/*.txt``,
+  ``mean_time_to_happen``, ``ai_chance``, ``ai_will_do``, rebels
+  (``spawn_chance``, ``movement_evaluation``, ``will_rise``).
 
 `find_groups` lists the groups of a file, `scan` of the whole mod, and
 `rewrite` replaces the steps of groups by new ``(value, factor)`` pairs: the
@@ -50,11 +51,8 @@ from vic2toolmod.workspace import Workspace
 _NUM = re.compile(r"[-+]?(\d+\.?\d*|\.\d+)")
 #: Parent blocks whose modifiers add up instead of multiplying.
 _ADDITIVE_PARENTS = re.compile(r"(add|remove)_(political|social|economic|military)_reform")
-_UNCLEAR = ("migration_target", "country_migration_target")
-_WIKI = (
-    "Victoria 2 wiki (Folder/File overview): in pop files issue and ideology"
-    " modifiers multiply, others add"
-)
+_ALICE = "Project Alice rules.md (open-source reimplementation of Victoria 2)"
+_POP_MULTIPLIED = ("issues", "ideologies", "migration_target", "country_migration_target")
 
 
 def combine_of(rel: str, path: list[str]) -> tuple[str, str]:
@@ -62,26 +60,19 @@ def combine_of(rel: str, path: list[str]) -> tuple[str, str]:
     low = rel.lower()
     keys = [p.split(" ")[0].lower() for p in path]
     if low.startswith("poptypes/"):
-        if "issues" in keys or "ideologies" in keys:
-            return "multiply", _WIKI
-        if keys and keys[0] in _UNCLEAR:
-            return (
-                "multiply",
-                "uncertain: the wiki says pop-file weights add, the values look like multipliers",
-            )
-        return "add", _WIKI + "; negative factors are used here"
+        if keys and keys[0] in _POP_MULTIPLIED:
+            return "multiply", f"{keys[0]} weights are a product: {_ALICE}"
+        return "add", f"promotion weights are a sum: {_ALICE}; vanilla uses negative factors"
     if low == "common/pop_types.txt":
-        return "add", "pop action chances: negative factors are used here (vanilla), so they add"
+        return "add", f"pop action chances are a sum: {_ALICE}; vanilla uses negative factors"
     if any(_ADDITIVE_PARENTS.fullmatch(k) for k in keys):
-        return (
-            "add",
-            "reform weights of ideologies: negative factors are used here (vanilla), so they add",
-        )
-    return "multiply", "factors multiply (mean_time_to_happen, ai_chance, rebels …)"
+        return "add", f"reform weights of ideologies are a sum: {_ALICE}"
+    if low.startswith("inventions/") and "chance" in keys:
+        return "add", f"the invention chance is a sum (percent a month): {_ALICE}"
+    return "multiply", f"factors multiply (mean_time_to_happen, ai_chance, rebels …): {_ALICE}"
 
 
-#: Keys of a parent block that hold its base value.
-_BASE_KEYS = ("factor", "months", "days", "years")
+_BASE_KEYS = ("factor", "base", "months", "days", "years")
 
 
 @dataclass

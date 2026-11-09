@@ -73,17 +73,27 @@ mod file (RPM: about 3 700 groups in 126 files, ~4 s).
 How the factors of a block join (`combine`, with its reason in
 `combine_note`; the GUI can switch it for the chart):
 
-| Block | Factors | Why |
-|---|---|---|
-| `poptypes/*.txt` → `issues`, `ideologies` | multiply | Victoria 2 wiki (Folder/File overview): "Issue and Ideology modifiers are multipliers, all other seem to be additions"; no negative factors, 0 blocks |
-| `poptypes/*.txt` → `promote_to`, other weights | add | the same wiki note; vanilla uses 494 negative factors in `promote_to` |
-| `poptypes/*.txt` → `migration_target`, `country_migration_target` | multiply (uncertain) | the wiki's rule says add, the values (0.5, 1.5, 0) look like multipliers |
-| `common/pop_types.txt` (promotion, migration … chances) | add | negative factors in vanilla |
-| `common/ideologies.txt` → `add_/remove_*_reform` | add | negative factors in vanilla |
-| everything else (`mean_time_to_happen`, `ai_chance`, rebels …) | multiply | |
+| Block | Factors |
+|---|---|
+| `poptypes/*.txt` → `promote_to` | add |
+| `common/pop_types.txt`: `promotion_chance`, `demotion_chance`, `migration_chance`, `colonialmigration_chance`, `emigration_chance`, `assimilation_chance`, `conversion_chance` | add |
+| `common/ideologies.txt` → `add_/remove_*_reform` | add |
+| `inventions/*.txt` → `chance` (percent a month) | add |
+| `poptypes/*.txt` → `issues`, `ideologies`, `migration_target`, `country_migration_target` | multiply |
+| `mean_time_to_happen`, `ai_chance`, `ai_will_do`, rebels (`spawn_chance`, `movement_evaluation`, `will_rise`), everything else | multiply |
 
-The game's executable does not show this: the rule is in compiled code, not
-in names or texts, so only a test in the game could confirm the unclear rows.
+Source: the rules of [Project Alice](https://github.com/schombert/Project-Alice)
+(`docs/rules.md` and its source), the open-source reimplementation of
+Victoria 2 whose authors worked the rules out from the game: "promotion and
+demotion factors seem to be computed additively", "the product of the country
+migration target modifiers", "the attraction modifier for each issue is
+computed multiplicatively", "the invention chance modifier is computed
+additively". Vanilla's own values agree: negative factors appear only in the
+"add" blocks (494 in `promote_to`, 54 in `pop_types.txt`), `factor = 0` (a
+block) only in the "multiply" ones, and `migration_target` starts from
+`factor = 0.01`. The Victoria 2 wiki's note ("Issue and Ideology modifiers
+are multipliers, all other seem to be additions") is right except for the two
+migration targets.
 
 `rewrite` / `rewrite_edits` give a group new `(value, factor)` steps: the
 first modifier is the pattern of the new ones (its layout, comments and other
