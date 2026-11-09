@@ -84,6 +84,10 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   Template format: see `vic2toolmod/generators/templates.py`; your templates are
   kept in `~/.config/vic2toolmod/templates/` (`%APPDATA%\vic2toolmod\templates`
   on Windows).
+- **Scripts** view (T007): light Python scripts for repeated jobs (replace a
+  text in many files, set a value everywhere, find lines, your own ones);
+  fields, an editable code box, **Preview** (output + diff, nothing written)
+  and **Apply** (write with a backup). See [`scripts.md`](scripts.md).
 - **Analyses** view: interactive pop promotion graph (K59; drag the pop
   types, click a pop type or an arrow for the modifiers and their conditions;
   with a pop type selected its outgoing arrows are red, incoming blue; click

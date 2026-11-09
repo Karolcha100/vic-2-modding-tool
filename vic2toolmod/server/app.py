@@ -41,6 +41,10 @@ API (all under ``/api/``, JSON in and out):
 ``picture``         GET     ``name`` -> event picture (``gfx/pictures/events``) as PNG
 ``image``           GET     ``rel`` -> a ``.tga`` / ``.dds`` file under ``gfx/`` as PNG (T006)
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
+``scripts``         GET     light Python scripts (T007): built-in and own, with fields
+``script/run``      POST    ``{id or code, values, write?}`` -> output, error, diff
+``script/save``     POST    ``{name, code, overwrite?}`` -> save an own script
+``script/delete``   POST    ``{id}`` -> delete an own script
 ==================  ======  ==================================================
 
 Static files of the built frontend are served from ``static/``.
@@ -108,10 +112,17 @@ def _diag(doc: Document, d: Diagnostic) -> dict[str, Any]:
 class Engine:
     """The workspace and services behind the API (one lock for everything)."""
 
-    def __init__(self, workspace: Workspace, templates_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        workspace: Workspace,
+        templates_dir: Path | None = None,
+        scripts_dir: Path | None = None,
+    ) -> None:
         self.ws = workspace
         self.templates_dir = templates_dir
         """Own templates folder (default: next to the settings file)."""
+        self.scripts_dir = scripts_dir
+        """Own scripts folder (default: next to the settings file)."""
         self.services = LanguageService(workspace)
         self.lock = threading.Lock()
         self._sprites: dict[tuple[str, int, int, int, int], bytes] = {}
@@ -994,6 +1005,82 @@ class Engine:
             raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
         return {"deleted": tid}
 
+    # -- light Python scripts (T007) -----------------------------------------------
+    def scripts(self) -> dict[str, Any]:
+        """All scripts with their fields and code."""
+        from vic2toolmod.pyscripts import list_scripts, user_dir
+
+        return {
+            "dir": str(self.scripts_dir or user_dir()),
+            "scripts": [
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "description": s.description,
+                    "builtin": s.builtin,
+                    "code": s.code,
+                    "params": [asdict(p) for p in s.params],
+                }
+                for s in list_scripts(self.scripts_dir)
+            ],
+        }
+
+    def script_run(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Run a script (its saved code, or ``code`` from the editor); ``write`` applies it."""
+        from vic2toolmod.pyscripts import ScriptError, get_script, parse_script, run
+
+        try:
+            if body.get("code") is not None:
+                script = parse_script(str(body.get("id") or "edited"), str(body["code"]))
+            else:
+                script = get_script(str(body["id"]), self.scripts_dir)
+            given = {str(k): str(v) for k, v in (body.get("values") or {}).items()}
+            result = run(self.ws, script, given)
+        except ScriptError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        out: dict[str, Any] = {
+            "output": result.output,
+            "error": result.error,
+            "diff": diff(result.changes),
+            "files": [c.rel for c in result.changes],
+        }
+        if body.get("write") and result.changes and not result.error:
+            try:
+                backup = self._write(result.changes)
+            except ValueError as exc:  # EncodingError
+                raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+            for c in result.changes:
+                self.ws.revert(c.rel)  # open editors reload the new text
+            self.ws.refresh()
+            out["backup"] = str(backup) if backup else None
+            out["written"] = True
+        return out
+
+    def script_save(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Save one of the author's scripts."""
+        from vic2toolmod.pyscripts import ScriptError, save_script
+
+        try:
+            s = save_script(
+                str(body["name"]),
+                str(body["code"]),
+                overwrite=bool(body.get("overwrite")),
+                own=self.scripts_dir,
+            )
+        except (ScriptError, SyntaxError) as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        return {"id": s.id}
+
+    def script_delete(self, sid: str) -> dict[str, Any]:
+        """Delete one of the author's scripts."""
+        from vic2toolmod.pyscripts import ScriptError, delete_script
+
+        try:
+            delete_script(sid, self.scripts_dir)
+        except ScriptError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        return {"deleted": sid}
+
     def localisation_search(self, q: str, limit: int) -> dict[str, Any]:
         """Localisation entries whose key or English text contains ``q`` (any case)."""
         loc = self.ws.registries().localisation
@@ -1289,6 +1376,14 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.template_save(body)
                 case ("POST", "template/delete"):
                     return e.template_delete(str(body["id"]))
+                case ("GET", "scripts"):
+                    return e.scripts()
+                case ("POST", "script/run"):
+                    return e.script_run(body)
+                case ("POST", "script/save"):
+                    return e.script_save(body)
+                case ("POST", "script/delete"):
+                    return e.script_delete(str(body["id"]))
                 case ("POST", "trigger"):
                     return e.trigger(body["rel"], int(body["offset"]), body.get("answers") or {})
             return None

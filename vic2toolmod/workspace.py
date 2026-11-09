@@ -128,6 +128,11 @@ class Workspace:
         self._touch(rel)
         return doc
 
+    def has_unsaved(self, rel: str, disk_text: str) -> bool:
+        """The editor holds a text for the file that differs from ``disk_text``."""
+        entry = self._entries.get(rel.lower())
+        return entry is not None and entry.stamp is None and entry.document.text != disk_text
+
     def revert(self, rel: str) -> None:
         """Forget editor content of a file (read it from disk again)."""
         self._entries.pop(rel.lower(), None)

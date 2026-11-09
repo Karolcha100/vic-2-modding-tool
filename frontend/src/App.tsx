@@ -7,6 +7,7 @@ import { ReformWindow } from "./components/ReformWindow";
 import { Creators } from "./components/Creators";
 import { Blocks } from "./components/Blocks";
 import { Analyses } from "./components/Analyses";
+import { Scripts } from "./components/Scripts";
 import { Tester } from "./components/Tester";
 import { TemplateSave, TemplateUse } from "./components/Templates";
 import type { Fact } from "./api";
@@ -52,8 +53,8 @@ export function App() {
   const [mode, setMode] = useState<"code" | "blocks" | "split">(
     (new URLSearchParams(location.search).get("mode") as "blocks" | "split" | null) ?? "code",
   );
-  const [view, setView] = useState<"code" | "reforms" | "interface" | "create" | "analyses">(
-    (new URLSearchParams(location.search).get("view") as "reforms" | "interface" | "create" | "analyses" | null) ?? "code",
+  const [view, setView] = useState<"code" | "reforms" | "interface" | "create" | "analyses" | "scripts">(
+    (new URLSearchParams(location.search).get("view") as "reforms" | "interface" | "create" | "analyses" | "scripts" | null) ?? "code",
   );
   const [tplModal, setTplModal] = useState<null | { kind: "insert" } | { kind: "save"; text: string; folder: string }>(null);
   const [, force] = useState(0);
@@ -387,6 +388,7 @@ export function App() {
         <button className={view === "interface" ? "on" : ""} onClick={() => setView("interface")} title="Any window of interface/*.gui">Interface</button>
         <button className={view === "create" ? "on" : ""} onClick={() => setView("create")}>Create</button>
         <button className={view === "analyses" ? "on" : ""} onClick={() => setView("analyses")}>Analyses</button>
+        <button className={view === "scripts" ? "on" : ""} onClick={() => setView("scripts")} title="Light Python scripts for repeated jobs">Scripts</button>
         <button onClick={() => save(current)} disabled={readOnly || !current || !dirty.has(current)}>Save (Ctrl+S)</button>
         <button onClick={async () => { setStatus("Checking the whole mod…"); setBottom({ kind: "mod", files: (await api.check()).files }); setStatus(""); }}>Check mod</button>
       </header>
@@ -397,6 +399,9 @@ export function App() {
       <main>
         {view === "analyses" && (
           <Analyses onStatus={setStatus} onOpen={(rel, line) => { setView("code"); openFile(rel, line); }} />
+        )}
+        {view === "scripts" && (
+          <Scripts readOnly={readOnly} onStatus={setStatus} onOpen={(rel) => { setView("code"); openFile(rel); }} />
         )}
         {view === "create" && (
           <Creators onStatus={setStatus} files={files.map((f) => f.rel)} onOpen={(rel) => { setView("code"); openFile(rel); }} />

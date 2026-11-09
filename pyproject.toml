@@ -20,7 +20,7 @@ vic2toolmod = "vic2toolmod.cli:main"
 include = ["vic2toolmod*"]
 
 [tool.setuptools.package-data]
-vic2toolmod = ["schema/data/*.yaml", "schema/data/*/*.yaml", "schema/data/NOTICE", "server/static/*", "generators/templates_data/*.txt"]
+vic2toolmod = ["schema/data/*.yaml", "schema/data/*/*.yaml", "schema/data/NOTICE", "server/static/*", "generators/templates_data/*.txt", "pyscripts_data/*.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -32,6 +32,10 @@ markers = ["gamedata: needs the Victoria 2 game / mod folders (see vic2toolmod.c
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.format]
+# keep the "#@" header lines of the built-in scripts
+exclude = ["vic2toolmod/pyscripts_data/*"]
+
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "D"]
 ignore = ["D105", "D107", "D203", "D213"]
@@ -41,8 +45,11 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D"]
+# scripts run inside the tool get `mod` and `params` as globals
+"vic2toolmod/pyscripts_data/*" = ["F821", "D", "E501"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 packages = ["vic2toolmod"]
+exclude = ["vic2toolmod/pyscripts_data/"]

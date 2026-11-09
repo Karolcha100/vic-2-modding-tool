@@ -176,6 +176,13 @@ button.add { margin: 4px 0; }
 .modal { width: 720px; max-height: 90vh; overflow: auto; background: var(--bg, #fff); color: inherit; border: 1px solid #888; border-radius: 6px; padding: 12px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
 .modal .creator-form { max-width: none; }
 .template-use { display: contents; }
+.scripts { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
+.scripts details summary { cursor: pointer; margin: 4px 0; }
+.script-code { width: 100%; box-sizing: border-box; }
+.scripts .creator-result pre { overflow-x: auto; }
+.script-save { display: flex; gap: 8px; margin-top: 4px; }
+.script-save input { flex: 1; }
+button.link { background: none; border: none; color: var(--accent, #4a9eff); cursor: pointer; padding: 0 6px; text-decoration: underline; }
 textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-size: 4; }
 .context-menu { position: fixed; z-index: 50; min-width: 220px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 6px 20px rgba(0,0,0,.25); padding: 4px 0; }
 .context-menu .row { display: flex; justify-content: space-between; gap: 16px; padding: 4px 12px; }

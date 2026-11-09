@@ -20,7 +20,10 @@ Commands:
   (127.0.0.1 only, with a random token in the address);
 * ``install-desktop`` - add a "vic2toolmod" shortcut to the Linux application menu;
 * ``generate-parties IDEOLOGY [options] [--write]`` - add a party of an
-  ideology to many countries (K58); shows a diff, writes only with ``--write``.
+  ideology to many countries (K58); shows a diff, writes only with ``--write``;
+* ``run-script SCRIPT [-p NAME=VALUE ...] [--write]`` - run a light Python
+  script on the mod (T007, `vic2toolmod.pyscripts`); shows its output and a
+  diff, writes only with ``--write``; ``run-script --list`` lists the scripts.
 
 When ``roundtrip`` / ``errors`` get no paths, the game and mod folders from
 the settings (`vic2toolmod.config`) are used.
@@ -187,6 +190,40 @@ def _cmd_generate_parties(args: argparse.Namespace) -> int:
         print(f"written; backup of changed files: {backup}", file=sys.stderr)
     elif plan.changes:
         print("dry run - add --write to save", file=sys.stderr)
+    return 0
+
+
+def _cmd_run_script(args: argparse.Namespace) -> int:
+    from vic2toolmod.changes import diff, write_changes
+    from vic2toolmod.pyscripts import ScriptError, get_script, list_scripts, run, user_dir
+
+    if args.list or not args.script:
+        for s in list_scripts():
+            fields = " ".join(f"{p.name}={p.default!r}" if p.default else p.name for p in s.params)
+            print(f"{s.id}: {s.name}" + (f"  [{fields}]" if fields else ""))
+            if s.description:
+                print(f"    {s.description}")
+        print(f"(your own scripts: {user_dir()})", file=sys.stderr)
+        return 0
+    try:
+        script = get_script(args.script)
+        given = dict(p.split("=", 1) for p in args.param or [])
+        ws = _workspace(args)
+        result = run(ws, script, given)
+    except (ScriptError, ValueError) as exc:
+        raise SystemExit(f"error: {exc}") from exc
+    if result.output:
+        print(result.output, end="" if result.output.endswith("\n") else "\n", file=sys.stderr)
+    if result.error:
+        print(result.error, file=sys.stderr)
+        print("the script failed - nothing written", file=sys.stderr)
+        return 1
+    print(diff(result.changes), end="")
+    if args.write and result.changes:
+        backup = write_changes(result.changes)
+        print(f"{len(result.changes)} file(s) written; backup: {backup}", file=sys.stderr)
+    elif result.changes:
+        print(f"dry run ({len(result.changes)} file(s)) - add --write to save", file=sys.stderr)
     return 0
 
 
@@ -388,6 +425,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--loc", help='English name template, e.g. "{adj} Christian Democrats"')
     p.add_argument("--write", action="store_true", help="write the files (with a backup)")
     p.set_defaults(func=_cmd_generate_parties)
+
+    p = sub.add_parser("run-script", help="run a light Python script on the mod (preview first)")
+    p.add_argument("script", nargs="?", help="script id (replace_text, own/x) or a .py file")
+    p.add_argument("-p", "--param", action="append", metavar="NAME=VALUE", help="field value")
+    p.add_argument("--list", action="store_true", help="list the scripts and their fields")
+    p.add_argument("--mod", type=Path, help="mod folder (default: configured)")
+    p.add_argument("--game", type=Path, help="game folder (default: configured)")
+    p.add_argument("--write", action="store_true", help="write the files (with a backup)")
+    p.set_defaults(func=_cmd_run_script)
 
     p = sub.add_parser("errors", help="list syntax errors of script files")
     p.add_argument("paths", nargs="*", help="files or folders (default: configured folders)")

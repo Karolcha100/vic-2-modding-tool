@@ -87,6 +87,9 @@ export interface TemplateInfo {
   id: string; name: string; description: string; folder: string; builtin: boolean;
   body: string; loc: string[]; fields: TemplateField[];
 }
+export interface ScriptParam { name: string; type: "text" | "int" | "bool"; default: string; help: string }
+export interface ScriptInfo { id: string; name: string; description: string; builtin: boolean; code: string; params: ScriptParam[] }
+export interface ScriptRun { output: string; error: string; diff: string; files: string[]; backup?: string | null; written?: boolean }
 export interface TemplateFill { text: string; diff: string; files: string[]; notes: string[]; backup?: string | null }
 
 export const api = {
@@ -150,6 +153,11 @@ export const api = {
   templateSave: (body: { name: string; body: string; description: string; folder: string; loc: string[]; overwrite?: boolean }) =>
     call<{ id: string }>("template/save", body),
   templateDelete: (id: string) => call<{ deleted: string }>("template/delete", { id }),
+  scripts: () => call<{ dir: string; scripts: ScriptInfo[] }>("scripts"),
+  scriptRun: (body: { id: string; code?: string | null; values: Record<string, string>; write: boolean }) =>
+    call<ScriptRun>("script/run", body),
+  scriptSave: (body: { name: string; code: string; overwrite?: boolean }) => call<{ id: string }>("script/save", body),
+  scriptDelete: (id: string) => call<{ deleted: string }>("script/delete", { id }),
   reformWindow: () => call<ReformLayout>("reforms/window"),
   reformWindowPlan: (positions: Record<string, [number, number]>, write: boolean) =>
     call<{ diff: string; backup?: string | null }>("reforms/window", { positions, add_missing: true, write }),

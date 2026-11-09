@@ -52,6 +52,8 @@ mod_dirs = ["/home/me/Victoria 2 mods/MyMod"]
 .venv/bin/python -m vic2toolmod roundtrip                     # lossless check of configured folders
 .venv/bin/python -m vic2toolmod check path/to/mod             # schema + names check of a mod
 .venv/bin/python -m vic2toolmod check --vanilla --summary     # the game itself, counts only
+.venv/bin/python -m vic2toolmod run-script --list             # light Python scripts (docs/scripts.md)
+.venv/bin/python -m vic2toolmod run-script replace_text -p files='events/*.txt' -p old=A -p new=B
 ```
 
 ## As a library
@@ -78,7 +80,8 @@ assert doc.to_text() == doc.text
 Documentation: [`docs/architecture.md`](docs/architecture.md),
 [`docs/script-syntax.md`](docs/script-syntax.md), [`docs/schema.md`](docs/schema.md),
 [`docs/index.md`](docs/index.md), [`docs/editing.md`](docs/editing.md),
-[`docs/tools.md`](docs/tools.md), [`docs/gui.md`](docs/gui.md).
+[`docs/tools.md`](docs/tools.md), [`docs/gui.md`](docs/gui.md),
+[`docs/scripts.md`](docs/scripts.md) (light Python scripts for repeated jobs).
 
 **Command reference for modders:** [`docs/commands.md`](docs/commands.md) - every
 trigger, effect, scope change and modifier the tool knows, with what it does,
