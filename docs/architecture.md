@@ -79,7 +79,9 @@ computed on demand with `LineIndex`.
   depth is unlimited (tested with 50 000 levels).
 - **Performance** (Python 3.14, one core): about 15 MB/s for tokenizing +
   parsing; all of RPM (4 672 files, 16.5 MB) in 1.1 s, vanilla + three mods
-  (59 MB) in 4 s. A cache will come with the project index if needed.
+  (59 MB) in 4 s. The project index is incremental (`docs/index.md`). There
+  is no cache of parsed files on disk: RPM overrides nearly every vanilla file,
+  so a cache of vanilla alone would not shorten the start.
 - **Tokens own their leading trivia.** Comments are therefore available next
   to the node they precede (useful for showing them on blocks), and removing
   a node removes the comments above it.

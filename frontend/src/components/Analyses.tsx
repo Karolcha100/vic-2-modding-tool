@@ -56,9 +56,11 @@ function Promotion({ onOpen }: { onOpen: Props["onOpen"] }) {
   const list = edge ? [edge] : data.edges.filter((e) => sel && (e.source === sel || e.target === sel));
   return (
     <div className="split-view">
-      <Graph shape="circle" nodes={nodes} edges={edges} selected={sel} onNode={(id) => { setSel(id); setEdgeKey(null); }} onEdge={setEdgeKey} />
+      <Graph shape="circle" nodes={nodes} edges={edges} selected={sel} onNode={(id) => { setSel(id); setEdgeKey(null); }} onEdge={setEdgeKey}
+        onBackground={() => { setSel(null); setEdgeKey(null); }} />
       <div className="side-list">
         <div className="panel-title">{edge ? `${edge.source} → ${edge.target}` : sel ? `Promotions of ${sel}` : "Click a pop type or an arrow"}</div>
+        {sel && !edge && <div className="muted small pad"><span style={{ color: "#e53935" }}>■</span> becomes another type (out) · <span style={{ color: "#1e88e5" }}>■</span> comes from another type (in) · click the background to clear</div>}
         {list.map((e) => (
           <div key={`${e.source}-${e.target}-${e.line}`} className="weight">
             <div className="row" onClick={() => onOpen(e.file, e.line)}><b>{e.source} → {e.target}</b> base {e.base ?? "?"} <span className="muted">{e.file}:{e.line}</span></div>

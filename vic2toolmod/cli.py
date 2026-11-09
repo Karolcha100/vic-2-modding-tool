@@ -298,7 +298,7 @@ def _cmd_gui(args: argparse.Namespace) -> int:
     settings = load_settings()
     mod = args.mod or (settings.mod_dirs[0] if settings.mod_dirs else None)
     ws = Workspace.open(args.game or settings.game_dir, mod)
-    server, token = make_server(ws, args.port)
+    server, token = make_server(ws, args.port, warm_up=True)
     url = f"http://127.0.0.1:{server.server_address[1]}/?token={token}"
     print(f"vic2toolmod GUI: {url}  (Ctrl+C to stop)", flush=True)
     if not args.no_browser:

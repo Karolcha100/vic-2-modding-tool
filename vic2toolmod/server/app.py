@@ -47,6 +47,7 @@ Static files of the built frontend are served from ``static/``.
 
 from __future__ import annotations
 
+import gc
 import json
 import secrets
 import threading
@@ -116,14 +117,7 @@ class Engine:
 
     # -- helpers -----------------------------------------------------------------
     def _snapshot(self) -> dict[str, tuple[int, int]]:
-        out = {}
-        for low, f in self.ws.project.files().items():
-            try:
-                st = f.path.stat()
-            except OSError:
-                continue
-            out[low] = (st.st_size, st.st_mtime_ns)
-        return out
+        return self.ws.project.mod_files_on_disk()
 
     def _file_or_404(self, rel: str) -> str:
         if not rel or self.ws.file(rel) is None:
@@ -137,6 +131,21 @@ class Engine:
             "file_type": report.file_type,
             "diagnostics": [_diag(report.document, d) for d in report.diagnostics],
         }
+
+    def warm_up(self) -> None:
+        """Build the index and check the mod's files, one file per lock.
+
+        Then freeze what is loaded for the garbage collector: the parsed
+        project is millions of objects that live as long as the server, and
+        full collections over them made typing stutter (0.5 s pauses).
+        """
+        with self.lock:
+            files = [f.rel for f in self.ws.script_files(only_mod=True)]
+        for rel in files:
+            with self.lock:
+                self.ws.check_file(rel)
+        gc.collect()
+        gc.freeze()
 
     # -- API -------------------------------------------------------------------------
     def project(self) -> dict[str, Any]:
@@ -446,15 +455,19 @@ class Engine:
         return {"names": sorted(d.name for d in defs.values())}
 
     def changed(self) -> dict[str, Any]:
-        """Files whose size / time changed (or appeared, vanished) since the last call."""
-        self.ws.project._files = None
+        """Mod files whose size / time changed (or appeared, vanished) since the last call.
+
+        Only the mod folder is read; the work is done without the engine lock,
+        so the editor does not wait for it.
+        """
         now = self._snapshot()
-        changed = sorted(
-            k for k in now.keys() | self._stamps.keys() if now.get(k) != self._stamps.get(k)
-        )
-        if changed:
-            self.ws.invalidate()
-        self._stamps = now
+        with self.lock:
+            old, self._stamps = self._stamps, now
+            changed = sorted(k for k in now.keys() | old.keys() if now.get(k) != old.get(k))
+            if changed:
+                if now.keys() != old.keys():
+                    self.ws.project._files = None  # files appeared / vanished
+                self.ws.invalidate()
         return {"changed": changed}
 
     def parties(self, body: dict[str, Any], write: bool) -> dict[str, Any]:
@@ -861,6 +874,8 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                 return (query.get(name) or [default])[0]
 
             route = (method, url.path[len("/api/") :])
+            if route == ("GET", "changed"):  # takes the lock itself, only briefly
+                return self._json(HTTPStatus.OK, engine.changed())
             if route == ("GET", "picture"):
                 try:
                     with engine.lock:
@@ -906,8 +921,6 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.rename(body["rel"], int(body["offset"]), str(body["new_name"]))
                 case ("GET", "names"):
                     return e.names(q("registry"))
-                case ("GET", "changed"):
-                    return e.changed()
                 case ("GET", "outline"):
                     return e.outline(q("rel"))
                 case ("GET", "blocks"):
@@ -982,9 +995,16 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
 
 
 def make_server(
-    workspace: Workspace, port: int = 0, token: str | None = None
+    workspace: Workspace, port: int = 0, token: str | None = None, warm_up: bool = False
 ) -> tuple[ThreadingHTTPServer, str]:
-    """Create (not start) the server on 127.0.0.1; returns it and its token."""
+    """Create (not start) the server on 127.0.0.1; returns it and its token.
+
+    With ``warm_up`` the index is built and the mod checked in a background
+    thread right away (`Engine.warm_up`), so the first requests are fast.
+    """
     token = token or secrets.token_urlsafe(24)
-    server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(Engine(workspace), token))
+    engine = Engine(workspace)
+    server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(engine, token))
+    if warm_up:
+        threading.Thread(target=engine.warm_up, name="warm-up", daemon=True).start()
     return server, token

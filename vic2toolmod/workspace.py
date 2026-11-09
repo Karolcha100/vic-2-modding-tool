@@ -23,7 +23,7 @@ from pathlib import Path
 
 from vic2toolmod.check import FileReport, IgnoreRules, load_ignore_rules
 from vic2toolmod.project.layout import Project, ProjectFile
-from vic2toolmod.project.registries import Definition, Registries, build_registries
+from vic2toolmod.project.registries import Definition, Registries, RegistryIndex
 from vic2toolmod.schema.loader import default_schema
 from vic2toolmod.schema.model import Schema
 from vic2toolmod.schema.validator import Validator, file_type_for
@@ -70,9 +70,16 @@ class Workspace:
         self.ignore: IgnoreRules = load_ignore_rules(project.mod_dir)
         self._entries: dict[str, _Entry] = {}
         self._registries: Registries | None = None
+        self._index = RegistryIndex(project)
+        # files changed since the registries were built; None = maybe any file
+        self._dirty: set[str] | None = None
         # rel (lower) -> references found in that file by its last check
         self._refs: dict[str, list[tuple[tuple[str, str], Usage]]] = {}
         self._all_checked = False
+        # rel (lower) -> (document, names version, diagnostics, references)
+        self._reports: dict[
+            str, tuple[Document, int, list[Diagnostic], list[tuple[tuple[str, str], Usage]]]
+        ] = {}
 
     @classmethod
     def open(cls, game_dir: Path | None, mod_dir: Path | None = None) -> Workspace:
@@ -118,19 +125,30 @@ class Workspace:
         encoding = old.encoding if old else Encoding.CP1252
         doc = parse_text(text)
         self._entries[rel.lower()] = _Entry(doc, encoding, None)
-        self.invalidate()
+        self._touch(rel)
         return doc
 
     def revert(self, rel: str) -> None:
         """Forget editor content of a file (read it from disk again)."""
         self._entries.pop(rel.lower(), None)
-        self.invalidate()
+        self._touch(rel)
 
     def invalidate(self) -> None:
-        """Forget derived data (registries, usages, reports) after a change."""
+        """Forget derived data after changes on disk (any file may have changed).
+
+        The registries are then rebuilt from the files that really changed
+        (size / time), not from scratch.
+        """
         self._registries = None
+        self._dirty = None
         self._refs = {}
         self._all_checked = False
+
+    def _touch(self, rel: str) -> None:
+        """One file's text changed: only its contribution is taken again."""
+        self._registries = None
+        if self._dirty is not None:
+            self._dirty.add(rel.lower())
 
     def refresh(self) -> None:
         """Re-scan the folders (new / deleted files) and forget derived data."""
@@ -141,9 +159,15 @@ class Workspace:
     def registries(self) -> Registries:
         """Names defined in the project (built on first use)."""
         if self._registries is None:
-            cache = {f.rel: self.document(f.rel) for f in self._script_files()}
-            self._registries = build_registries(self.project, cache)
+            self._registries = self._index.build(self.document, self._dirty)
+            self._dirty = set()
         return self._registries
+
+    @property
+    def names_version(self) -> int:
+        """Grows when the set of defined names changes (see `RegistryIndex`)."""
+        self.registries()
+        return self._index.version
 
     def definition(self, registry: str, name: str) -> Definition | None:
         """Where a name is defined (``None`` if nowhere)."""
@@ -156,6 +180,11 @@ class Workspace:
         key = (registry, name.lower())
         return [u for refs in self._refs.values() for k, u in refs if k == key]
 
+    def references_in(self, rel: str) -> list[tuple[tuple[str, str], Usage]]:
+        """Names a file refers to: ``((registry, lower-case name), usage)`` (checks it)."""
+        self.check_file(rel)
+        return list(self._refs.get(rel.lower(), []))
+
     # -- checking ----------------------------------------------------------------
     def check_file(self, rel: str) -> FileReport:
         """Syntax, schema and name diagnostics of one file."""
@@ -163,17 +192,30 @@ class Workspace:
         if f is None:
             raise KeyError(rel)
         doc = self.document(rel)
-        validator = Validator(self.schema, self.registries().has)
+        version = self.names_version
         ft = file_type_for(f.rel, self.schema)
-        diags: list[Diagnostic] = list(doc.diagnostics)
-        if ft is not None:
-            diags += validator.validate(doc, ft.rule, ft.scope)
-        diags += self._duplicate_ids(f.rel, doc)
+        low = f.rel.lower()
+        cached = self._reports.get(low)
+        if cached is not None and cached[0] is doc and cached[1] == version:
+            found, refs = cached[2], cached[3]
+        else:
+            # The validator asks the registries only whether names exist, so its
+            # result stays valid while the document and the set of names do.
+            validator = Validator(self.schema, self.registries().has)
+            found = list(doc.diagnostics)
+            if ft is not None:
+                found += validator.validate(doc, ft.rule, ft.scope)
+            refs = [
+                (
+                    (registry, name.lower()),
+                    Usage(f.rel, tok.start, tok.end, *doc.position(tok.start)),
+                )
+                for registry, name, tok in validator.references
+            ]
+            self._reports[low] = (doc, version, found, refs)
+        diags = found + self._duplicate_ids(f.rel, doc)
         diags = sorted((d for d in diags if not self.ignore.ignored(d)), key=lambda d: d.start)
-        self._refs[f.rel.lower()] = [
-            ((registry, name.lower()), Usage(f.rel, tok.start, tok.end, *doc.position(tok.start)))
-            for registry, name, tok in validator.references
-        ]
+        self._refs[low] = refs
         return FileReport(f, doc, ft.name if ft else None, diags)
 
     def check(self, only_mod: bool = True) -> list[FileReport]:
@@ -183,13 +225,17 @@ class Workspace:
         known); `usages` validates everything when it is first called.
         """
         mod_only = only_mod and self.project.mod_dir is not None
-        reports = [
-            self.check_file(f.rel)
-            for f in self._script_files()
-            if not mod_only or f.origin == "mod"
-        ]
+        reports = [self.check_file(f.rel) for f in self.script_files(only_mod)]
         self._all_checked = self._all_checked or not mod_only
         return reports
+
+    def script_files(self, only_mod: bool = False) -> list[ProjectFile]:
+        """Script files (``.txt``, ``.gfx``, ``.gui``).
+
+        With ``only_mod`` only the mod's own files (all files when there is no mod).
+        """
+        mod_only = only_mod and self.project.mod_dir is not None
+        return [f for f in self._script_files() if not mod_only or f.origin == "mod"]
 
     # -- helpers -----------------------------------------------------------------
     def _script_files(self) -> list[ProjectFile]:

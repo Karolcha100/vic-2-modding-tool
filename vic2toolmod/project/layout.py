@@ -83,7 +83,8 @@ class ProjectFile:
     origin: str
 
 
-def _walk(root: Path) -> Iterator[tuple[str, Path]]:
+def _walk(root: Path, skip_top: frozenset[str] = frozenset()) -> Iterator[tuple[str, Path]]:
+    """Files under ``root`` (sorted); ``skip_top``: lower-case top folders to leave out."""
     seen: set[str] = set()
     for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
         real = os.path.realpath(dirpath)
@@ -91,7 +92,10 @@ def _walk(root: Path) -> Iterator[tuple[str, Path]]:
             dirnames[:] = []
             continue
         seen.add(real)
-        dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+        top = dirpath == str(root)
+        dirnames[:] = sorted(
+            d for d in dirnames if not d.startswith(".") and not (top and d.lower() in skip_top)
+        )
         rel_dir = Path(dirpath).relative_to(root)
         for name in sorted(filenames):
             yield PurePosixPath(*rel_dir.parts, name).as_posix(), Path(dirpath) / name
@@ -111,6 +115,9 @@ class Project:
     mod_dir: Path | None = None
     replace_paths: tuple[str, ...] = ()
     _files: dict[str, ProjectFile] | None = field(default=None, repr=False)
+    _globs: tuple[dict[str, ProjectFile], dict[str, list[ProjectFile]]] | None = field(
+        default=None, repr=False
+    )
 
     @classmethod
     def open(cls, game_dir: Path | None, mod_dir: Path | None = None) -> Project:
@@ -137,7 +144,8 @@ class Project:
         files: dict[str, ProjectFile] = {}
         hidden = {p.lower() for p in self.replace_paths}
         if self.game_dir is not None:
-            for rel, path in _walk(self.game_dir):
+            # mod/ holds the mods (often symlinks): never part of the game itself
+            for rel, path in _walk(self.game_dir, frozenset({"mod"})):
                 low = rel.lower()
                 if low.startswith("mod/"):
                     continue
@@ -151,9 +159,38 @@ class Project:
         return files
 
     def glob(self, pattern: str) -> list[ProjectFile]:
-        """Visible files matching a glob such as ``events/*.txt`` (case-insensitive)."""
+        """Visible files matching a glob such as ``events/*.txt`` (case-insensitive).
+
+        Results are remembered until the file list is read again.
+        """
+        files = self.files()
+        cache = self._globs
+        if cache is None or cache[0] is not files:
+            cache = self._globs = (files, {})
         pat = pattern.lower()
-        return [f for low, f in sorted(self.files().items()) if fnmatch.fnmatchcase(low, pat)]
+        found = cache[1].get(pat)
+        if found is None:
+            found = cache[1][pat] = [
+                f for low, f in sorted(files.items()) if fnmatch.fnmatchcase(low, pat)
+            ]
+        return list(found)
+
+    def mod_files_on_disk(self) -> dict[str, tuple[int, int]]:
+        """``lower-case rel -> (size, mtime_ns)`` of the mod folder's files, read now.
+
+        Used to notice changes made outside the editor; the game folder is not
+        watched (it changes only when the game is updated).
+        """
+        out: dict[str, tuple[int, int]] = {}
+        if self.mod_dir is None:
+            return out
+        for rel, path in _walk(self.mod_dir):
+            try:
+                st = path.stat()
+            except OSError:
+                continue
+            out[rel.lower()] = (st.st_size, st.st_mtime_ns)
+        return out
 
     def file(self, rel: str) -> ProjectFile | None:
         """The visible file at a relative path, if any."""

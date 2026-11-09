@@ -15,6 +15,13 @@ folder or in the game's `mod/` folder.
 -> `Definition(name, file, line)` (first definition wins; later ones are kept
 in `duplicates`).
 
+The index is a list of steps (`STEPS`: a glob and a function of one file, or
+a function of the file list). `RegistryIndex` remembers each step's
+`Contribution` per file, with the document it came from; after a change it
+takes only the changed files again and merges (a key press in the editor costs
+one file, about 0.03 s on RPM, instead of the whole project). Its `version`
+grows only when the set of names changes, not when lines move.
+
 | Registry | Source |
 |---|---|
 | `country` | keys of `common/countries.txt` |
@@ -66,3 +73,8 @@ The single entry point for tools and the GUI:
 
 `usages` needs every file checked once (about 5 s for vanilla + RPM); after
 that it is a lookup.
+
+Check results are kept per file while the document and `names_version` stay
+the same (the validator only asks whether names exist), so checking again
+costs only the changed files. `references_in(rel)` gives the names a file
+refers to (from that cache).

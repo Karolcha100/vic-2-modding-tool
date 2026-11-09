@@ -118,10 +118,15 @@ button.add { margin: 4px 0; }
 .analyses-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .split-view { display: flex; flex: 1; min-height: 0; }
 .graph { flex: 1; min-width: 0; height: 100%; background: var(--panel); user-select: none; }
+.graph-bg { fill: transparent; }
 .graph-edge { stroke: var(--muted); cursor: pointer; opacity: .35; }
 .graph-edge:hover { opacity: 1; stroke: var(--accent); }
-.graph-edge.hl { stroke: var(--accent); opacity: 1; }
+.graph-edge.out { stroke: #e53935; opacity: 1; }
+.graph-edge.in { stroke: #1e88e5; opacity: 1; }
+.graph-edge.dim { opacity: .12; }
 .graph-arrow { fill: var(--muted); }
+.graph-arrow.out { fill: #e53935; }
+.graph-arrow.in { fill: #1e88e5; }
 .graph-node { cursor: grab; }
 .graph-node text { font: 600 16px system-ui, sans-serif; fill: var(--text); pointer-events: none; }
 .graph-node.sel circle { stroke: var(--text); stroke-width: 3; }

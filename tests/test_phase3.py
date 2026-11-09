@@ -98,3 +98,70 @@ def test_defines():
     assert d["defines"]["country"]["A"].line == 3
     with pytest.raises(DefinesError):
         parse_defines("defines = { a = }")
+
+
+def _snapshot(reg):
+    return reg.names, reg.duplicates, reg.tested
+
+
+def test_registries_follow_editor_changes_file_by_file(game):
+    ws = Workspace.open(game)
+    reg = ws.registries()
+    version = ws.names_version
+    assert not reg.has("country_flag", "new_flag")
+
+    # A new name: picked up, the names version grows.
+    text = (game / "events/b.txt").read_text()
+    ws.set_text(
+        "events/b.txt",
+        text + "country_event = { id = 9 immediate = { set_country_flag = new_flag } }\n",
+    )
+    assert ws.registries().has("country_flag", "new_flag")
+    assert ws.registries().get("event", "9").file == "events/b.txt"
+    assert ws.names_version > version
+    version = ws.names_version
+
+    # Only positions move: same names version, new line numbers.
+    ws.set_text(
+        "events/b.txt",
+        "\n\n" + text + "country_event = { id = 9 immediate = { set_country_flag = new_flag } }\n",
+    )
+    assert ws.names_version == version
+    assert ws.registries().get("event", "9").line == 4
+
+    # The same as building everything from scratch.
+    fresh = Workspace.open(game)
+    fresh.set_text("events/b.txt", ws.document("events/b.txt").text)
+    assert _snapshot(ws.registries()) == _snapshot(fresh.registries())
+
+    # Back to the file on disk: the name is gone again.
+    ws.revert("events/b.txt")
+    assert not ws.registries().has("country_flag", "new_flag")
+    assert _snapshot(ws.registries()) == _snapshot(build_registries(Project.open(game)))
+
+
+def test_registries_after_changes_on_disk(game):
+    ws = Workspace.open(game)
+    ws.registries()
+    write(
+        game / "events/c.txt", "country_event = { id = 7 immediate = { set_global_flag = disk } }\n"
+    )
+    ws.refresh()
+    assert ws.registries().has("global_flag", "disk")
+    (game / "events/c.txt").unlink()
+    ws.refresh()
+    assert not ws.registries().has("global_flag", "disk")
+    assert _snapshot(ws.registries()) == _snapshot(build_registries(Project.open(game)))
+
+
+def test_check_results_are_reused_until_names_change(game):
+    ws = Workspace.open(game)
+    first = ws.check_file("events/a.txt")
+    assert ws.check_file("events/a.txt").diagnostics == first.diagnostics
+    cached = ws._reports["events/a.txt"]
+    ws.check_file("events/a.txt")
+    assert ws._reports["events/a.txt"] is cached  # nothing changed: not validated again
+    # A name used in a.txt appears in another file: a.txt is validated again.
+    ws.set_text("events/b.txt", "country_event = { id = 2 immediate = { set_country_flag = f } }\n")
+    ws.check_file("events/a.txt")
+    assert ws._reports["events/a.txt"] is not cached

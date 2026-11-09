@@ -18,15 +18,14 @@ reforms change which promotion, and exports the graph as JSON for a viewer.
 
 from __future__ import annotations
 
+import bisect
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Any
 
-from vic2toolmod.schema.validator import Validator, file_type_for
 from vic2toolmod.script.cst import Assignment, Block, Document, Scalar
-from vic2toolmod.script.tokens import Token
 from vic2toolmod.workspace import Workspace
 
 WEIGHT_KINDS = ("promote_to", "ideologies", "issues")
@@ -86,7 +85,8 @@ def _number(block: Block, key: str) -> float | None:
     return None
 
 
-def _factors(doc: Document, refs: list[tuple[str, str, Token]], block: Block) -> list[Factor]:
+def _factors(doc: Document, refs: list[tuple[int, str, str]], block: Block) -> list[Factor]:
+    """Modifiers of a weight; ``refs`` are ``(offset, registry, name)`` sorted by offset."""
     result = []
     for m in block.assignments("modifier"):
         if not isinstance(m.value, Block):
@@ -97,7 +97,9 @@ def _factors(doc: Document, refs: list[tuple[str, str, Token]], block: Block) ->
             if not (isinstance(i, Assignment) and i.key_text.lower() == "factor")
         ]
         text = _SPACES.sub(" ", " ".join(i.to_text().strip() for i in body)).strip()
-        inside = tuple(sorted({(r, n.lower()) for r, n, t in refs if m.start <= t.start < m.end}))
+        lo = bisect.bisect_left(refs, (m.start,))
+        hi = bisect.bisect_left(refs, (m.end,))
+        inside = tuple(sorted({(r, n) for _, r, n in refs[lo:hi]}))
         result.append(Factor(_number(m.value, "factor"), text, inside, doc.position(m.start)[0]))
     return result
 
@@ -105,13 +107,9 @@ def _factors(doc: Document, refs: list[tuple[str, str, Token]], block: Block) ->
 def pop_weights(ws: Workspace) -> list[Weight]:
     """Every weight of every pop type in the project."""
     out: list[Weight] = []
-    validator = Validator(ws.schema, ws.registries().has)
     for f in ws.project.glob("poptypes/*.txt"):
         doc = ws.document(f.rel)
-        ft = file_type_for(f.rel, ws.schema)
-        if ft is not None:
-            validator.validate(doc, ft.rule, ft.scope)
-        refs = list(validator.references) if ft is not None else []
+        refs = sorted((u.start, r, n) for (r, n), u in ws.references_in(f.rel))
         pop = PurePosixPath(f.rel).stem
 
         for kind in WEIGHT_KINDS:

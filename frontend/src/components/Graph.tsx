@@ -11,6 +11,8 @@ interface Props {
   selected?: string | null;
   onNode?: (id: string) => void;
   onEdge?: (key: string) => void;
+  /** Click on the empty background (e.g. to clear the selection). */
+  onBackground?: () => void;
   /** "circle" for small dense graphs (pop types), "force" for sparse ones (events). */
   shape?: "circle" | "force";
 }
@@ -57,7 +59,17 @@ function layout(nodes: GNode[], edges: GEdge[], shape: "circle" | "force"): Reco
   return pos;
 }
 
-export function Graph({ nodes, edges, selected, onNode, onEdge, shape = "force" }: Props) {
+const R = 13; // node radius
+
+/** End of an edge pulled back to the target circle, so the arrow tip touches it. */
+function shorten(b: [number, number], from: [number, number], by: number): [number, number] {
+  const dx = b[0] - from[0];
+  const dy = b[1] - from[1];
+  const d = Math.max(1, Math.hypot(dx, dy));
+  return [b[0] - (dx / d) * by, b[1] - (dy / d) * by];
+}
+
+export function Graph({ nodes, edges, selected, onNode, onEdge, onBackground, shape = "force" }: Props) {
   const initial = useMemo(() => layout(nodes, edges, shape), [nodes, edges, shape]);
   const [pos, setPos] = useState(initial);
   useEffect(() => setPos(initial), [initial]);
@@ -77,10 +89,14 @@ export function Graph({ nodes, edges, selected, onNode, onEdge, shape = "force" 
       onPointerMove={(e) => { if (drag.current) { const p = toSvg(e); setPos((s) => ({ ...s, [drag.current!]: p })); } }}
       onPointerUp={() => (drag.current = null)} onPointerLeave={() => (drag.current = null)}>
       <defs>
-        <marker id="arrow" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" className="graph-arrow" />
-        </marker>
+        {(["", "out", "in"] as const).map((k) => (
+          <marker key={k} id={`arrow${k}`} viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse"
+            markerWidth="12" markerHeight="12" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" className={`graph-arrow ${k}`} />
+          </marker>
+        ))}
       </defs>
+      <rect className="graph-bg" x={0} y={0} width={W} height={H} onClick={() => onBackground?.()} />
       {edges.map((e) => {
         const a = pos[e.source];
         const b = pos[e.target];
@@ -88,16 +104,20 @@ export function Graph({ nodes, edges, selected, onNode, onEdge, shape = "force" 
         const pair = [e.source, e.target].sort().join("|");
         const n = seen.get(pair) ?? 0;
         seen.set(pair, n + 1);
-        const hl = selected && (e.source === selected || e.target === selected);
+        // Selected node: outgoing edges red, incoming blue, the rest faded.
+        const dir = !selected ? "" : e.source === selected ? "out" : e.target === selected ? "in" : "dim";
+        const cls = "graph-edge" + (dir ? ` ${dir}` : "");
         if (e.source === e.target) {
-          return <path key={e.key} d={`M ${a[0]} ${a[1] - 14} c 30 -40 60 0 18 16`} className={"graph-edge" + (hl ? " hl" : "")}
+          return <path key={e.key} d={`M ${a[0]} ${a[1] - 14} c 30 -40 60 0 18 16`} className={cls}
             strokeWidth={e.width ?? 1.5} fill="none" onClick={() => onEdge?.(e.key)}><title>{e.label}</title></path>;
         }
         const mx = (a[0] + b[0]) / 2 + (n % 2 ? 1 : -1) * n * 12;
         const my = (a[1] + b[1]) / 2 + (n % 2 ? -1 : 1) * n * 12;
+        const end = shorten(b, [mx, my], R + 2); // the curve arrives from its control point
+        const marker = dir === "out" || dir === "in" ? dir : "";
         return (
-          <path key={e.key} d={`M ${a[0]} ${a[1]} Q ${mx} ${my} ${b[0]} ${b[1]}`} className={"graph-edge" + (hl ? " hl" : "")}
-            strokeWidth={e.width ?? 1.5} fill="none" markerEnd="url(#arrow)" onClick={() => onEdge?.(e.key)}>
+          <path key={e.key} d={`M ${a[0]} ${a[1]} Q ${mx} ${my} ${end[0]} ${end[1]}`} className={cls}
+            strokeWidth={e.width ?? 1.5} fill="none" markerEnd={`url(#arrow${marker})`} onClick={() => onEdge?.(e.key)}>
             <title>{e.label}</title>
           </path>
         );
@@ -109,7 +129,7 @@ export function Graph({ nodes, edges, selected, onNode, onEdge, shape = "force" 
           <g key={n.id} transform={`translate(${p[0]},${p[1]})`} className={"graph-node" + (n.id === selected ? " sel" : "")}
             onPointerDown={(e) => { drag.current = n.id; (e.target as Element).setPointerCapture?.(e.pointerId); }}
             onClick={() => onNode?.(n.id)}>
-            <circle r={13} fill={n.color ?? "#4f7cc9"} />
+            <circle r={R} fill={n.color ?? "#4f7cc9"} />
             <text y={28} textAnchor="middle">{n.label}</text>
             <title>{n.title ?? n.label}</title>
           </g>
