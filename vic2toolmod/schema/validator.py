@@ -68,6 +68,7 @@ class ValueInfo:
         context: Command context of a command block (``None`` = structural).
         doc: Description of the key.
         command: The command, when the key is one.
+        modifier: Whether the key is a modifier (``pop_militancy_modifier``).
     """
 
     spec: ValueSpec
@@ -75,6 +76,7 @@ class ValueInfo:
     context: Context | None
     doc: str = ""
     command: Command | None = None
+    modifier: bool = False
 
 
 @dataclass
@@ -158,6 +160,11 @@ class Validator:
         return self.validate(doc, ft.rule, ft.scope)
 
     # -- reporting -------------------------------------------------------------
+    @property
+    def diagnostics_found(self) -> list[Diagnostic]:
+        """Diagnostics of the last `validate` call."""
+        return self._out
+
     def _report(self, severity: Severity, code: str, message: str, node: Node | Token) -> None:
         if isinstance(node, Token):
             start, end = node.start, node.end
@@ -265,6 +272,9 @@ class Validator:
                     item,
                 )
             else:
+                self.value_info[id(item)] = ValueInfo(
+                    spec, frame.scope, None, self.schema.modifier_docs.get(key, ""), modifier=True
+                )
                 self._value(item, spec, frame.scope, None)
         elif other == "warn":
             where = frame.rule.name if frame.rule is not None else "this block"
@@ -295,6 +305,12 @@ class Validator:
         if not alternatives:
             raw = item.key_text
             if key in ("this", "from") and isinstance(item.value, Block):
+                self.value_info[id(item)] = ValueInfo(
+                    BlockSpec(context),
+                    None,
+                    context,
+                    _THIS_FROM_DOC[key],
+                )
                 self._push_block(item.value, item, None, context=context)
                 return
             for dyn in self.schema.dynamic:
@@ -479,6 +495,14 @@ def _key_matches(key: str, pattern: str) -> bool:
 
 def _is_block_spec(spec: ValueSpec) -> bool:
     return not isinstance(spec, TypeSpec) or spec.name == "any"
+
+
+_THIS_FROM_DOC = {
+    "this": "Scope change to THIS: the scope the event, decision or effect started in"
+    " (in an event: the country or province that got it).",
+    "from": "Scope change to FROM: the scope that caused this one (in an event: the"
+    " country or province that fired it; in a CB: the attacker).",
+}
 
 
 def _pick(

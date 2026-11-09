@@ -234,6 +234,8 @@ class Schema:
         dynamic: Dynamic command keys, tried in order when a key is no command.
         not_in_game: Names the game does not know although mods use them
             (lower case) -> hint (what to use instead).
+        modifier_docs: Modifier key -> description.
+        modifier_sources: Modifier key -> where the entry comes from.
     """
 
     commands: dict[tuple[Context, str], list[Command]] = field(default_factory=dict)
@@ -243,6 +245,8 @@ class Schema:
     file_types: list[FileType] = field(default_factory=list)
     dynamic: list[DynamicKey] = field(default_factory=list)
     not_in_game: dict[str, str] = field(default_factory=dict)
+    modifier_docs: dict[str, str] = field(default_factory=dict)
+    modifier_sources: dict[str, str] = field(default_factory=dict)
 
     @staticmethod
     def pushed(command: Command, scope: str | None) -> str | None:

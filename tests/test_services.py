@@ -73,3 +73,16 @@ def test_references_and_rename(svc):
     assert apply_edits(countries, edits["common/countries.txt"]).startswith(
         'GBR = "countries/UK.txt"'
     )
+
+
+def test_hover_on_modifiers_this_and_undescribed_keys(svc):
+    # T004: a modifier key in a modifier block is known (was "unknown here").
+    rel = "common/event_modifiers.txt"
+    h = svc.hover(rel, offset(svc, rel, "badboy", 1))
+    assert "modifier" in h.text and "unknown" not in h.text
+    # THIS / FROM blocks in triggers and effects.
+    svc.ws.set_text("events/b.txt", "country_event = { id = 2 trigger = { FROM = { tag = ENG } } }")
+    assert "FROM" in svc.hover("events/b.txt", offset(svc, "events/b.txt", "FROM", 1)).text
+    # Unknown key (warned) vs. a key the schema does not describe (accepted unchecked).
+    svc.ws.set_text("events/b.txt", "country_event = { id = 2 colour = red }")
+    assert "unknown here" in svc.hover("events/b.txt", offset(svc, "events/b.txt", "colour", 1)).text

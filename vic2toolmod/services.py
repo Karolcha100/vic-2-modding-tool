@@ -255,13 +255,26 @@ class LanguageService:
             info = v.value_info.get(id(place.assignment))
             key = place.assignment.key
             if info is None:
-                return Hover(f"**{key.text}** - unknown here", key.start, key.end)
+                flagged = any(d.start == key.start for d in v.diagnostics_found)
+                text = (
+                    f"**{key.text}** - unknown here"
+                    if flagged
+                    else f"**{key.text}** - not described in the schema yet (accepted unchecked)"
+                )
+                return Hover(text, key.start, key.end)
             parts = [f"**{key.text}**"]
             if info.command is not None:
                 c = info.command
                 kind = "scope change" if c.push_scope else c.context.value
                 scopes = "/".join(c.scopes) or "any scope"
                 parts.append(f"{kind}, {scopes}; value: `{_short(c.value)}`; source: {c.source}")
+            elif info.modifier:
+                low = key.text.lower()
+                source = self.ws.schema.modifier_sources.get(low, "")
+                parts.append(
+                    f"modifier; value: `{_short(info.spec)}`"
+                    + (f"; source: {source}" if source else "")
+                )
             else:
                 parts.append(f"value: `{_short(info.spec)}`")
             if info.doc:

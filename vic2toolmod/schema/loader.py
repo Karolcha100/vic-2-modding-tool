@@ -328,12 +328,16 @@ def load_schema(directory: Path = DATA_DIR) -> Schema:
     modifiers = directory / "modifiers.yaml"
     if modifiers.is_file():
         for name, raw in (read(modifiers).get("modifiers") or {}).items():
+            low = str(name).lower()
             if isinstance(raw, dict):
+                if raw.get("doc"):
+                    b.schema.modifier_docs[low] = str(raw["doc"])
+                b.schema.modifier_sources[low] = str(raw.get("source", "cwtools"))
                 raw = raw.get("value", "float")
+            else:
+                b.schema.modifier_sources[low] = "cwtools"
             spec = b.spec(raw if raw is not None else "float")
-            b.schema.modifiers[str(name).lower()] = (
-                spec if isinstance(spec, TypeSpec) else TypeSpec("float")
-            )
+            b.schema.modifiers[low] = spec if isinstance(spec, TypeSpec) else TypeSpec("float")
     for path in sorted((directory / "commands").glob("*.yaml")):
         b.add_commands(read(path))
     for path in sorted((directory / "files").glob("*.yaml")):
