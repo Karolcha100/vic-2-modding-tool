@@ -7,6 +7,8 @@ import { ReformWindow } from "./components/ReformWindow";
 import { Creators } from "./components/Creators";
 import { Blocks } from "./components/Blocks";
 import { Analyses } from "./components/Analyses";
+import { Tester } from "./components/Tester";
+import type { Fact } from "./api";
 
 interface OpenFile {
   rel: string;
@@ -18,7 +20,11 @@ interface OpenFile {
   mixedEol: boolean;
 }
 
-type Bottom = { kind: "problems" } | { kind: "usages"; title: string; usages: Usage[] } | { kind: "mod"; files: { rel: string; diagnostics: Diagnostic[] }[] };
+type Bottom =
+  | { kind: "problems" }
+  | { kind: "usages"; title: string; usages: Usage[] }
+  | { kind: "mod"; files: { rel: string; diagnostics: Diagnostic[] }[] }
+  | { kind: "tester"; rel: string; offset: number; facts: Fact[] };
 
 const SEVERITY = {
   error: monaco.MarkerSeverity.Error,
@@ -184,6 +190,20 @@ export function App() {
         const word = h.m.getWordAtPosition(ed.getPosition()!)?.word ?? "";
         setBottom({ kind: "usages", title: `${usages.length} usages of ${word}`, usages });
         setStatus("");
+      },
+    });
+    ed.addAction({
+      id: "vic2.tester", label: "Test trigger (K53)", keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyT],
+      contextMenuGroupId: "navigation",
+      run: async () => {
+        const h = here(); if (!h) return;
+        await sync(h.rel);
+        try {
+          const r = await api.trigger(h.rel, h.offset);
+          setBottom({ kind: "tester", rel: h.rel, offset: h.offset, facts: r.facts });
+        } catch (e) {
+          setStatus(`Trigger tester: ${(e as Error).message}`);
+        }
       },
     });
     ed.addAction({
@@ -361,6 +381,7 @@ export function App() {
           </span>
           {bottom.kind === "usages" && <span className="on">{bottom.title}</span>}
           {bottom.kind === "mod" && <span className="on">Whole mod: {bottom.files.length} files with problems</span>}
+          {bottom.kind === "tester" && <span className="on">Trigger tester ({bottom.facts.length} facts)</span>}
         </div>
         <div className="bottom-list">
           {bottom.kind === "problems" && cur?.diagnostics.map((d, i) => (
@@ -368,6 +389,10 @@ export function App() {
               <span className="sev">{d.severity}</span> {d.line}:{d.column} {d.message} <span className="muted">{d.code}</span>
             </div>
           ))}
+          {bottom.kind === "tester" && (
+            <Tester key={`${bottom.rel}:${bottom.offset}`} rel={bottom.rel} offset={bottom.offset} facts={bottom.facts}
+              onOpen={(line) => openFile(bottom.rel, line)} />
+          )}
           {bottom.kind === "usages" && bottom.usages.map((u, i) => (
             <div key={i} className="row" onClick={() => openFile(u.file, u.line)}>{u.file}:{u.line}:{u.column}</div>
           ))}

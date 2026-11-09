@@ -39,6 +39,9 @@ export interface OutlineNode {
   key?: string; value?: string; start: number; end: number; line: number; children?: OutlineNode[];
 }
 
+export interface Fact { id: string; key: string; value: string; compare: string; kind: "condition" | "scope"; line: number; question: string }
+export interface TriggerResult { value: boolean | null; failed: string[]; unknown: string[] }
+
 export interface BlockNode {
   kind: "assignment" | "block" | "value" | "error";
   start: number; end: number; line: number;
@@ -76,6 +79,8 @@ export const api = {
     call<{ edits: Record<string, TextEdit[]> }>("rename", { rel, offset, new_name: newName }),
   changed: () => call<{ changed: string[] }>("changed"),
   outline: (rel: string) => call<{ items: OutlineNode[] }>(`outline?${q({ rel })}`),
+  trigger: (rel: string, offset: number, answers?: Record<string, string | boolean>) =>
+    call<{ start: number; facts: Fact[]; result: TriggerResult | null }>("trigger", { rel, offset, answers }),
   blocks: (rel: string) => call<{ items: BlockNode[]; root_rule: string | null }>(`blocks?${q({ rel })}`),
   edit: (body: Record<string, unknown>) => call<{ edits: TextEdit[] }>("edit", body),
   localisation: (key: string, english: string, write: boolean) =>

@@ -141,3 +141,11 @@ button.add { margin: 4px 0; }
 .loc-editor .pad input { width: 420px; }
 .loc-row { display: grid; grid-template-columns: 300px 1fr 50px; gap: 6px; padding: 2px 8px; align-items: center; }
 .loc-key { font: 12px ui-monospace, monospace; cursor: pointer; overflow: hidden; text-overflow: ellipsis; }
+.tester { font: 13px system-ui, sans-serif; }
+.tester-head { padding: 4px 8px; display: flex; gap: 8px; align-items: center; }
+.verdict.v-TRUE { color: #2e7d32; } .verdict.v-FALSE { color: var(--error); } .verdict.v-unknown { color: var(--muted); }
+.fact { display: grid; grid-template-columns: 1fr 180px; gap: 8px; padding: 2px 8px; align-items: center; }
+.fact.failed .fact-q { color: var(--error); font-weight: 600; }
+.fact.unknown .fact-q { color: var(--muted); }
+.fact-q { cursor: pointer; }
+.fact input, .fact select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 1px 4px; }
