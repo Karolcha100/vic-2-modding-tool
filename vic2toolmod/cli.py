@@ -143,9 +143,11 @@ def _cmd_check(args: argparse.Namespace) -> int:
             for d in r.diagnostics:
                 line, col = r.document.position(d.start)
                 print(f"{r.file.rel}:{line}:{col}: {d.severity.value} {d.code}: {d.message}")
-    total = sum(len(r.diagnostics) for r in reports)
-    print(f"{total} problems in {sum(1 for r in reports if r.diagnostics)} files", file=sys.stderr)
-    return 1 if total else 0
+    problems = [d for r in reports for d in r.diagnostics if d.severity != "info"]
+    infos = sum(1 for r in reports for d in r.diagnostics if d.severity == "info")
+    files = sum(1 for r in reports if any(d.severity != "info" for d in r.diagnostics))
+    print(f"{len(problems)} problems in {files} files (+ {infos} notes)", file=sys.stderr)
+    return 1 if problems else 0
 
 
 def _cmd_generate_parties(args: argparse.Namespace) -> int:

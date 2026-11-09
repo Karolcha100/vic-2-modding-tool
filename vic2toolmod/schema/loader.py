@@ -191,13 +191,22 @@ class _Builder:
             push = {str(a): str(b) for a, b in push.items()}
         elif push is not None and push not in (*SCOPES, "any"):
             self.fail(f"bad push_scope {push!r}")
-        extra = raw.get("vanilla_scopes", [])
+        extra = [*raw.get("vanilla_scopes", []), *raw.get("game_scopes", [])]
         for s_ in extra:
             if s_ not in SCOPES:
-                self.fail(f"bad vanilla scope {s_!r}")
+                self.fail(f"bad vanilla / game scope {s_!r}")
         if "any" not in scopes:
             scopes = [*scopes, *(s_ for s_ in extra if s_ not in scopes)]
-        known = {"value", "scopes", "vanilla_scopes", "push_scope", "compare", "doc", "source"}
+        known = {
+            "value",
+            "scopes",
+            "vanilla_scopes",
+            "game_scopes",
+            "push_scope",
+            "compare",
+            "doc",
+            "source",
+        }
         if set(raw) - known:
             self.fail(f"unknown command properties {sorted(set(raw) - known)}")
         command = Command(

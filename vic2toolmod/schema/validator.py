@@ -9,7 +9,7 @@ Diagnostic codes:
 ==========================  ========  =========================================
 ``schema.unknown-key``      warning   key not known in this place (K21 = B)
 ``schema.wrong-context``    error     an effect used where triggers belong, or vice versa
-``schema.wrong-scope``      warning   command not valid in the current scope
+``schema.wrong-scope``      info      command not known to work in the current scope (K66)
 ``schema.wrong-value``      error     value of the wrong type
 ``schema.missing-field``    error     required key is missing
 ``schema.duplicate-key``    warning   key that may appear once appears again
@@ -316,7 +316,7 @@ class Validator:
         command = _pick(alternatives, item.value, scope, self.schema)
         if command.scopes and scope is not None and scope not in command.scopes:
             self._report(
-                Severity.WARNING,
+                Severity.INFO,  # K66 = D: the game is lenient, unverified combinations are info
                 "schema.wrong-scope",
                 f"'{item.key_text}' works in {'/'.join(command.scopes)} scope, not in {scope}",
                 item,

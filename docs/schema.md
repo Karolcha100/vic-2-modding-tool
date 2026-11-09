@@ -33,7 +33,8 @@ Every command and modifier has `source`:
 | `manual` | written by hand |
 
 `vanilla_scopes` (on commands) lists scopes in which vanilla uses a command
-although its other sources do not allow it. These come from
+although its other sources do not allow it; `game_scopes` lists scopes
+confirmed by testing in the game. These come from
 `tools/learn_from_vanilla.py`, which also adds modifier keys used by vanilla.
 
 **Rule of thumb: vanilla is valid.** `tests/test_check_gamedata.py` checks that
@@ -135,7 +136,7 @@ not described yet: interface, some map files, units' stats).
 |---|---|---|
 | `schema.unknown-key` | warning | key not known in this place |
 | `schema.wrong-context` | error | effect in a trigger block or vice versa |
-| `schema.wrong-scope` | warning | command not valid in the current scope |
+| `schema.wrong-scope` | info | command not known to work in the current scope (the game is lenient; K66). Scopes confirmed in the game go to `game_scopes` |
 | `schema.wrong-value` | error | value of the wrong type |
 | `schema.missing-field` | error | required key missing |
 | `schema.duplicate-key` | warning | key that may appear once appears again |
