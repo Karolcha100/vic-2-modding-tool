@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type BlockNode, type Diagnostic, type TextEdit } from "../api";
+import { EventPreview } from "./EventPreview";
 
 /**
  * Block view (K32 = B): the file as nested cards built from the schema.
@@ -84,6 +85,8 @@ function problemsOf(node: BlockNode, ctx: Ctx) {
 
 function Card({ node, ctx, depth }: { node: BlockNode; ctx: Ctx; depth: number }) {
   const [open, setOpen] = useState(depth < 2);
+  const [preview, setPreview] = useState(false);
+  const isEvent = depth === 0 && /^(country|province)_event$/i.test(node.key ?? "");
   const problems = problemsOf(node, ctx);
   const cls = "card" + (problems.some((p) => p.severity === "error") ? " has-error" : problems.length ? " has-warning" : "");
 
@@ -109,8 +112,10 @@ function Card({ node, ctx, depth }: { node: BlockNode; ctx: Ctx; depth: number }
         {!node.block && node.value !== undefined && <ValueEditor node={node} ctx={ctx} />}
         {problems.length > 0 && <span className="problem" title={title}>⚠ {problems[0].message}</span>}
         <span className="spacer" />
+        {isEvent && <button className="mini" onClick={() => setPreview(true)}>preview</button>}
         <button className="mini" title="Delete" onClick={() => ctx.run({ op: "delete", start: node.start })}>×</button>
       </div>
+      {preview && <EventPreview event={node} onClose={() => setPreview(false)} />}
       {node.block && open && (
         <div className="card-body">
           {node.children?.map((c, i) => <Card key={`${c.start}-${i}`} node={c} ctx={ctx} depth={depth + 1} />)}

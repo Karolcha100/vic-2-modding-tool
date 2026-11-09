@@ -114,6 +114,9 @@ export const api = {
     call<{ diff: string; backup?: string | null }>("reforms/window", { positions, add_missing: true, write }),
 };
 
+/** URL of an event picture as PNG (an <img> cannot send the token header). */
+export const pictureUrl = (name: string) => `/api/picture?${q({ name, token })}`;
+
 /** Apply edits (offsets into `text`) - same semantics as vic2toolmod.edit.apply_edits. */
 export function applyEdits(text: string, edits: TextEdit[]): string {
   const sorted = [...edits].sort((a, b) => b.start - a.start);

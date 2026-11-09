@@ -26,6 +26,9 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   Split** switch above the editor (K33 = C). Localisation keys (event titles,
   descriptions, option names) show their English text, editable with
   "save text" (K35 = A); literal text such as `"Unacceptable!"` is left alone.
+  Event cards have a **preview** button (K6 D): the event window with its
+  picture (`gfx/pictures/events/*.tga`, converted to PNG by the server),
+  title, description and option names.
 - **Reform window** view (K69): drag the issue boxes of `reforms_window`,
   automatic grid, boxes outside the window in red, preview and save.
 - **Create** view (K70): new reform, new ideology (with pop support and

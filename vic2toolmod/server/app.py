@@ -38,6 +38,7 @@ API (all under ``/api/``, JSON in and out):
 ``create/decision`` POST    ``{spec, write?}`` -> new decision (K70 B)
 ``localisation``    GET     ``q, limit`` -> keys whose key or English text contains ``q``
 ``git``             GET     the mod's git status (K37 = B); ``rel`` -> diff of one file
+``picture``         GET     ``name`` -> event picture (``gfx/pictures/events``) as PNG
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
 ==================  ======  ==================================================
 
@@ -675,6 +676,18 @@ class Engine:
             return {"diff": gitinfo.diff(mod, rel)}
         return asdict(gitinfo.status(mod))
 
+    def picture(self, name: str) -> bytes:
+        """An event picture as PNG (``gfx/pictures/events/<name>.tga``)."""
+        from vic2toolmod.images import ImageError, tga_to_png
+
+        f = self.ws.file(f"gfx/pictures/events/{name}.tga")
+        if f is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, f"no picture {name!r}")
+        try:
+            return tga_to_png(f.path.read_bytes())
+        except ImageError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+
     def poptypes_graph(self) -> dict[str, Any]:
         """Promotion graph of the pop types (K59)."""
         from vic2toolmod.analysis.poptypes import pop_weights, promotion_graph
@@ -728,6 +741,13 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                 return (query.get(name) or [default])[0]
 
             route = (method, url.path[len("/api/") :])
+            if route == ("GET", "picture"):
+                try:
+                    with engine.lock:
+                        image = engine.picture(q("name"))
+                except ApiError as exc:
+                    return self._json(exc.status, {"error": str(exc)})
+                return self._send(HTTPStatus.OK, image, "image/png")
             try:
                 with engine.lock:
                     result = self._route(route, q, body)
