@@ -1,209 +1,210 @@
 # Imported from cwtools-vic2-config (MIT) by tools/import_cwtools.py, then curated.
 # source: wiki = https://vic2.paradoxwikis.com/Modifier_effects (oldid 23262), placeholders expanded.
+# doc: what the modifier does (T004); values are shares unless said (0.1 = +10 %).
 modifiers:
-  administrative_efficiency: {source: vanilla, value: float}
-  administrative_efficiency_modifier: {source: vanilla, value: float}
-  aeroplanes: {source: vanilla, value: float}
-  ammunition: {source: vanilla, value: float}
-  aristocrats: {source: vanilla, value: float}
-  army_base: {source: vanilla, value: float}
-  army_tech_research_bonus: {source: vanilla, value: float}
-  army_tech_tech_research_bonus: float
-  artillery: {source: vanilla, value: float}
-  artisan_input: {source: wiki, value: float}
-  artisan_output: {source: wiki, value: float}
-  artisan_throughput: {source: wiki, value: float}
-  artisans: {source: vanilla, value: float}
-  assimilation_rate: float
-  automobiles: {source: vanilla, value: float}
-  badboy: float
-  barrels: {source: vanilla, value: float}
-  boost_strongest_party: {source: vanilla, value: float}
-  bureaucrats: {source: vanilla, value: float}
-  canned_food: {source: vanilla, value: float}
-  capitalists: {source: vanilla, value: float}
-  cb_creation_speed: {source: vanilla, value: float}
-  cb_generation_speed_modifier: float
-  cement: {source: vanilla, value: float}
-  civilization_progress_modifier: {source: vanilla, value: float}
-  clergymen: {source: vanilla, value: float}
-  clerks: {source: vanilla, value: float}
-  clipper_convoy: {source: vanilla, value: float}
-  colonial_life_rating: {source: vanilla, value: float}
-  colonial_migration: {source: vanilla, value: float}
-  colonial_points: {source: vanilla, value: float}
-  colonial_prestige: {source: vanilla, value: float}
-  combat_width: {source: vanilla, value: float}
-  commerce_tech_research_bonus: {source: vanilla, value: float}
-  commerce_tech_tech_research_bonus: float
-  core_pop_consciousness_modifer: float
-  core_pop_consciousness_modifier: {source: vanilla, value: float}
-  core_pop_militancy_modifer: float
-  core_pop_militancy_modifier: {source: vanilla, value: float}
-  craftsmen: {source: vanilla, value: float}
-  culture_tech_research_bonus: {source: vanilla, value: float}
-  culture_tech_tech_research_bonus: float
-  dig_in_cap: {source: vanilla, value: float}
-  diplomatic_points: {source: vanilla, value: float}
-  diplomatic_points_modifier: float
-  dye: {source: vanilla, value: float}
-  education_efficiency: {source: vanilla, value: float}
-  education_efficiency_modifier: float
-  electric_gear: {source: vanilla, value: float}
-  explosives: {source: vanilla, value: float}
-  fabric: {source: vanilla, value: float}
-  factory_cost: float
-  factory_input: float
-  factory_maintenance: {source: game, value: float}
-  factory_output: float
-  factory_owner_cost: float
-  factory_throughput: float
-  farm_rgo_eff: float
-  farm_rgo_size: float
-  farmers: {source: vanilla, value: float}
-  fertilizer: {source: vanilla, value: float}
-  fuel: {source: vanilla, value: float}
-  furniture: {source: vanilla, value: float}
-  glass: {source: vanilla, value: float}
-  global_assimilation_rate: float
-  global_immigrant_attract: float
-  global_pop_consciousness_modifier: float
-  global_pop_militancy_modifier: float
-  global_population_growth: float
-  goods_demand: {source: author, value: float}
-  immigrant_attract: float
-  immigrant_push: float
-  import_cost: float
-  increase_research: {source: vanilla, value: float}
-  industry_tech_research_bonus: {source: vanilla, value: float}
-  industry_tech_tech_research_bonus: float
-  influence: {source: vanilla, value: float}
-  influence_modifier: float
-  issue_change_speed: float
-  labourers: {source: vanilla, value: float}
-  land_attrition: {source: vanilla, value: float}
-  land_defense_modifier: {source: vanilla, value: float}
-  land_organisation: float
-  land_unit_start_experience: float
-  leadership: {source: vanilla, value: float}
-  leadership_modifier: float
-  life_rating: float
-  liquor: {source: vanilla, value: float}
-  literacy_con_impact: {source: vanilla, value: float}
-  loan_interest: float
-  local_RGO_output: float
-  local_RGO_throughput: float
-  local_artisan_input: {source: wiki, value: float}
-  local_artisan_output: float
-  local_factory_input: float
-  local_factory_output: float
-  local_factory_throughput: float
-  local_repair: float
-  local_rgo_output: {source: wiki, value: float}
-  local_rgo_throughput: {source: wiki, value: float}
-  local_ruling_party_support: float
-  local_ship_build: float
-  lumber: {source: vanilla, value: float}
-  luxury_clothes: {source: vanilla, value: float}
-  luxury_furniture: {source: vanilla, value: float}
-  machine_parts: {source: vanilla, value: float}
-  max_attrition: {source: vanilla, value: float}
-  max_fort: {source: vanilla, value: float}
-  max_loan_modifier: float
-  max_military_spending: float
-  max_national_focus: {source: vanilla, value: float}
-  max_naval_base: {source: vanilla, value: float}
-  max_railroad: {source: vanilla, value: float}
-  max_social_spending: float
-  max_tariff: float
-  max_tax: {source: vanilla, value: float}
-  max_war_exhaustion: {source: vanilla, value: float}
-  middle_everyday_needs: {source: vanilla, value: float}
-  middle_income_modifier: {source: wiki, value: float}
-  middle_life_needs: {source: vanilla, value: float}
-  middle_luxury_needs: {source: vanilla, value: float}
-  middle_vote: float
-  military_tactics: {source: vanilla, value: float}
-  min_military_spending: float
-  min_social_spending: float
-  min_tariff: float
-  min_tax: {source: vanilla, value: float}
-  mine_rgo_eff: float
-  mine_rgo_size: float
-  minimum_wage: {source: vanilla, value: float}
-  mobilisation_economy_impact: {source: vanilla, value: float}
-  mobilisation_size: float
-  mobilization_economy_impact: float
-  mobilization_impact: float
-  morale: {source: vanilla, value: float}
-  naval_attack_modifier: {source: vanilla, value: float}
-  naval_attrition: {source: vanilla, value: float}
-  naval_defense_modifier: {source: vanilla, value: float}
-  naval_organisation: float
-  naval_unit_start_experience: float
-  navy_base: {source: vanilla, value: float}
-  navy_tech_research_bonus: {source: vanilla, value: float}
-  navy_tech_tech_research_bonus: float
-  non_accepted_pop_consciousness_modifier: float
-  non_accepted_pop_militancy_modifier: float
-  number_of_voters: {source: vanilla, value: float}
-  officers: {source: vanilla, value: float}
-  oil: {source: vanilla, value: float}
-  org_regain: float
-  paper: {source: vanilla, value: float}
-  pension_level: {source: vanilla, value: float}
-  permanent_prestige: {source: vanilla, value: float}
-  plurality: {source: vanilla, value: float}
-  political_reform_desire: float
-  poor_everyday_needs: {source: vanilla, value: float}
-  poor_income_modifier: {source: wiki, value: float}
-  poor_life_needs: {source: vanilla, value: float}
-  poor_luxury_needs: {source: vanilla, value: float}
-  poor_vote: float
-  pop_consciousness_modifier: {source: vanilla, value: float}
-  pop_growth: {source: vanilla, value: float}
-  pop_militancy_modifier: {source: vanilla, value: float}
-  population_growth: float
-  prestige: float
-  radio: {source: vanilla, value: float}
-  random_party_votes: {source: game, value: float}
-  regular_clothes: {source: vanilla, value: float}
-  regular_experience_level: {source: vanilla, value: float}
-  reinforce_rate: {source: vanilla, value: float}
-  reinforce_speed: {source: vanilla, value: float}
-  research_points: float
-  research_points_modifier: float
-  research_points_on_conquer: {source: vanilla, value: float}
-  rgo_output: float
-  rgo_throughput: float
-  rich_everyday_needs: {source: vanilla, value: float}
-  rich_income_modifier: {source: wiki, value: float}
-  rich_life_needs: {source: vanilla, value: float}
-  rich_luxury_needs: {source: wiki, value: float}
-  rich_vote: float
-  ruling_party_support: float
-  self_unciv_economic_modifier: {source: vanilla, value: float}
-  self_unciv_military_modifier: {source: vanilla, value: float}
-  seperatism: {source: vanilla, value: float}
-  shared_prestige: {source: vanilla, value: float}
-  small_arms: {source: vanilla, value: float}
-  social_reform_desire: float
-  soldier_to_pop_loss: {source: vanilla, value: float}
-  soldiers: {source: vanilla, value: float}
-  steamer_convoy: {source: vanilla, value: float}
-  steel: {source: vanilla, value: float}
-  supply_consumption: float
-  supply_limit: {source: vanilla, value: float}
-  supply_range: {source: vanilla, value: float}
-  suppression_points_modifier: float
-  tariff_efficiency_modifier: {source: vanilla, value: float}
-  tax_eff: {source: vanilla, value: float}
-  tax_efficiency: float
-  telephones: {source: vanilla, value: float}
-  unciv_economic_modifier: {source: vanilla, value: float}
-  unciv_military_modifier: {source: vanilla, value: float}
-  unemployment_benefit: {source: vanilla, value: float}
-  unit: {source: vanilla, value: float}
-  unit_start_experience: float
-  war_exhaustion: float
-  wine: {source: vanilla, value: float}
+  administrative_efficiency: {source: vanilla, value: float, doc: "Administrative efficiency of the country, added directly (0.05 = +5 points)."}
+  administrative_efficiency_modifier: {source: vanilla, value: float, doc: "Administrative efficiency, as a share of what bureaucrats give (0.1 = +10 %)."}
+  aeroplanes: {source: vanilla, value: float, doc: "'aeroplanes' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  ammunition: {source: vanilla, value: float, doc: "'ammunition' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  aristocrats: {source: vanilla, value: float, doc: "'aristocrats' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  army_base: {source: vanilla, value: float, doc: "Stats of all land units (a block in technologies / inventions)."}
+  army_tech_research_bonus: {source: vanilla, value: float, doc: "Research speed of army technologies (0.1 = +10 %)."}
+  army_tech_tech_research_bonus: {value: float, doc: "Variant spelling listed by CWTools; vanilla uses army_tech_research_bonus."}
+  artillery: {source: vanilla, value: float, doc: "'artillery' as a modifier: a unit type name, listed on the wiki where a unit may stand (meaning in this place not verified)."}
+  artisan_input: {source: wiki, value: float, doc: "Goods artisans use up (negative = less input needed)."}
+  artisan_output: {source: wiki, value: float, doc: "Goods artisans produce."}
+  artisan_throughput: {source: wiki, value: float, doc: "Artisans' throughput (how much of their capacity they work)."}
+  artisans: {source: vanilla, value: float, doc: "'artisans' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  assimilation_rate: {value: float, doc: "Assimilation speed of pops in this province."}
+  automobiles: {source: vanilla, value: float, doc: "'automobiles' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  badboy: {value: float, doc: "Infamy: in a country modifier, change of infamy per month (negative = it falls faster). In a CB, badboy_factor scales the infamy of its peace options."}
+  barrels: {source: vanilla, value: float, doc: "'barrels' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  boost_strongest_party: {source: vanilla, value: float, doc: "Bonus to the share of votes of the strongest party in elections."}
+  bureaucrats: {source: vanilla, value: float, doc: "'bureaucrats' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  canned_food: {source: vanilla, value: float, doc: "'canned_food' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  capitalists: {source: vanilla, value: float, doc: "'capitalists' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  cb_creation_speed: {source: vanilla, value: float, doc: "Speed of fabricating casus belli (0.25 = 25 % faster)."}
+  cb_generation_speed_modifier: {value: float, doc: "Speed of justifying wars / fabricating casus belli."}
+  cement: {source: vanilla, value: float, doc: "'cement' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  civilization_progress_modifier: {source: vanilla, value: float, doc: "Progress towards westernisation of an uncivilised country."}
+  clergymen: {source: vanilla, value: float, doc: "'clergymen' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  clerks: {source: vanilla, value: float, doc: "'clerks' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  clipper_convoy: {source: vanilla, value: float, doc: "'clipper_convoy' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  colonial_life_rating: {source: vanilla, value: float, doc: "Life rating of colonial provinces (added, e.g. -5)."}
+  colonial_migration: {source: vanilla, value: float, doc: "How many pops move to colonies."}
+  colonial_points: {source: vanilla, value: float, doc: "Colonial points of the country (added). In buildings: points per naval base level, as a list."}
+  colonial_prestige: {source: vanilla, value: float, doc: "Prestige from colonies."}
+  combat_width: {source: vanilla, value: float, doc: "Front width in battles (added, e.g. -1 = one regiment fewer in the front row)."}
+  commerce_tech_research_bonus: {source: vanilla, value: float, doc: "Research speed of commerce technologies."}
+  commerce_tech_tech_research_bonus: {value: float, doc: "Variant spelling listed by CWTools; vanilla uses commerce_tech_research_bonus."}
+  core_pop_consciousness_modifer: {value: float, doc: "Consciousness of pops in core provinces, per month. The game's own spelling (with the typo 'modifer') is the one vanilla uses."}
+  core_pop_consciousness_modifier: {source: vanilla, value: float, doc: "Correctly spelled variant of core_pop_consciousness_modifer; check in the game whether it works."}
+  core_pop_militancy_modifer: {value: float, doc: "Militancy of pops in core provinces, per month. The game's own spelling (with the typo 'modifer') is the one vanilla uses."}
+  core_pop_militancy_modifier: {source: vanilla, value: float, doc: "Correctly spelled variant of core_pop_militancy_modifer; check in the game whether it works."}
+  craftsmen: {source: vanilla, value: float, doc: "'craftsmen' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  culture_tech_research_bonus: {source: vanilla, value: float, doc: "Research speed of culture technologies."}
+  culture_tech_tech_research_bonus: {value: float, doc: "Variant spelling listed by CWTools; vanilla uses culture_tech_research_bonus."}
+  dig_in_cap: {source: vanilla, value: float, doc: "Maximum dig-in level of land units (added)."}
+  diplomatic_points: {source: vanilla, value: float, doc: "Diplomatic points per month (added)."}
+  diplomatic_points_modifier: {value: float, doc: "Diplomatic points gain (0.1 = +10 %)."}
+  dye: {source: vanilla, value: float, doc: "'dye' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  education_efficiency: {source: vanilla, value: float, doc: "Literacy growth from clergymen (education efficiency)."}
+  education_efficiency_modifier: {value: float, doc: "Literacy growth from clergymen, as a share."}
+  electric_gear: {source: vanilla, value: float, doc: "'electric_gear' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  explosives: {source: vanilla, value: float, doc: "'explosives' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  fabric: {source: vanilla, value: float, doc: "'fabric' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  factory_cost: {value: float, doc: "Cost of building factories."}
+  factory_input: {value: float, doc: "Input goods all factories need (negative = less)."}
+  factory_maintenance: {source: game, value: float, doc: "Factory maintenance. Not in vanilla; the name is in the game program (K78) and PDM / RPM use it in reforms."}
+  factory_output: {value: float, doc: "Output of all factories."}
+  factory_owner_cost: {value: float, doc: "Cost of building and expanding factories for capitalists."}
+  factory_throughput: {value: float, doc: "Throughput of all factories."}
+  farm_rgo_eff: {value: float, doc: "Efficiency of farm RGOs (grain, cattle, cotton\u2026)."}
+  farm_rgo_size: {value: float, doc: "Size of farm RGOs (more workers fit)."}
+  farmers: {source: vanilla, value: float, doc: "'farmers' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  fertilizer: {source: vanilla, value: float, doc: "'fertilizer' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  fuel: {source: vanilla, value: float, doc: "'fuel' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  furniture: {source: vanilla, value: float, doc: "'furniture' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  glass: {source: vanilla, value: float, doc: "'glass' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  global_assimilation_rate: {value: float, doc: "Assimilation speed in the whole country."}
+  global_immigrant_attract: {value: float, doc: "How much the whole country attracts immigrants."}
+  global_pop_consciousness_modifier: {value: float, doc: "Consciousness of all pops of the country, per month."}
+  global_pop_militancy_modifier: {value: float, doc: "Militancy of all pops of the country, per month."}
+  global_population_growth: {value: float, doc: "Population growth in the whole country."}
+  goods_demand: {source: author, value: float, doc: "Demand for goods (not used by vanilla; meaning not verified)."}
+  immigrant_attract: {value: float, doc: "How much this province attracts immigrants."}
+  immigrant_push: {value: float, doc: "How much pops in this province want to emigrate."}
+  import_cost: {value: float, doc: "Cost of imports."}
+  increase_research: {source: vanilla, value: float, doc: "Research points (0.5 = +50 %); used by vanilla in technologies."}
+  industry_tech_research_bonus: {source: vanilla, value: float, doc: "Research speed of industry technologies."}
+  industry_tech_tech_research_bonus: {value: float, doc: "Variant spelling listed by CWTools; vanilla uses industry_tech_research_bonus."}
+  influence: {source: vanilla, value: float, doc: "Influence points gained with spheres (0.1 = +10 %)."}
+  influence_modifier: {value: float, doc: "Influence gain, as a share."}
+  issue_change_speed: {value: float, doc: "How fast pops change their issue opinions."}
+  labourers: {source: vanilla, value: float, doc: "'labourers' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  land_attrition: {source: vanilla, value: float, doc: "Attrition of land units."}
+  land_defense_modifier: {source: vanilla, value: float, doc: "Defence of land units."}
+  land_organisation: {value: float, doc: "Organisation of land units."}
+  land_unit_start_experience: {value: float, doc: "Experience new land units start with (added)."}
+  leadership: {source: vanilla, value: float, doc: "Leadership points per month (added)."}
+  leadership_modifier: {value: float, doc: "Leadership points gain, as a share."}
+  life_rating: {value: float, doc: "Life rating of the province (added)."}
+  liquor: {source: vanilla, value: float, doc: "'liquor' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  literacy_con_impact: {source: vanilla, value: float, doc: "How much literacy raises consciousness (negative = less)."}
+  loan_interest: {value: float, doc: "Interest of loans."}
+  local_RGO_output: {value: float, doc: "Upper-case spelling of local_rgo_output listed by CWTools."}
+  local_RGO_throughput: {value: float, doc: "Upper-case spelling of local_rgo_throughput listed by CWTools."}
+  local_artisan_input: {source: wiki, value: float, doc: "Artisans' input in this province."}
+  local_artisan_output: {value: float, doc: "Artisans' output in this province."}
+  local_factory_input: {value: float, doc: "Factories' input in this province / state."}
+  local_factory_output: {value: float, doc: "Factories' output in this province / state."}
+  local_factory_throughput: {value: float, doc: "Factories' throughput in this province / state."}
+  local_repair: {value: float, doc: "Repair speed of ships in this province."}
+  local_rgo_output: {source: wiki, value: float, doc: "RGO output in this province."}
+  local_rgo_throughput: {source: wiki, value: float, doc: "RGO throughput in this province."}
+  local_ruling_party_support: {value: float, doc: "Support of the ruling party among pops of this province."}
+  local_ship_build: {value: float, doc: "Ship building speed in this province."}
+  lumber: {source: vanilla, value: float, doc: "'lumber' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  luxury_clothes: {source: vanilla, value: float, doc: "'luxury_clothes' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  luxury_furniture: {source: vanilla, value: float, doc: "'luxury_furniture' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  machine_parts: {source: vanilla, value: float, doc: "'machine_parts' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  max_attrition: {source: vanilla, value: float, doc: "Maximum attrition (added)."}
+  max_fort: {source: vanilla, value: float, doc: "Maximum fort level (added)."}
+  max_loan_modifier: {value: float, doc: "Maximum amount of loans."}
+  max_military_spending: {value: float, doc: "Highest allowed military spending (slider)."}
+  max_national_focus: {source: vanilla, value: float, doc: "Number of national focuses (added)."}
+  max_naval_base: {source: vanilla, value: float, doc: "Maximum naval base level (added)."}
+  max_railroad: {source: vanilla, value: float, doc: "Maximum railroad level (added)."}
+  max_social_spending: {value: float, doc: "Highest allowed social spending (slider)."}
+  max_tariff: {value: float, doc: "Highest allowed tariff (slider)."}
+  max_tax: {source: vanilla, value: float, doc: "Highest allowed tax (slider)."}
+  max_war_exhaustion: {source: vanilla, value: float, doc: "Maximum war exhaustion (added)."}
+  middle_everyday_needs: {source: vanilla, value: float, doc: "Everyday needs of middle-class pops (negative = they need less)."}
+  middle_income_modifier: {source: wiki, value: float, doc: "Income of middle-class pops."}
+  middle_life_needs: {source: vanilla, value: float, doc: "Life needs of middle-class pops."}
+  middle_luxury_needs: {source: vanilla, value: float, doc: "Luxury needs of middle-class pops."}
+  middle_vote: {value: float, doc: "Voting weight of middle-class pops."}
+  military_tactics: {source: vanilla, value: float, doc: "Military tactics of land units (0.25 = +25 % damage)."}
+  min_military_spending: {value: float, doc: "Lowest allowed military spending (slider)."}
+  min_social_spending: {value: float, doc: "Lowest allowed social spending (slider)."}
+  min_tariff: {value: float, doc: "Lowest allowed tariff (slider)."}
+  min_tax: {source: vanilla, value: float, doc: "Lowest allowed tax (slider)."}
+  mine_rgo_eff: {value: float, doc: "Efficiency of mine RGOs (coal, iron, sulphur\u2026)."}
+  mine_rgo_size: {value: float, doc: "Size of mine RGOs."}
+  minimum_wage: {source: vanilla, value: float, doc: "Minimum wage (a policy effect of reforms)."}
+  mobilisation_economy_impact: {source: vanilla, value: float, doc: "Economic penalty of mobilisation (British spelling, the one vanilla uses)."}
+  mobilisation_size: {value: float, doc: "Size of the mobilised army."}
+  mobilization_economy_impact: {value: float, doc: "American spelling of mobilisation_economy_impact listed by CWTools."}
+  mobilization_impact: {value: float, doc: "Variant listed by CWTools; vanilla uses mobilisation_economy_impact."}
+  morale: {source: vanilla, value: float, doc: "Morale of units."}
+  naval_attack_modifier: {source: vanilla, value: float, doc: "Attack of ships."}
+  naval_attrition: {source: vanilla, value: float, doc: "Attrition of ships."}
+  naval_defense_modifier: {source: vanilla, value: float, doc: "Defence of ships."}
+  naval_organisation: {value: float, doc: "Organisation of ships."}
+  naval_unit_start_experience: {value: float, doc: "Experience new ships start with (added)."}
+  navy_base: {source: vanilla, value: float, doc: "Stats of all ships (a block in technologies / inventions)."}
+  navy_tech_research_bonus: {source: vanilla, value: float, doc: "Research speed of navy technologies."}
+  navy_tech_tech_research_bonus: {value: float, doc: "Variant spelling listed by CWTools; vanilla uses navy_tech_research_bonus."}
+  non_accepted_pop_consciousness_modifier: {value: float, doc: "Consciousness of pops of non-accepted cultures, per month."}
+  non_accepted_pop_militancy_modifier: {value: float, doc: "Militancy of pops of non-accepted cultures, per month."}
+  number_of_voters: {source: vanilla, value: float, doc: "Number of voters (1.0 = twice as many)."}
+  officers: {source: vanilla, value: float, doc: "'officers' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  oil: {source: vanilla, value: float, doc: "'oil' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  org_regain: {value: float, doc: "Organisation regain of units."}
+  paper: {source: vanilla, value: float, doc: "'paper' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  pension_level: {source: vanilla, value: float, doc: "Pensions (a policy effect of reforms)."}
+  permanent_prestige: {source: vanilla, value: float, doc: "Prestige that does not decay (added)."}
+  plurality: {source: vanilla, value: float, doc: "Plurality of the country (added, in points)."}
+  political_reform_desire: {value: float, doc: "Pops' desire for political reforms."}
+  poor_everyday_needs: {source: vanilla, value: float, doc: "Everyday needs of poor pops (negative = they need less)."}
+  poor_income_modifier: {source: wiki, value: float, doc: "Income of poor pops."}
+  poor_life_needs: {source: vanilla, value: float, doc: "Life needs of poor pops."}
+  poor_luxury_needs: {source: vanilla, value: float, doc: "Luxury needs of poor pops."}
+  poor_vote: {value: float, doc: "Voting weight of poor pops."}
+  pop_consciousness_modifier: {source: vanilla, value: float, doc: "Consciousness of pops in this province (or the country), per month."}
+  pop_growth: {source: vanilla, value: float, doc: "Population growth."}
+  pop_militancy_modifier: {source: vanilla, value: float, doc: "Militancy of pops in this province (or the country), per month."}
+  population_growth: {value: float, doc: "Population growth of the province."}
+  prestige: {value: float, doc: "Prestige per month (added)."}
+  radio: {source: vanilla, value: float, doc: "'radio' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  random_party_votes: {source: game, value: float, doc: "Votes for a random party. Not in vanilla; the name is in the game program (K78) and PDM / RPM use it in crimes."}
+  regular_clothes: {source: vanilla, value: float, doc: "'regular_clothes' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  regular_experience_level: {source: vanilla, value: float, doc: "Experience level of regular units (added)."}
+  reinforce_rate: {source: vanilla, value: float, doc: "How fast units are reinforced."}
+  reinforce_speed: {source: vanilla, value: float, doc: "Reinforcement speed of units."}
+  research_points: {value: float, doc: "Research points per day (added)."}
+  research_points_modifier: {value: float, doc: "Research points, as a share (0.5 = +50 %)."}
+  research_points_on_conquer: {source: vanilla, value: float, doc: "Research points gained when conquering provinces (share)."}
+  rgo_output: {value: float, doc: "RGO output of the country."}
+  rgo_throughput: {value: float, doc: "RGO throughput of the country."}
+  rich_everyday_needs: {source: vanilla, value: float, doc: "Everyday needs of rich pops (negative = they need less)."}
+  rich_income_modifier: {source: wiki, value: float, doc: "Income of rich pops."}
+  rich_life_needs: {source: vanilla, value: float, doc: "Life needs of rich pops."}
+  rich_luxury_needs: {source: wiki, value: float, doc: "Luxury needs of rich pops."}
+  rich_vote: {value: float, doc: "Voting weight of rich pops."}
+  ruling_party_support: {value: float, doc: "Support of the ruling party."}
+  self_unciv_economic_modifier: {source: vanilla, value: float, doc: "Economic penalty of an uncivilised country itself."}
+  self_unciv_military_modifier: {source: vanilla, value: float, doc: "Military penalty of an uncivilised country itself."}
+  seperatism: {source: vanilla, value: float, doc: "Separatism (the game's spelling): how much pops want to break away."}
+  shared_prestige: {source: vanilla, value: float, doc: "Prestige shared with others (in inventions: given to everyone who has it)."}
+  small_arms: {source: vanilla, value: float, doc: "'small_arms' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  social_reform_desire: {value: float, doc: "Pops' desire for social reforms."}
+  soldier_to_pop_loss: {source: vanilla, value: float, doc: "Share of soldiers' pop size lost in battles."}
+  soldiers: {source: vanilla, value: float, doc: "'soldiers' as a modifier: listed on the wiki where a pop type may stand (meaning in this place not verified)."}
+  steamer_convoy: {source: vanilla, value: float, doc: "'steamer_convoy' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  steel: {source: vanilla, value: float, doc: "'steel' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  supply_consumption: {value: float, doc: "Supply consumption of units."}
+  supply_limit: {source: vanilla, value: float, doc: "Supply limit of the province (added)."}
+  supply_range: {source: vanilla, value: float, doc: "Supply range."}
+  suppression_points_modifier: {value: float, doc: "Suppression points gain."}
+  tariff_efficiency_modifier: {source: vanilla, value: float, doc: "Tariff efficiency."}
+  tax_eff: {source: vanilla, value: float, doc: "Tax efficiency, in points (vanilla technologies: tax_eff = 3)."}
+  tax_efficiency: {value: float, doc: "Tax efficiency, as a share."}
+  telephones: {source: vanilla, value: float, doc: "'telephones' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}
+  unciv_economic_modifier: {source: vanilla, value: float, doc: "Economic modifier applied to uncivilised countries."}
+  unciv_military_modifier: {source: vanilla, value: float, doc: "Military modifier applied to uncivilised countries."}
+  unemployment_benefit: {source: vanilla, value: float, doc: "Unemployment benefits (a policy effect of reforms)."}
+  unit: {source: vanilla, value: float, doc: "Unit stats (vanilla uses it in technologies: unit = 1)."}
+  unit_start_experience: {value: float, doc: "Experience new units start with (added)."}
+  war_exhaustion: {value: float, doc: "War exhaustion per month (added)."}
+  wine: {source: vanilla, value: float, doc: "'wine' as a modifier: listed on the wiki where a goods name may stand (meaning in this place not verified)."}

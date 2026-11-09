@@ -105,6 +105,14 @@ not_in_game:
   is_subject: 'a Hearts of Iron IV trigger; in Victoria 2 use is_vassal or is_substate'
 ```
 
+### Descriptions
+
+Every command and modifier has a description (T004; a test keeps it so):
+`doc` on the entry, or, for commands imported without one, the `docs` section
+of `commands/docs.yaml` (a string for both contexts, or `{trigger: …, effect:
+…}`). `modifiers.yaml` entries carry `doc` too. Texts marked "meaning not
+verified" come from the name or the wiki, not from a test in the game.
+
 ### Dynamic keys
 
 `core.yaml` has a `dynamic` list for keys that are names from the mod, tried

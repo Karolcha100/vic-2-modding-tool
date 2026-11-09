@@ -170,7 +170,7 @@ class LanguageService:
             out += self._commands(context, frame.scope)
         if other == "modifier":
             out += [
-                Completion(m, "modifier", str(t))
+                Completion(m, "modifier", str(t), self.ws.schema.modifier_docs.get(m, ""))
                 for m, t in sorted(self.ws.schema.modifiers.items())
             ]
         return out

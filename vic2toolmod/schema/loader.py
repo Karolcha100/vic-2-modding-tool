@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from functools import cache
 from pathlib import Path
@@ -73,6 +74,7 @@ class _Builder:
         self.schema = Schema()
         self.problems: list[str] = []
         self.where = ""
+        self.docs: dict[str, dict[Context, str]] = {}
 
     def fail(self, message: str) -> None:
         self.problems.append(f"{self.where}: {message}")
@@ -143,6 +145,19 @@ class _Builder:
             self.add_dynamic(raw)
         for name, hint in (data.pop("not_in_game", None) or {}).items():
             self.schema.not_in_game[str(name).lower()] = str(hint or "")
+        for name, doc in (data.pop("docs", None) or {}).items():
+            if isinstance(doc, dict):
+                bad = set(doc) - {"trigger", "effect"}
+                if bad:
+                    self.fail(
+                        f"docs of {name!r}: unknown keys {sorted(bad)} (use trigger / effect)"
+                    )
+                self.docs[str(name).lower()] = {Context(k): str(v) for k, v in doc.items()}
+            else:
+                self.docs[str(name).lower()] = {
+                    Context.TRIGGER: str(doc),
+                    Context.EFFECT: str(doc),
+                }
         for section, entries in data.items():
             if section not in ("trigger", "effect", "both"):
                 self.fail(f"unknown section {section!r} (use trigger / effect / both)")
@@ -155,6 +170,21 @@ class _Builder:
                 for alt in alternatives:
                     for context in contexts:
                         self.add_command(str(name), context, alt)
+
+    def apply_docs(self) -> None:
+        """Give the descriptions of ``docs`` sections to commands without their own."""
+        for name, by_context in self.docs.items():
+            found = False
+            for context, doc in by_context.items():
+                alts = self.schema.commands.get((context, name))
+                if not alts:
+                    continue
+                found = True
+                self.schema.commands[(context, name)] = [
+                    a if a.doc else dataclasses.replace(a, doc=doc) for a in alts
+                ]
+            if not found:
+                self.fail(f"docs for unknown command {name!r}")
 
     def add_dynamic(self, raw: dict[str, Any]) -> None:
         key = str(raw.get("key", ""))
@@ -342,6 +372,8 @@ def load_schema(directory: Path = DATA_DIR) -> Schema:
         b.add_commands(read(path))
     for path in sorted((directory / "files").glob("*.yaml")):
         b.add_rules(read(path))
+    b.where = "commands: docs"
+    b.apply_docs()
     b.check()
     if b.problems:
         raise SchemaError(b.problems)

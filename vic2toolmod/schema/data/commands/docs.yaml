@@ -1,0 +1,422 @@
+# Descriptions of triggers and effects without one of their own (T004, 2026-11-09).
+# A string is for both contexts; {trigger: …, effect: …} when they differ.
+# 'meaning not verified' = from the name / wiki, not checked in the game.
+docs:
+  accepted_culture: True if the given culture is accepted in the country.
+  activate_technology: Give the country a technology.
+  add_accepted_culture: Make a culture accepted in the country (union = this_union for the whole group).
+  add_casus_belli: 'Give a casus belli against a country: add_casus_belli = { target = TAG type = … months
+    = 12 }.'
+  add_core: Add a core of the given country on this province (or the province to this country's cores).
+  add_country_modifier: 'Give the country a modifier: add_country_modifier = { name = … duration = 365
+    } (-1 = for ever).'
+  add_crisis_interest: Make the country interested in the current crisis.
+  add_crisis_temperature: Raise the temperature of the current crisis.
+  add_province_modifier: 'Give the province a modifier: add_province_modifier = { name = … duration =
+    365 }.'
+  add_tax_relative_income: Add money relative to the tax income (1 = one month of income; meaning not
+    verified).
+  add_war_goal: 'Add a war goal in the current war: add_war_goal = { casus_belli = … }.'
+  administration_spending: Administration spending is at least the value (share).
+  agree_with_ruling_party: Share of pops that agree with the ruling party is at least the value.
+  ai: True if the country is run by the AI (yes) or a player (no).
+  all_core:
+    effect: Effects for every core province of this country.
+    trigger: True if every province that is a core of this country fulfils the conditions inside.
+  alliance_with: True if allied with the given country.
+  annex_to: This country is annexed by the given country (annex_to = TAG).
+  any_core: 'Scope: core provinces of this country (in province scope: countries with a core on it). In
+    a trigger: true if it holds for them (any_* = at least one); in an effect: the effects apply to them
+    (any_* = each, random_* = one).'
+  any_country: 'Scope: every existing country. In a trigger: true if it holds for them (any_* = at least
+    one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  any_empty_neighbor_province: 'Scope: neighbouring provinces without an owner. In a trigger: true if
+    it holds for them (any_* = at least one); in an effect: the effects apply to them (any_* = each, random_*
+    = one).'
+  any_greater_power: 'Scope: the great powers. In a trigger: true if it holds for them (any_* = at least
+    one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  any_neighbor_country: 'Scope: countries bordering this one. In a trigger: true if it holds for them
+    (any_* = at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  any_neighbor_province: 'Scope: provinces bordering this province. In a trigger: true if it holds for
+    them (any_* = at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  any_owned: 'Scope: provinces owned by this country. In a trigger: true if it holds for them (any_* =
+    at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  any_owned_province: 'Scope: provinces owned by this country. In a trigger: true if it holds for them
+    (any_* = at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  any_pop: 'Scope: pops of this country / state / province. In a trigger: true if it holds for them (any_*
+    = at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  any_sphere_member: 'Scope: countries in this country''s sphere. In a trigger: true if it holds for them
+    (any_* = at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  any_state: 'Scope: states of this country. In a trigger: true if it holds for them (any_* = at least
+    one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  any_substate: 'Scope: substates of this country. In a trigger: true if it holds for them (any_* = at
+    least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  assimilate: Assimilate the pops to the owner's primary culture.
+  average_consciousness: Average consciousness of the pops is at least the value.
+  average_militancy: Average militancy of the pops is at least the value.
+  badboy:
+    effect: Add infamy (negative = remove).
+    trigger: Infamy is at least the value (badboy = 0.5 = half of the infamy limit).
+  blockade: Share of blockaded ports is at least the value.
+  brigades_compare: Ratio of this country's brigades to the other's is at least the value (meaning not
+    verified).
+  build_factory_in_capital_state: Build the given factory in the capital's state.
+  build_fort_in_capital: Build a fort level in the capital.
+  build_railway_in_capital: Build a railroad level in the capital.
+  can_build_factory: True if the country may build factories (by its policies).
+  can_build_factory_in_capital_state: True if the given factory can be built in the capital's state.
+  can_build_fort_in_capital: True if a fort can be built in the capital.
+  can_build_in_province: True if the given building can be built in the province.
+  can_build_railway_in_capital: True if a railroad can be built in the capital.
+  can_create_vassals: True if the country can release vassals.
+  can_nationalize: True if the country can nationalise foreign investments.
+  capital:
+    effect: Move the capital to the given province.
+    trigger: True if the capital of this country is the given province (capital = 123).
+  capital_scope: Scope change to the capital province of this country.
+  cash_reserves: Pop's savings compared with its needs are at least the value (meaning not verified).
+  casus_belli:
+    effect: 'Give a casus belli: casus_belli = { target = TAG type = … months = 12 }.'
+    trigger: True if this country has a casus belli against the given country.
+  change_controller: Give control (occupation) of the province to the given country.
+  change_province_name: Rename the province.
+  change_region_name: Rename the state of the province.
+  change_tag: The player's country becomes the given tag (cores move to it).
+  change_tag_no_core_switch: Become the given tag without moving the cores.
+  check_variable: 'A variable is at least the value: check_variable = { which = name value = 10 }.'
+  citizenship_policy: True if the country has the given citizenship policy.
+  civilization_progress: Westernisation progress is at least the value.
+  civilized:
+    effect: Make the country civilised (yes) or uncivilised (no).
+    trigger: True if the country is civilised (yes / no).
+  clr_country_flag: Remove a country flag.
+  clr_global_flag: Remove a global flag.
+  clr_province_flag: Remove a province flag.
+  colonial_nation: True if the country has colonies.
+  consciousness:
+    effect: Add consciousness to the pops.
+    trigger: Consciousness of the pop (or average) is at least the value.
+  constructing_cb_progress: Progress of the CB being fabricated is at least the value.
+  constructing_cb_type: True if the country is fabricating the given CB type.
+  continent: True if the province is on the given continent.
+  controlled_by: True if the province is controlled by the given country (or THIS, owner…).
+  controlled_by_rebels: True if rebels control the province.
+  controller:
+    effect: Scope change to the controller of this province.
+    trigger: Scope change to the controller (occupier) of this province.
+  controls: True if the country controls the given province.
+  country:
+    effect: Scope change to the country of this pop / province.
+    trigger: Scope change to the country of this pop / province.
+  country_units_in_province: True if units of the given country are in the province.
+  country_units_in_state: True if units of the given country are in the state.
+  create_alliance: Make an alliance with the given country.
+  create_vassal: Make the given country a vassal of this one.
+  crime_fighting: Crime fighting (administration) spending is at least the value.
+  crime_higher_than_education: True if crime fighting spending is higher than education.
+  crisis_exist: True if a crisis is going on.
+  crisis_state_scope: Scope change to the state the current crisis is about.
+  cultural_union: Scope change to the cultural union country of this country's culture (e.g. GER for prussians).
+  culture: True if the pop's culture is the given one.
+  define_general: 'Create a general: define_general = { name = … personality = … background = … }.'
+  diplomatic_influence:
+    effect: 'Add influence with a country: diplomatic_influence = { who = TAG value = 50 }.'
+    trigger: 'Influence with a country is at least the value: diplomatic_influence = { who = TAG value
+      = 50 }.'
+  dominant_issue: 'Change support of an issue among pops: dominant_issue = { value = … factor = … } (meaning
+    not verified).'
+  economic_policy: True if the ruling party has the given economic policy.
+  economic_reform:
+    effect: Set an economic reform (unciv).
+    trigger: True if the given economic reform (unciv) is in place.
+  education_spending: Education spending is at least the value.
+  election:
+    effect: Start an election.
+    trigger: True if an election is running.
+  empty: True if the province has no owner.
+  enable_ideology: Enable an ideology (e.g. fascism) in the world.
+  end_military_access: End military access in the given country.
+  end_war: End the war with the given country.
+  everyday_needs: Share of everyday needs the pop gets is at least the value.
+  exists: True if the country exists (yes / no; or exists = TAG).
+  flashpoint_tension:
+    effect: Add flashpoint tension.
+    trigger: Flashpoint tension of the state is at least the value.
+  fort: Add fort levels in the province.
+  from: 'Scope change to FROM: the scope that caused this one (in an event: who fired it).'
+  government:
+    effect: Change the government type.
+    trigger: True if the country has the given government type.
+  great_wars_enabled: True if great wars are enabled.
+  has_building: True if the province / state has the given building.
+  has_country_flag: True if the country has the flag (set with set_country_flag).
+  has_country_modifier: True if the country has the modifier.
+  has_crime: True if the province has the given crime (or any crime).
+  has_cultural_sphere: True if the country has a cultural sphere (meaning not verified).
+  has_culture_core: True if a country of this pop's culture has a core on the province.
+  has_empty_adjacent_province: True if a neighbouring province has no owner.
+  has_empty_adjacent_state: True if a neighbouring state has no owner.
+  has_factories: True if the state has factories.
+  has_global_flag: True if the global flag is set (set_global_flag).
+  has_leader: True if the country has a leader with the given name.
+  has_national_minority: True if the province has pops of non-accepted cultures.
+  has_pop_culture: True if there are pops of the given culture.
+  has_pop_religion: True if there are pops of the given religion.
+  has_pop_type: True if there are pops of the given type.
+  has_province_flag: True if the province has the flag (set_province_flag).
+  has_province_modifier: True if the province has the modifier.
+  has_recent_imigration: True if immigrants came in the last given months (the game's spelling).
+  has_recently_lost_war: True if the country lost a war recently.
+  has_unclaimed_cores: True if the country has cores it does not own.
+  have_core_in: True if the country has a core in a province of the given country.
+  ideology:
+    effect: Change the pop's ideology support (meaning in effects not verified).
+    trigger: True if the pop's (or party's) ideology is the given one.
+  in_default: True if the country (or the given one) is bankrupt.
+  in_sphere: True if the country is in the sphere of the given country.
+  independence:
+    effect: Make the country independent (meaning not verified).
+    trigger: True if the country is not a vassal (meaning not verified).
+  industrial_score: Industrial score is at least the value (or the given country's).
+  infrastructure: Add railroad levels in the province.
+  inherit: Annex the given country peacefully (its provinces go to this one).
+  invention: True if the country has the invention.
+  involved_in_crisis: True if the country takes part in the current crisis.
+  is_accepted_culture: True if the pop's culture is accepted (yes / no).
+  is_blockaded: True if the province is blockaded.
+  is_canal_enabled: True if the given canal is open (1 Kiel, 2 Suez, 3 Panama).
+  is_capital: True if the province is the capital.
+  is_claim_crisis: True if the current crisis is a claim crisis.
+  is_coastal: True if the province is on the coast.
+  is_colonial: True if the province / state is a colony.
+  is_colonial_crisis: True if the current crisis is a colonial crisis.
+  is_core: True if the province is a core of the given country.
+  is_cultural_union: True if the country is the cultural union of its culture group (or of the given country).
+  is_culture_group: 'True if the culture belongs to the given group (in country scope: a country''s primary
+    culture group).'
+  is_disarmed: True if the country is disarmed after a war.
+  is_greater_power: True if the country is a great power.
+  is_ideology_enabled: True if the ideology is enabled.
+  is_independant: True if the country is independent (the game's spelling).
+  is_liberation_crisis: True if the current crisis is a liberation crisis.
+  is_mobilised: True if the country is mobilised.
+  is_our_vassal: True if the given country is our vassal.
+  is_overseas: True if the province is overseas (another continent than the capital).
+  is_possible_vassal: True if the given country can be released as a vassal.
+  is_primary_culture: True if the culture is the country's primary culture.
+  is_releasable_vassal: True if the country can be released from another one.
+  is_secondary_power: True if the country is a secondary power.
+  is_slave: Make the state's pops slaves (yes) or free them (no; meaning not verified).
+  is_sphere_leader_of: True if this country leads the given country's sphere.
+  is_state_capital: True if the province is the capital of its state.
+  is_state_religion: True if the pop's religion is the state religion.
+  is_substate: True if the country is a substate.
+  is_vassal: True if the country is a vassal (of anyone).
+  kill_leader: Kill a leader by name.
+  leave_alliance: End the alliance with the given country.
+  life_needs: Share of life needs the pop gets is at least the value.
+  life_rating:
+    effect: Change the life rating of the province.
+    trigger: Life rating of the province is at least the value.
+  literacy:
+    effect: Change literacy of the pops.
+    trigger: Literacy (share 0..1) is at least the value.
+  location: Scope change to the province of this pop.
+  lost_national: Share of national provinces lost is at least the value.
+  luxury_needs: Share of luxury needs the pop gets is at least the value.
+  middle_strata_everyday_needs: Everyday needs of the middle strata are at least the value.
+  middle_strata_life_needs: Life needs of the middle strata are at least the value.
+  middle_strata_luxury_needs: Luxury needs of the middle strata are at least the value.
+  middle_strata_militancy: Militancy of the middle strata is at least the value.
+  middle_tax: Middle class tax is at least the value.
+  militancy:
+    effect: Add militancy to the pops.
+    trigger: Militancy of the pop (or average) is at least the value.
+  military_access:
+    effect: Get military access in the given country.
+    trigger: True if this country has military access in the given country.
+  military_reform:
+    effect: Set a military reform (unciv).
+    trigger: True if the given military reform (unciv) is in place.
+  military_score: Military score is at least the value (or the given country's).
+  military_spending: Military spending is at least the value.
+  minorities: True if the country has minorities (pops of non-accepted cultures).
+  money:
+    effect: Add money (negative = take).
+    trigger: Treasury is at least the value.
+  month: The month is at least the value (whether January is 0 or 1 is not verified).
+  move_issue_percentage: 'Move support between issues: move_issue_percentage = { from = … to = … value
+    = 0.1 }.'
+  move_pop: Move the pop to the given province.
+  national_provinces_occupied: Share of occupied national provinces is at least the value.
+  nationalize: Nationalise foreign investments in this country.
+  nationalvalue:
+    effect: Change the national value.
+    trigger: True if the country has the given national value.
+  naval_base: Add naval base levels in the province.
+  neighbour: True if the country borders the given country.
+  neutrality: Leave all alliances and become neutral.
+  num_of_allies: Number of allies is at least the value.
+  num_of_cities: Number of provinces is at least the value.
+  num_of_ports: Number of ports is at least the value.
+  num_of_revolts: Number of revolts is at least the value.
+  num_of_substates: Number of substates is at least the value.
+  num_of_vassals: Number of vassals is at least the value.
+  num_of_vassals_no_substates: Number of vassals (without substates) is at least the value.
+  number_of_states: Number of states is at least the value.
+  overlord: Scope change to the overlord of this vassal / substate.
+  owned_by: True if the province is owned by the given country.
+  owner:
+    effect: Scope change to the owner of this province.
+    trigger: Scope change to the owner of this province (owner = { … }).
+  owns: True if the country owns the given province.
+  part_of_sphere: True if the country is in someone's sphere.
+  plurality: Add plurality (points).
+  political_movement: True if there is a political movement.
+  political_movement_strength: Strength of political movements is at least the value.
+  political_reform:
+    effect: Set a political reform.
+    trigger: True if the given political reform is in place (or the desire for reforms is at least the
+      value).
+  political_reform_want: Desire for political reforms is at least the value.
+  poor_strata_everyday_needs: Everyday needs of the poor strata are at least the value.
+  poor_strata_life_needs: Life needs of the poor strata are at least the value.
+  poor_strata_luxury_needs: Luxury needs of the poor strata are at least the value.
+  poor_strata_militancy: Militancy of the poor strata is at least the value.
+  poor_tax: Poor tax is at least the value.
+  pop_majority_culture: True if most pops have the given culture.
+  pop_majority_ideology: True if most pops support the given ideology.
+  pop_majority_issue: True if most pops support the given issue.
+  pop_majority_religion: True if most pops have the given religion.
+  pop_militancy: Militancy of the pop is at least the value.
+  pop_type:
+    effect: Change the type of the pops (e.g. to soldiers).
+    trigger: True if the pop is of the given type.
+  port: True if the province has a port.
+  prestige:
+    effect: Add prestige.
+    trigger: Prestige is at least the value.
+  prestige_factor: Add prestige as a share of the current prestige (meaning not verified).
+  primary_culture:
+    effect: Change the primary culture of the country.
+    trigger: True if the country's primary culture is the given one.
+  produces: True if the country / province produces the given goods.
+  province_control_days: Days the province has been controlled is at least the value.
+  province_id: True if the province has the given id.
+  random_country: 'Scope: one random country (limit = { } narrows the choice). In a trigger: true if it
+    holds for them (any_* = at least one); in an effect: the effects apply to them (any_* = each, random_*
+    = one).'
+  random_empty_neighbor_province: Effects for one random neighbouring province without an owner.
+  random_neighbor_country: 'Scope: one random neighbouring country. In a trigger: true if it holds for
+    them (any_* = at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  random_neighbor_province: 'Scope: one random neighbouring province. In a trigger: true if it holds for
+    them (any_* = at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  random_owned: 'Scope: one random province owned by this country. In a trigger: true if it holds for
+    them (any_* = at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  random_pop: 'Scope: one random pop. In a trigger: true if it holds for them (any_* = at least one);
+    in an effect: the effects apply to them (any_* = each, random_* = one).'
+  random_province: 'Scope: one random province. In a trigger: true if it holds for them (any_* = at least
+    one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  random_state: 'Scope: one random state of this country. In a trigger: true if it holds for them (any_*
+    = at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  rank: 'The country''s rank is at most the value (rank = 8: one of the great powers).'
+  rebel_power_fraction: Rebel strength compared with the army is at least the value.
+  recruited_percentage: Share of soldiers recruited is at least the value.
+  reduce_pop: Multiply the size of the pops by the value (0.9 = lose 10 %).
+  region: True if the province is in the given state region.
+  relation:
+    effect: 'Change relations with a country: relation = { who = TAG value = 100 }.'
+    trigger: 'Relations with a country are at least the value: relation = { who = TAG value = 100 }.'
+  release: Release the given country (it gets its cores from this one).
+  release_vassal: Release the given country as a vassal.
+  religion:
+    effect: Change the religion of the pops / state religion.
+    trigger: True if the pop's / country's religion is the given one.
+  religious_policy: True if the ruling party has the given religious policy.
+  remove_accepted_culture: Remove an accepted culture.
+  remove_core: Remove a core of the given country from this province.
+  remove_country_modifier: Remove a country modifier.
+  remove_province_modifier: Remove a province modifier.
+  remove_random_economic_reforms: Undo a number of random economic reforms (unciv).
+  remove_random_military_reforms: Undo a number of random military reforms (unciv).
+  remove_random_political_reforms: Undo a number of random political reforms.
+  remove_random_social_reforms: Undo a number of random social reforms.
+  research_points: Add research points.
+  revolt_percentage: Share of revolting pops is at least the value.
+  rgo_size: Change the size of the province's RGO.
+  rich_strata_everyday_needs: Everyday needs of the rich strata are at least the value.
+  rich_strata_life_needs: Life needs of the rich strata are at least the value.
+  rich_strata_luxury_needs: Luxury needs of the rich strata are at least the value.
+  rich_strata_militancy: Militancy of the rich strata is at least the value.
+  rich_tax: Rich tax is at least the value.
+  rich_tax_above_poor: True if the rich are taxed more than the poor.
+  ruling_party: True if the ruling party has the given name.
+  ruling_party_ideology:
+    effect: Make a party of the given ideology the ruling party.
+    trigger: True if the ruling party has the given ideology.
+  sea_zone: Scope change to the sea zone next to this coastal province.
+  secede_province: The province goes to the given country.
+  set_country_flag: Set a country flag (test it with has_country_flag).
+  set_global_flag: Set a global flag (test it with has_global_flag).
+  set_province_flag: Set a province flag (test it with has_province_flag).
+  slavery: True if slavery is allowed (meaning not verified).
+  social_movement: True if there is a social movement.
+  social_movement_strength: Strength of social movements is at least the value.
+  social_reform:
+    effect: Set a social reform.
+    trigger: True if the given social reform is in place.
+  social_reform_want: Desire for social reforms is at least the value.
+  social_spending: Social spending is at least the value.
+  sphere_owner: Scope change to the sphere leader of this country.
+  state_id: True if the province is in the same state as the given province.
+  state_scope: Scope change to the state of this province or pop.
+  strata: True if the pop is of the given strata (poor / middle / rich).
+  stronger_army_than: True if this country's army is stronger than the given country's.
+  substate_of: True if the country is a substate of the given country.
+  tag: True if the country is the given tag.
+  terrain: True if the province has the given terrain.
+  this: 'Scope change to THIS: the scope the event or effect started in.'
+  this_culture_union: True if the country is the cultural union of the given culture (meaning not verified).
+  total_amount_of_divisions: Number of brigades is at least the value.
+  total_amount_of_ships: Number of ships is at least the value.
+  total_defensives: Number of defensive wars is at least the value.
+  total_num_of_ports: Number of ports is at least the value.
+  total_of_ours_sunk: Number of our ships sunk in the war is at least the value.
+  total_offensives: Number of offensive wars is at least the value.
+  total_pops: Number of people (pop size) is at least the value.
+  total_sea_battles: Number of sea battles is at least the value.
+  total_sunk_by_us: Number of enemy ships sunk by us is at least the value.
+  trade_goods:
+    effect: Change the goods of the province's RGO.
+    trigger: True if the province's RGO produces the given goods.
+  trade_policy: True if the ruling party has the given trade policy.
+  treasury: Add money to the treasury.
+  truce_with: True if there is a truce with the given country.
+  type: True if the pop is of the given type.
+  unemployment: Unemployment (share 0..1) is at least the value.
+  unemployment_by_type: 'Unemployment of a pop type: unemployment_by_type = { type = farmers value = 0.1
+    }.'
+  unit_has_leader: True if the unit has a leader.
+  unit_in_battle: True if the unit is in battle.
+  units_in_province: Number of units in the province is at least the value.
+  upper_house:
+    effect: Change the share of an ideology in the upper house.
+    trigger: 'Share of an ideology in the upper house is at least the value: upper_house = { ideology
+      = liberal value = 0.5 }.'
+  vassal_of: True if the country is a vassal of the given country.
+  war:
+    effect: 'Declare war: war = { target = TAG attacker_goal = { casus_belli = … } }.'
+    trigger: True if the country is at war (yes / no).
+  war_countries: 'Scope: countries at war with this one. In a trigger: true if it holds for them (any_*
+    = at least one); in an effect: the effects apply to them (any_* = each, random_* = one).'
+  war_exhaustion:
+    effect: Add war exhaustion.
+    trigger: War exhaustion is at least the value.
+  war_policy: True if the ruling party has the given war policy.
+  war_score: War score is at least the value.
+  war_with: True if at war with the given country.
+  work_available: 'True if there is work for the given pop types: work_available = { worker = craftsmen
+    }.'
+  world_wars_enabled: True if world wars are enabled.
+  year: The year is at least the value.
+  years_of_research: Add research points worth the given number of years.

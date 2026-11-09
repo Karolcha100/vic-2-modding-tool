@@ -85,4 +85,5 @@ def test_hover_on_modifiers_this_and_undescribed_keys(svc):
     assert "FROM" in svc.hover("events/b.txt", offset(svc, "events/b.txt", "FROM", 1)).text
     # Unknown key (warned) vs. a key the schema does not describe (accepted unchecked).
     svc.ws.set_text("events/b.txt", "country_event = { id = 2 colour = red }")
-    assert "unknown here" in svc.hover("events/b.txt", offset(svc, "events/b.txt", "colour", 1)).text
+    h = svc.hover("events/b.txt", offset(svc, "events/b.txt", "colour", 1))
+    assert "unknown here" in h.text

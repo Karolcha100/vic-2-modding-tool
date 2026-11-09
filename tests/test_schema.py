@@ -179,3 +179,17 @@ def test_names_the_game_does_not_know_are_errors_with_a_hint():
     found = check("country_event = { id = 1 trigger = { is_subject = no } }")
     assert [c for c, _ in found] == ["schema.not-in-game"]
     assert "is_vassal" in found[0][1]
+
+
+def test_every_command_and_modifier_has_a_description():
+    # T004: hover, completion and block cards show these.
+    s = default_schema()
+    assert [n for (_, n), alts in s.commands.items() if not any(a.doc for a in alts)] == []
+    assert [m for m in s.modifiers if m not in s.modifier_docs] == []
+
+
+def test_docs_for_unknown_commands_are_reported(tmp_path):
+    (tmp_path / "commands").mkdir()
+    (tmp_path / "commands" / "a.yaml").write_text("trigger:\n  x: {value: int}\ndocs:\n  y: text\n")
+    with pytest.raises(SchemaError, match="unknown command 'y'"):
+        load_schema(tmp_path)
