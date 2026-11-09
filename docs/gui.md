@@ -56,6 +56,12 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   **Real graphics**: the game's pictures, the politics panel behind the window
   too. A box's size is what it shows (its elements and option rows), not its
   declared `size`.
+- **Interface** view (K80 B): any window of `interface/*.gui` - choose the
+  file and the window; elements drawn as outlines or with **Real graphics**;
+  click an element (on the canvas or in the element list) to select it, drag to
+  move it, drag its corner square to resize it, or type x / y / w / h. Preview
+  the changes and save (with a backup); a missing `position` / `size` block is
+  added. Positions are relative to the parent and its `orientation`.
 - **Create** view (K70): new reform, new ideology (with pop support and
   governments copied from a template), parties for an ideology (K58), new
   event (free id, EVTNAME / EVTDESC / EVTOPT localisation), new decision.

@@ -16,6 +16,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from vic2toolmod.changes import FileChange
+from vic2toolmod.edit import TextEdit, apply_edits, set_value
 from vic2toolmod.script.cst import Assignment, Block, Document, Node, Scalar
 from vic2toolmod.workspace import Workspace
 
@@ -209,3 +211,77 @@ def texture_size(path: Path) -> tuple[int, int] | None:
     if len(head) >= 16 and head[2] in (2, 10):
         return int.from_bytes(head[12:14], "little"), int.from_bytes(head[14:16], "little")
     return None
+
+
+def windows(ws: Workspace, rel: str) -> list[tuple[str, int, int]]:
+    """``(name, line, depth)`` of every ``windowType`` of a ``.gui`` file, in file order."""
+    f = ws.file(rel)
+    if f is None:
+        raise ValueError(f"{rel} not found")
+    doc = ws.document(f.rel)
+    out: list[tuple[str, int, int]] = []
+    stack: list[tuple[Node, int]] = [(n, 0) for n in reversed(doc.items)]
+    while stack:
+        n, depth = stack.pop()
+        if not (isinstance(n, Assignment) and isinstance(n.value, Block)):
+            continue
+        is_window = n.key_text.lower() == "windowtype"
+        if is_window:
+            out.append((_scalar(n.value, "name"), doc.position(n.start)[0], depth))
+        stack.extend((c, depth + is_window) for c in reversed(n.value.items))
+    return out
+
+
+def plan_changes(ws: Workspace, rel: str, changes: dict[int, dict[str, int]]) -> FileChange:
+    """New positions / sizes of elements, as a change of the ``.gui`` file (in the mod).
+
+    Args:
+        ws: The workspace.
+        rel: The ``.gui`` file.
+        changes: Line of an element's block -> any of ``x``, ``y`` (its
+            ``position``) and ``w``, ``h`` (its ``size``). A missing
+            ``position`` / ``size`` block is added.
+
+    Raises:
+        ValueError: Without a mod folder, or when a line holds no element.
+    """
+    if ws.project.mod_dir is None:
+        raise ValueError("a mod folder is needed")
+    f = ws.file(rel)
+    if f is None:
+        raise ValueError(f"{rel} not found")
+    doc = ws.document(f.rel)
+    by_line: dict[int, Assignment] = {}
+    stack: list[Node] = list(doc.items)
+    while stack:
+        n = stack.pop()
+        if isinstance(n, Assignment) and isinstance(n.value, Block):
+            by_line.setdefault(doc.position(n.start)[0], n)
+            stack.extend(n.value.items)
+    edits: list[TextEdit] = []
+    for line, change in changes.items():
+        node = by_line.get(line)
+        if node is None:
+            raise ValueError(f"no element at line {line} of {rel}")
+        assert isinstance(node.value, Block)
+        for key, (a, b) in (("position", ("x", "y")), ("size", ("w", "h"))):
+            if a not in change and b not in change:
+                continue
+            old = _xy(node.value, key)
+            x = int(change.get(a, old[0]))
+            y = int(change.get(b, old[1]))
+            target = next(
+                (
+                    i
+                    for i in node.value.assignments()
+                    if i.key_text.lower() == key and isinstance(i.value, Block)
+                ),
+                None,
+            )
+            if target is not None:
+                edits.append(set_value(doc, target, [("x", str(x)), ("y", str(y))]))
+            else:
+                at = node.value.lbrace.end
+                edits.append(TextEdit(at, at, f" {key} = {{ x = {x} y = {y} }}"))
+    text = apply_edits(doc.text, edits)
+    return FileChange(f.rel, ws.project.mod_dir / f.rel, doc.text, text, ws.encoding(f.rel))

@@ -209,3 +209,24 @@ def test_open_another_project_and_read_only_game(api, tmp_path, monkeypatch):
     with pytest.raises(urllib.error.HTTPError) as err:
         api("/api/save", {"rel": "events/a.txt", "text": "x = 1\n"})
     assert err.value.code == 409
+
+
+def test_gui_window_endpoints(api, tmp_path, monkeypatch):
+    monkeypatch.setattr("vic2toolmod.changes.backup_dir", lambda: tmp_path / "backup")
+    write(
+        api.mod / "interface/x.gui",
+        'guiTypes = { windowType = { name = "w" size = { x = 100 y = 50 }\n'
+        'iconType = { name = "i" spriteType = "GFX_i" position = { x = 1 y = 2 } } } }\n',
+    )
+    api("/api/changed")
+    assert api("/api/gui/windows?rel=interface/x.gui")["windows"] == [
+        {"name": "w", "line": 1, "depth": 0}
+    ]
+    w = api("/api/gui/window?rel=interface/x.gui&name=w")
+    icon = w["tree"]["children"][0]
+    assert (icon["name"], icon["x"], icon["sprite"]) == ("i", 1, "GFX_i")
+    assert w["sprites"] == {"GFX_i": {"frames": 0, "w": 0, "h": 0, "found": False}}
+    plan = api("/api/gui/plan", {"rel": "interface/x.gui", "changes": {"2": {"x": 7}}})
+    assert "+iconType = { name" in plan["diff"] and "x = 7 y = 2" in plan["diff"]
+    api("/api/gui/plan", {"rel": "interface/x.gui", "changes": {"2": {"x": 7}}, "write": True})
+    assert "position = { x = 7 y = 2 }" in (api.mod / "interface/x.gui").read_text()

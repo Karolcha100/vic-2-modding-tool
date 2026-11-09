@@ -192,3 +192,10 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .gui-outline.windowtype { stroke-dasharray: none; }
 .gui-name { font: 9px ui-monospace, monospace; fill: var(--muted); pointer-events: none; }
 .gui-text { font-family: Georgia, serif; pointer-events: none; }
+.gui-selected { fill: none; stroke: var(--accent); stroke-width: 2; pointer-events: none; }
+.gui-changed { fill: #e5a00d; fill-opacity: .15; stroke: #e5a00d; stroke-width: 1; pointer-events: none; }
+.gui-handle { fill: var(--accent); cursor: nwse-resize; }
+.gui-props { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; padding: 8px; }
+.gui-props input { width: 70px; background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.gui-props .muted { grid-column: 1 / -1; }
+.rw-side .row.active { background: var(--hover); }

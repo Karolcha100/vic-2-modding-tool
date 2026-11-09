@@ -69,6 +69,10 @@ export interface GuiElement {
   line: number; children: GuiElement[];
 }
 export interface SpriteInfo { frames: number; w: number; h: number; found: boolean }
+export interface GuiWindow {
+  file: string; tree: GuiElement; backdrop: GuiElement[];
+  texts: Record<string, string>; sprites: Record<string, SpriteInfo>;
+}
 export interface ReformLayout {
   file: string; width: number; height: number; boxes: Box[];
   missing: Record<string, string[]>; unknown: string[]; categories: Record<string, string[]>;
@@ -87,6 +91,10 @@ export interface TemplateFill { text: string; diff: string; files: string[]; not
 export const api = {
   project: () => call<Project>("project"),
   projects: () => call<Projects>("projects"),
+  guiWindows: (rel: string) => call<{ windows: { name: string; line: number; depth: number }[] }>(`gui/windows?${q({ rel })}`),
+  guiWindow: (rel: string, name: string) => call<GuiWindow>(`gui/window?${q({ rel, name })}`),
+  guiPlan: (rel: string, changes: Record<number, { x?: number; y?: number; w?: number; h?: number }>, write: boolean) =>
+    call<{ diff: string; backup?: string | null }>("gui/plan", { rel, changes, write }),
   openProject: (mod: string | null) => call<{ mod_dir: string | null }>("project/open", { mod }),
   file: (rel: string) => call<FileData>(`file?${q({ rel })}`),
   buffer: (rel: string, text: string) => call<Report>("buffer", { rel, text }),

@@ -82,3 +82,28 @@ def test_texture_size(tmp_path: Path):
     assert gui_tree.texture_size(tmp_path / "a.dds") == (288, 32)
     assert gui_tree.texture_size(tmp_path / "b.tga") == (64, 16)
     assert gui_tree.texture_size(tmp_path / "missing.dds") is None
+
+
+def test_windows_and_planned_moves(ws, tmp_path):
+    rel = "interface/country_politics.gui"
+    found = gui_tree.windows(ws, rel)
+    assert [(n, d) for n, _, d in found] == [
+        ("country_politics", 0),
+        ("reforms_window", 1),
+        ("slavery", 2),
+        ("reform_option_window", 0),
+    ]
+    with pytest.raises(ValueError, match="mod folder"):
+        gui_tree.plan_changes(ws, rel, {})
+    mod_ws = Workspace.open(tmp_path / "game", tmp_path / "mod")
+    slavery = next(line for n, line, _ in found if n == "slavery")
+    button = gui_tree.read_window(mod_ws, rel, "reform_option_window").children[0]
+    change = gui_tree.plan_changes(
+        mod_ws, rel, {slavery: {"x": 800, "w": 200, "h": 90}, button.line: {"y": 5}}
+    )
+    assert change.path == tmp_path / "mod" / rel
+    assert "position = { x = 800 y = 262 }" in change.new_text
+    assert "size = { x = 200 y = 90 }" in change.new_text  # added: the box had no size
+    assert "position = { x = 0 y = 5 }" in change.new_text
+    with pytest.raises(ValueError, match="no element"):
+        gui_tree.plan_changes(mod_ws, rel, {9999: {"x": 1}})

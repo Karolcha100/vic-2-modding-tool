@@ -658,37 +658,14 @@ class Engine:
         except ValueError:
             row = None
         options = issue_options(self.ws)
-        regs = self.ws.registries()
-        loc = regs.localisation
+        loc = self.ws.registries().localisation
 
         def text(key: str) -> str | None:
             e = loc.get(key) if loc is not None and key else None
             return e.text() if e else None
 
-        keys: set[str] = set()
-
-        def collect(e: gui_tree.Element) -> None:
-            if e.text:
-                keys.add(e.text)
-            for c in e.children:
-                collect(c)
-
-        collect(tree)
-        if row is not None:
-            collect(row)
-        sprites: dict[str, Any] = {}
-        used = gui_tree.sprites_of(tree) | {e.sprite for e in behind if e.sprite}
-        for name in used | (gui_tree.sprites_of(row) if row else set()):
-            s = regs.sprites.get(name.lower())
-            rel = self.texture(s.texture) if s else None
-            f = self.ws.file(rel) if rel else None
-            size = gui_tree.texture_size(f.path) if f else None
-            sprites[name] = {
-                "frames": s.frames if s else 0,
-                "w": size[0] // max(1, s.frames) if size and s else 0,
-                "h": size[1] if size else 0,
-                "found": f is not None,
-            }
+        drawn = self._gui_payload([tree, *behind, *([row] if row else [])])
+        sprites = drawn["sprites"]
         # only the big pictures behind the window (its background), not the
         # charts and overlays of the panel around it
         big = [
@@ -710,9 +687,92 @@ class Engine:
                 for issues in out["categories"].values()
                 for i in issues
             },
-            "texts": {k: t for k in sorted(keys) if (t := text(k)) is not None},
+            "texts": drawn["texts"],
             "sprites": sprites,
         }
+
+    def _gui_payload(self, roots: list[Any]) -> dict[str, Any]:
+        """Texts of the localisation keys and sizes of the sprites used by element trees."""
+        from vic2toolmod.analysis import gui_tree
+
+        regs = self.ws.registries()
+        loc = regs.localisation
+        keys: set[str] = set()
+        used: set[str] = set()
+
+        def collect(e: gui_tree.Element) -> None:
+            if e.text:
+                keys.add(e.text)
+            if e.sprite:
+                used.add(e.sprite)
+            for c in e.children:
+                collect(c)
+
+        for r in roots:
+            collect(r)
+        texts = {}
+        for k in sorted(keys):
+            entry = loc.get(k) if loc is not None else None
+            if entry is not None:
+                texts[k] = entry.text()
+        sprites: dict[str, Any] = {}
+        for name in sorted(used):
+            s = regs.sprites.get(name.lower())
+            rel = self.texture(s.texture) if s else None
+            f = self.ws.file(rel) if rel else None
+            size = gui_tree.texture_size(f.path) if f else None
+            sprites[name] = {
+                "frames": s.frames if s else 0,
+                "w": size[0] // max(1, s.frames) if size and s else 0,
+                "h": size[1] if size else 0,
+                "found": f is not None,
+            }
+        return {"texts": texts, "sprites": sprites}
+
+    # -- any window of interface/*.gui (K80 B) ------------------------------------------
+    def gui_windows(self, rel: str) -> dict[str, Any]:
+        """Every window of a ``.gui`` file: name, line, nesting depth."""
+        from vic2toolmod.analysis import gui_tree
+
+        try:
+            found = gui_tree.windows(self.ws, self._file_or_404(rel))
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.NOT_FOUND, str(exc)) from exc
+        return {"windows": [{"name": n, "line": ln, "depth": d} for n, ln, d in found]}
+
+    def gui_window(self, rel: str, name: str) -> dict[str, Any]:
+        """One window as an element tree with the pictures behind it, texts and sprites."""
+        from vic2toolmod.analysis import gui_tree
+
+        try:
+            tree = gui_tree.read_window(self.ws, self._file_or_404(rel), name)
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.NOT_FOUND, str(exc)) from exc
+        behind = gui_tree.backdrop(self.ws, rel, name)
+        return {"file": rel, "tree": asdict(tree), "backdrop": [asdict(e) for e in behind]} | (
+            self._gui_payload([tree, *behind])
+        )
+
+    def gui_plan(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Plan (and with ``write`` write) new positions / sizes of window elements."""
+        from vic2toolmod.analysis import gui_tree
+
+        rel = self._file_or_404(str(body["rel"]))
+        changes = {
+            int(line): {k: int(v) for k, v in c.items() if k in ("x", "y", "w", "h")}
+            for line, c in body["changes"].items()
+        }
+        try:
+            change = gui_tree.plan_changes(self.ws, rel, changes)
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        result: dict[str, Any] = {"diff": diff([change])}
+        if body.get("write"):
+            backup = self._write([change])
+            self.ws.refresh()
+            self._stamps = self._snapshot()
+            result["backup"] = str(backup) if backup else None
+        return result
 
     def reform_window_plan(self, body: dict[str, Any]) -> dict[str, Any]:
         """Plan (and with ``write`` write) a new reform window layout."""
@@ -1120,6 +1180,12 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
             match route:
                 case ("GET", "project"):
                     return e.project()
+                case ("GET", "gui/windows"):
+                    return e.gui_windows(q("rel"))
+                case ("GET", "gui/window"):
+                    return e.gui_window(q("rel"), q("name"))
+                case ("POST", "gui/plan"):
+                    return e.gui_plan(body)
                 case ("GET", "projects"):
                     return e.projects()
                 case ("POST", "project/open"):

@@ -12,6 +12,7 @@ import { TemplateSave, TemplateUse } from "./components/Templates";
 import type { Fact } from "./api";
 import { Splitter, useStored } from "./components/Layout";
 import { ProjectPicker } from "./components/ProjectPicker";
+import { GuiEditor } from "./components/GuiEditor";
 
 interface OpenFile {
   rel: string;
@@ -51,8 +52,8 @@ export function App() {
   const [mode, setMode] = useState<"code" | "blocks" | "split">(
     (new URLSearchParams(location.search).get("mode") as "blocks" | "split" | null) ?? "code",
   );
-  const [view, setView] = useState<"code" | "reforms" | "create" | "analyses">(
-    (new URLSearchParams(location.search).get("view") as "reforms" | "create" | "analyses" | null) ?? "code",
+  const [view, setView] = useState<"code" | "reforms" | "interface" | "create" | "analyses">(
+    (new URLSearchParams(location.search).get("view") as "reforms" | "interface" | "create" | "analyses" | null) ?? "code",
   );
   const [tplModal, setTplModal] = useState<null | { kind: "insert" } | { kind: "save"; text: string; folder: string }>(null);
   const [, force] = useState(0);
@@ -383,6 +384,7 @@ export function App() {
         <span className="spacer" />
         <button className={view === "code" ? "on" : ""} onClick={() => setView("code")}>Editor</button>
         <button className={view === "reforms" ? "on" : ""} onClick={() => setView("reforms")}>Reform window</button>
+        <button className={view === "interface" ? "on" : ""} onClick={() => setView("interface")} title="Any window of interface/*.gui">Interface</button>
         <button className={view === "create" ? "on" : ""} onClick={() => setView("create")}>Create</button>
         <button className={view === "analyses" ? "on" : ""} onClick={() => setView("analyses")}>Analyses</button>
         <button onClick={() => save(current)} disabled={readOnly || !current || !dirty.has(current)}>Save (Ctrl+S)</button>
@@ -398,6 +400,9 @@ export function App() {
         )}
         {view === "create" && (
           <Creators onStatus={setStatus} files={files.map((f) => f.rel)} onOpen={(rel) => { setView("code"); openFile(rel); }} />
+        )}
+        {view === "interface" && (
+          <GuiEditor files={files.map((f) => f.rel)} onStatus={setStatus} onOpen={(rel, line) => { setView("code"); openFile(rel, line); }} />
         )}
         {view === "reforms" && (
           <ReformWindow onStatus={setStatus} onOpen={(rel, line) => { setView("code"); openFile(rel, line); }} />
