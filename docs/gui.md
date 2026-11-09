@@ -48,8 +48,14 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   Event cards have a **preview** button (K6 D): the event window with its
   picture (`gfx/pictures/events/*.tga`, converted to PNG by the server),
   title, description and option names.
-- **Reform window** view (K69): drag the issue boxes of `reforms_window`,
-  automatic grid, boxes outside the window in red, preview and save.
+- **Reform window** view (K69, K80 A): drag the issue boxes of
+  `reforms_window`, automatic grid, boxes outside the window in red, preview
+  and save. Every element of the window is drawn - issue boxes with their icon,
+  name and one row per option (from `reform_option_window`, so a new option of
+  an issue shows up by itself), labels - as outlines with names, or with
+  **Real graphics**: the game's pictures, the politics panel behind the window
+  too. A box's size is what it shows (its elements and option rows), not its
+  declared `size`.
 - **Create** view (K70): new reform, new ideology (with pop support and
   governments copied from a template), parties for an ideology (K58), new
   event (free id, EVTNAME / EVTDESC / EVTOPT localisation), new decision.

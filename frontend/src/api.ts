@@ -62,9 +62,19 @@ export interface Box {
   name: string; x: number; y: number; w: number; h: number;
   category: string | null; line: number; outside: boolean; clipped: boolean;
 }
+/** An element of a game window (vic2toolmod/analysis/gui_tree.py). */
+export interface GuiElement {
+  kind: string; name: string; x: number; y: number; w: number; h: number; orientation: string;
+  sprite: string; text: string; font: string; max_w: number; max_h: number; format: string;
+  line: number; children: GuiElement[];
+}
+export interface SpriteInfo { frames: number; w: number; h: number; found: boolean }
 export interface ReformLayout {
   file: string; width: number; height: number; boxes: Box[];
   missing: Record<string, string[]>; unknown: string[]; categories: Record<string, string[]>;
+  tree: GuiElement; backdrop: GuiElement[]; option_row: GuiElement | null;
+  issues: Record<string, { text: string; options: { key: string; text: string }[] }>;
+  texts: Record<string, string>; sprites: Record<string, SpriteInfo>;
 }
 
 export interface TemplateField { name: string; type: string; default: string }

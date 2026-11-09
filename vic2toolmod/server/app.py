@@ -635,10 +635,84 @@ class Engine:
         }
 
     def reform_window(self) -> dict[str, Any]:
-        """Layout of the reform window and the issue categories (K69)."""
-        from vic2toolmod.analysis.reform_window import issue_categories, read_layout
+        """Layout of the reform window and what the GUI needs to draw it (K69, K80 A).
 
-        return asdict(read_layout(self.ws)) | {"categories": issue_categories(self.ws)}
+        Besides the issue boxes: the window as an element tree, the template of
+        one reform option row (``reform_option_window``), each issue's options,
+        the texts of localisation keys and the sizes of the sprites used.
+        """
+        from vic2toolmod.analysis import gui_tree
+        from vic2toolmod.analysis.reform_window import (
+            GUI_FILE,
+            WINDOW,
+            issue_categories,
+            issue_options,
+            read_layout,
+        )
+
+        out = asdict(read_layout(self.ws)) | {"categories": issue_categories(self.ws)}
+        tree = gui_tree.read_window(self.ws, GUI_FILE, WINDOW)
+        behind = gui_tree.backdrop(self.ws, GUI_FILE, WINDOW)
+        try:
+            row = gui_tree.read_window(self.ws, GUI_FILE, "reform_option_window")
+        except ValueError:
+            row = None
+        options = issue_options(self.ws)
+        regs = self.ws.registries()
+        loc = regs.localisation
+
+        def text(key: str) -> str | None:
+            e = loc.get(key) if loc is not None and key else None
+            return e.text() if e else None
+
+        keys: set[str] = set()
+
+        def collect(e: gui_tree.Element) -> None:
+            if e.text:
+                keys.add(e.text)
+            for c in e.children:
+                collect(c)
+
+        collect(tree)
+        if row is not None:
+            collect(row)
+        sprites: dict[str, Any] = {}
+        used = gui_tree.sprites_of(tree) | {e.sprite for e in behind if e.sprite}
+        for name in used | (gui_tree.sprites_of(row) if row else set()):
+            s = regs.sprites.get(name.lower())
+            rel = self.texture(s.texture) if s else None
+            f = self.ws.file(rel) if rel else None
+            size = gui_tree.texture_size(f.path) if f else None
+            sprites[name] = {
+                "frames": s.frames if s else 0,
+                "w": size[0] // max(1, s.frames) if size and s else 0,
+                "h": size[1] if size else 0,
+                "found": f is not None,
+            }
+        # only the big pictures behind the window (its background), not the
+        # charts and overlays of the panel around it
+        big = [
+            e
+            for e in behind
+            if "unciv" not in e.name.lower()  # the overlay of uncivilised countries
+            and max(sprites.get(e.sprite, {}).get("w", 0), sprites.get(e.sprite, {}).get("h", 0))
+            >= 300
+        ]
+        return out | {
+            "tree": asdict(tree),
+            "backdrop": [asdict(e) for e in big],
+            "option_row": asdict(row) if row else None,
+            "issues": {
+                i: {
+                    "text": text(i) or i,
+                    "options": [{"key": o, "text": text(o) or o} for o in options.get(i, [])],
+                }
+                for issues in out["categories"].values()
+                for i in issues
+            },
+            "texts": {k: t for k in sorted(keys) if (t := text(k)) is not None},
+            "sprites": sprites,
+        }
 
     def reform_window_plan(self, body: dict[str, Any]) -> dict[str, Any]:
         """Plan (and with ``write`` write) a new reform window layout."""

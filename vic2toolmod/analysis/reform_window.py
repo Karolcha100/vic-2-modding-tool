@@ -115,6 +115,23 @@ def issue_categories(ws: Workspace) -> dict[str, list[str]]:
     return out
 
 
+def issue_options(ws: Workspace) -> dict[str, list[str]]:
+    """Issue -> its options in ``common/issues.txt`` order (the reform's steps)."""
+    out: dict[str, list[str]] = {}
+    doc = ws.document("common/issues.txt")
+    for cat in doc.items:
+        if not (isinstance(cat, Assignment) and isinstance(cat.value, Block)):
+            continue
+        for issue in cat.value.items:
+            if isinstance(issue, Assignment) and isinstance(issue.value, Block):
+                out[issue.key_text] = [
+                    o.key_text
+                    for o in issue.value.items
+                    if isinstance(o, Assignment) and isinstance(o.value, Block)
+                ]
+    return out
+
+
 def _window(ws: Workspace) -> tuple[Document, Assignment]:
     f = ws.file(GUI_FILE)
     if f is None:
