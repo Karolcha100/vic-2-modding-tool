@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { TemplateUse } from "./Templates";
 
 /** Creators (K70): new reform (C), new ideology (D), parties for an ideology (K58). */
 
-type Kind = "reform" | "ideology" | "parties" | "event" | "decision";
+type Kind = "reform" | "ideology" | "parties" | "event" | "decision" | "template";
 
 interface Result {
   diff: string;
@@ -132,13 +133,14 @@ export function Creators({ onStatus, files, onOpen }: Props) {
     <div className="creators">
       <div className="rw-tools">
         <b>Create</b>
-        {(["reform", "ideology", "parties", "event", "decision"] as Kind[]).map((k) => (
+        {(["reform", "ideology", "parties", "event", "decision", "template"] as Kind[]).map((k) => (
           <button key={k} className={kind === k ? "on" : ""} onClick={() => { setKind(k); setResult(null); setError(""); }}>
-            {({ reform: "New reform", ideology: "New ideology", parties: "Parties for an ideology", event: "New event", decision: "New decision" } as Record<Kind, string>)[k]}
+            {({ reform: "New reform", ideology: "New ideology", parties: "Parties for an ideology", event: "New event", decision: "New decision", template: "From a template" } as Record<Kind, string>)[k]}
           </button>
         ))}
       </div>
-      <div className="creator-form">
+      {kind === "template" && <TemplateUse mode="file" files={files} onStatus={onStatus} onOpen={onOpen} />}
+      {kind !== "template" && <><div className="creator-form">
         {kind === "reform" && (
           <>
             <label>Category <select value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -233,7 +235,7 @@ export function Creators({ onStatus, files, onOpen }: Props) {
           {result.lines.map((l, i) => <div key={i} className="muted">{l}</div>)}
           <pre>{result.diff || "(no changes)"}</pre>
         </div>
-      )}
+      )}</>}
     </div>
   );
 }

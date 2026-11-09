@@ -8,6 +8,7 @@ import { Creators } from "./components/Creators";
 import { Blocks } from "./components/Blocks";
 import { Analyses } from "./components/Analyses";
 import { Tester } from "./components/Tester";
+import { TemplateSave, TemplateUse } from "./components/Templates";
 import type { Fact } from "./api";
 
 interface OpenFile {
@@ -49,6 +50,7 @@ export function App() {
   const [view, setView] = useState<"code" | "reforms" | "create" | "analyses">(
     (new URLSearchParams(location.search).get("view") as "reforms" | "create" | "analyses" | null) ?? "code",
   );
+  const [tplModal, setTplModal] = useState<null | { kind: "insert" } | { kind: "save"; text: string; folder: string }>(null);
   const [, force] = useState(0);
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -142,6 +144,22 @@ export function App() {
     }
   }, []);
 
+  /** Insert text at the cursor, indented like the cursor's line (one undo step). */
+  const insertAtCursor = (text: string) => {
+    const ed = editor.current; const m = ed?.getModel(); const p = ed?.getPosition();
+    if (!ed || !m || !p) return;
+    const line = m.getLineContent(p.lineNumber);
+    const indent = /^[\t ]*/.exec(line)![0];
+    let body = text.replace(/\r\n/g, "\n").replace(/\n$/, "").split("\n").map((l, i) => (i && l ? indent + l : l)).join("\n");
+    // Code before or after the cursor on this line: put the template on lines of its own.
+    if (line.slice(0, p.column - 1).trim()) body = "\n" + indent + body;
+    if (line.slice(p.column - 1).trim()) body += "\n" + indent;
+    ed.pushUndoStop();
+    ed.executeEdits("template", [{ range: new monaco.Range(p.lineNumber, p.column, p.lineNumber, p.column), text: body, forceMoveMarkers: true }]);
+    ed.pushUndoStop();
+    ed.focus();
+  };
+
   // -- editor + actions ------------------------------------------------------------
   useEffect(() => {
     if (!host.current) return;
@@ -204,6 +222,20 @@ export function App() {
         } catch (e) {
           setStatus(`Trigger tester: ${(e as Error).message}`);
         }
+      },
+    });
+    ed.addAction({
+      id: "vic2.template.insert", label: "Insert template…", keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyI],
+      contextMenuGroupId: "1_modification",
+      run: () => { if (here()) setTplModal({ kind: "insert" }); },
+    });
+    ed.addAction({
+      id: "vic2.template.save", label: "Save selection as template…", contextMenuGroupId: "1_modification",
+      run: () => {
+        const h = here(); const sel = ed.getSelection();
+        if (!h || !sel || sel.isEmpty()) { setStatus("Select the code for the template first"); return; }
+        const whole = sel.setStartPosition(sel.startLineNumber, 1); // keep the first line's indentation for dedent
+        setTplModal({ kind: "save", text: h.m.getValueInRange(whole), folder: h.rel.includes("/") ? h.rel.slice(0, h.rel.lastIndexOf("/")) : "" });
       },
     });
     ed.addAction({
@@ -403,6 +435,17 @@ export function App() {
           )))}
         </div>
       </section>
+      {tplModal && (
+        <div className="preview-backdrop" onClick={() => setTplModal(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            {tplModal.kind === "insert" ? (
+              <TemplateUse mode="cursor" onStatus={setStatus} onClose={() => setTplModal(null)} onInsert={insertAtCursor} />
+            ) : (
+              <TemplateSave text={tplModal.text} folder={tplModal.folder} onStatus={setStatus} onClose={() => setTplModal(null)} />
+            )}
+          </div>
+        </div>
+      )}
       <footer>{status}</footer>
     </div>
   );

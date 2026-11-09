@@ -106,8 +106,10 @@ def _diag(doc: Document, d: Diagnostic) -> dict[str, Any]:
 class Engine:
     """The workspace and services behind the API (one lock for everything)."""
 
-    def __init__(self, workspace: Workspace) -> None:
+    def __init__(self, workspace: Workspace, templates_dir: Path | None = None) -> None:
         self.ws = workspace
+        self.templates_dir = templates_dir
+        """Own templates folder (default: next to the settings file)."""
         self.services = LanguageService(workspace)
         self.lock = threading.Lock()
         self._stamps = self._snapshot()
@@ -650,6 +652,90 @@ class Engine:
             result["backup"] = str(backup) if backup else None
         return result
 
+    # -- templates (K39 = B) -------------------------------------------------------
+    def templates(self) -> dict[str, Any]:
+        """All templates with their fields."""
+        from vic2toolmod.generators.templates import list_templates, user_dir
+
+        return {
+            "dir": str(self.templates_dir or user_dir()),
+            "templates": [
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "description": t.description,
+                    "folder": t.folder,
+                    "builtin": t.builtin,
+                    "body": t.body,
+                    "loc": t.loc,
+                    "fields": [
+                        {"name": f.name, "type": f.type, "default": f.default} for f in t.fields
+                    ],
+                }
+                for t in list_templates(self.templates_dir)
+            ],
+        }
+
+    def template_values(self, tid: str, file: str) -> dict[str, Any]:
+        """Starting values (free event ids for ``file``) and known names of a template."""
+        from vic2toolmod.generators.templates import choices, defaults, get_template
+
+        try:
+            t = get_template(tid, self.templates_dir)
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.NOT_FOUND, str(exc)) from exc
+        return {"defaults": defaults(self.ws, t, file or None), "choices": choices(self.ws, t)}
+
+    def template_fill(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Fill a template: the text, plus the file changes (written with ``write``)."""
+        from vic2toolmod.generators.templates import fill, get_template
+
+        try:
+            t = get_template(str(body["id"]), self.templates_dir)
+            values = {str(k): str(v) for k, v in (body.get("values") or {}).items()}
+            filled = fill(self.ws, t, values, body.get("file") or None)
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        result: dict[str, Any] = {
+            "text": filled.text,
+            "diff": diff(filled.changes),
+            "files": [c.rel for c in filled.changes],
+            "notes": filled.notes,
+        }
+        if body.get("write") and filled.changes:
+            backup = write_changes(filled.changes)
+            self.ws.refresh()
+            result["backup"] = str(backup) if backup else None
+        return result
+
+    def template_save(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Save one of the author's templates."""
+        from vic2toolmod.generators.templates import save_template
+
+        try:
+            t = save_template(
+                str(body["name"]),
+                str(body["body"]),
+                str(body.get("description", "")),
+                str(body.get("folder", "")),
+                [str(x) for x in body.get("loc") or [] if str(x).strip()],
+                overwrite=bool(body.get("overwrite")),
+                own=self.templates_dir,
+            )
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        return {"id": t.id}
+
+    def template_delete(self, tid: str) -> dict[str, Any]:
+        """Delete one of the author's templates."""
+        from vic2toolmod.generators.templates import delete_template
+
+        try:
+            delete_template(tid, self.templates_dir)
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        return {"deleted": tid}
+
     def localisation_search(self, q: str, limit: int) -> dict[str, Any]:
         """Localisation entries whose key or English text contains ``q`` (any case)."""
         loc = self.ws.registries().localisation
@@ -824,6 +910,16 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.localisation_search(q("q"), int(q("limit", "200")))
                 case ("GET", "git"):
                     return e.git(q("rel"))
+                case ("GET", "templates"):
+                    return e.templates()
+                case ("GET", "template"):
+                    return e.template_values(q("id"), q("file"))
+                case ("POST", "template/fill"):
+                    return e.template_fill(body)
+                case ("POST", "template/save"):
+                    return e.template_save(body)
+                case ("POST", "template/delete"):
+                    return e.template_delete(str(body["id"]))
                 case ("POST", "trigger"):
                     return e.trigger(body["rel"], int(body["offset"]), body.get("answers") or {})
             return None

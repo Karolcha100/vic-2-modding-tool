@@ -1,0 +1,19 @@
+#@ name: Decision with a flag
+#@ description: A one-time political decision: it sets a country flag so it cannot be taken again.
+#@ folder: decisions
+#@ loc: {{name}}_title = {{title}}
+#@ loc: {{name}}_desc = {{description}}
+political_decisions = {
+	{{name:name}} = {
+		potential = {
+			NOT = { has_country_flag = {{name}}_taken }
+		}
+		allow = {
+			prestige = {{prestige:int=10}}
+		}
+		effect = {
+			set_country_flag = {{name}}_taken
+		}
+		ai_will_do = { factor = 1 }
+	}
+}

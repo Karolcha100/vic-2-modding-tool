@@ -156,3 +156,7 @@ button.add { margin: 4px 0; }
 .event-desc p { margin: 0 0 6px; line-height: 1.35; }
 .event-option { margin: 6px 0; padding: 6px 10px; background: #cdbb8f; border: 1px solid #6b5432; border-radius: 4px; text-align: center; font-weight: 600; }
 .small { font-size: 11px; margin-top: 8px; }
+.modal { width: 720px; max-height: 90vh; overflow: auto; background: var(--bg, #fff); color: inherit; border: 1px solid #888; border-radius: 6px; padding: 12px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.modal .creator-form { max-width: none; }
+.template-use { display: contents; }
+textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-size: 4; }

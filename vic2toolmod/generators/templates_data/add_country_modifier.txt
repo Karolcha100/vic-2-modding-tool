@@ -1,0 +1,6 @@
+#@ name: Add a timed country modifier
+#@ description: An effect: the country gets a modifier for some days. Put it inside an option or a decision effect.
+add_country_modifier = {
+	name = {{modifier:ref:modifier}}
+	duration = {{days:int=365}}
+}

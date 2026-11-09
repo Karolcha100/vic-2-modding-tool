@@ -64,6 +64,13 @@ export interface ReformLayout {
   missing: Record<string, string[]>; unknown: string[]; categories: Record<string, string[]>;
 }
 
+export interface TemplateField { name: string; type: string; default: string }
+export interface TemplateInfo {
+  id: string; name: string; description: string; folder: string; builtin: boolean;
+  body: string; loc: string[]; fields: TemplateField[];
+}
+export interface TemplateFill { text: string; diff: string; files: string[]; notes: string[]; backup?: string | null }
+
 export const api = {
   project: () => call<Project>("project"),
   file: (rel: string) => call<FileData>(`file?${q({ rel })}`),
@@ -109,6 +116,14 @@ export const api = {
     call<{ entries: { key: string; english: string; file: string; line: number }[]; total: number }>(`localisation?${q({ q: text, limit })}`),
   git: () => call<{ repo: boolean; branch?: string; changed?: [string, string][]; error?: string }>("git"),
   gitDiff: (rel: string) => call<{ diff: string }>(`git?${q({ rel })}`),
+  templates: () => call<{ dir: string; templates: TemplateInfo[] }>("templates"),
+  templateValues: (id: string, file = "") =>
+    call<{ defaults: Record<string, string>; choices: Record<string, string[]> }>(`template?${q({ id, file })}`),
+  templateFill: (body: { id: string; values: Record<string, string>; file?: string | null; write: boolean }) =>
+    call<TemplateFill>("template/fill", body),
+  templateSave: (body: { name: string; body: string; description: string; folder: string; loc: string[]; overwrite?: boolean }) =>
+    call<{ id: string }>("template/save", body),
+  templateDelete: (id: string) => call<{ deleted: string }>("template/delete", { id }),
   reformWindow: () => call<ReformLayout>("reforms/window"),
   reformWindowPlan: (positions: Record<string, [number, number]>, write: boolean) =>
     call<{ diff: string; backup?: string | null }>("reforms/window", { positions, add_missing: true, write }),

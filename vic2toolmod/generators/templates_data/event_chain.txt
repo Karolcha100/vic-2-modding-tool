@@ -1,0 +1,31 @@
+#@ name: Event chain (two events)
+#@ description: A triggered-only event whose option fires a second event a few days later.
+#@ folder: events
+#@ loc: EVTNAME{{first}} = {{first_title}}
+#@ loc: EVTDESC{{first}} = {{first_description}}
+#@ loc: EVTOPTA{{first}} = {{first_option=Go on}}
+#@ loc: EVTNAME{{second}} = {{second_title}}
+#@ loc: EVTDESC{{second}} = {{second_description}}
+#@ loc: EVTOPTA{{second}} = {{second_option=OK}}
+country_event = {
+	id = {{first:event_id}}
+	title = "EVTNAME{{first}}"
+	desc = "EVTDESC{{first}}"
+	is_triggered_only = yes
+
+	option = {
+		name = "EVTOPTA{{first}}"
+		country_event = { id = {{second}} days = {{days:int=30}} }
+	}
+}
+
+country_event = {
+	id = {{second:event_id}}
+	title = "EVTNAME{{second}}"
+	desc = "EVTDESC{{second}}"
+	is_triggered_only = yes
+
+	option = {
+		name = "EVTOPTA{{second}}"
+	}
+}

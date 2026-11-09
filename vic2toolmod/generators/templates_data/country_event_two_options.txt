@@ -1,0 +1,30 @@
+#@ name: Country event with two options
+#@ description: A country event that fires on its own (trigger + mean time to happen), with two options.
+#@ folder: events
+#@ loc: EVTNAME{{id}} = {{title}}
+#@ loc: EVTDESC{{id}} = {{description}}
+#@ loc: EVTOPTA{{id}} = {{option_a=Yes}}
+#@ loc: EVTOPTB{{id}} = {{option_b=No}}
+country_event = {
+	id = {{id:event_id}}
+	title = "EVTNAME{{id}}"
+	desc = "EVTDESC{{id}}"
+	picture = "{{picture:name=Aasen}}"
+
+	trigger = {
+		tag = {{country:ref:country}}
+	}
+
+	mean_time_to_happen = {
+		months = {{months:int=12}}
+	}
+
+	option = {
+		name = "EVTOPTA{{id}}"
+		ai_chance = { factor = 70 }
+	}
+	option = {
+		name = "EVTOPTB{{id}}"
+		ai_chance = { factor = 30 }
+	}
+}

@@ -34,6 +34,15 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
 - **Create** view (K70): new reform, new ideology (with pop support and
   governments copied from a template), parties for an ideology (K58), new
   event (free id, EVTNAME / EVTDESC / EVTOPT localisation), new decision.
+- **Templates** (K39 = B): **Create → From a template** fills a template's
+  fields (free event ids proposed, known names offered for `ref:` fields) and
+  appends the code to a mod file, with its localisation; in the editor
+  **Insert template…** (Ctrl+Alt+I) puts it at the cursor (one undo step) and
+  **Save selection as template…** (right click) makes your own template - mark
+  parts of the code as fields with "Make field from the selected text".
+  Template format: see `vic2toolmod/generators/templates.py`; your templates are
+  kept in `~/.config/vic2toolmod/templates/` (`%APPDATA%\vic2toolmod\templates`
+  on Windows).
 - **Analyses** view: interactive pop promotion graph (K59; drag the pop
   types, click a pop type or an arrow for the modifiers and their conditions),
   event chains around an event (who fires it, what it fires; missing and

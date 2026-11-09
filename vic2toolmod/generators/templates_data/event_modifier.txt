@@ -1,0 +1,9 @@
+#@ name: Event modifier
+#@ description: A modifier for add_country_modifier / add_province_modifier, with its name in the localisation.
+#@ folder: common
+#@ loc: {{name}} = {{english}}
+#@ loc: {{name}}_desc = {{description}}
+{{name:name}} = {
+	{{effect:name=prestige}} = {{amount=0.1}}
+	icon = {{icon:int=1}}
+}

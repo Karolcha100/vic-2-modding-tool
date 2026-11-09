@@ -145,3 +145,22 @@ def test_blocks_and_edit(api):
         "/api/edit", {"rel": "events/b.txt", "op": "delete", "start": ev["children"][1]["start"]}
     )
     assert r["edits"][0]["new_text"] == ""
+
+
+def test_template_endpoints(api, tmp_path, monkeypatch):
+    monkeypatch.setattr("vic2toolmod.generators.templates.user_dir", lambda: tmp_path / "tpl")
+    r = api("/api/templates")
+    ids = [t["id"] for t in r["templates"]]
+    assert "builtin/event_chain" in ids and r["dir"] == str(tmp_path / "tpl")
+    r = api("/api/template?id=builtin/event_chain&file=events/b.txt")
+    assert (r["defaults"]["first"], r["defaults"]["second"]) == ("3", "4")
+    api("/api/template/save", {"name": "Tag", "body": "tag = {{t:ref:country}}\n"})
+    assert "ENG" in [c.upper() for c in api("/api/template?id=own/tag")["choices"]["t"]]
+    r = api("/api/template/fill", {"id": "own/tag", "values": {"t": "ENG"}})
+    assert r["text"] == "tag = ENG\n" and r["files"] == [] and r["notes"] == []
+    r = api("/api/template/fill", {"id": "own/tag", "values": {"t": "ENG"}, "file": "events/b.txt"})
+    assert r["files"] == ["events/b.txt"] and "+tag = ENG" in r["diff"]
+    api("/api/template/delete", {"id": "own/tag"})
+    with pytest.raises(urllib.error.HTTPError) as info:
+        api("/api/template/delete", {"id": "builtin/event_chain"})
+    assert info.value.code == 422
