@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, applyEdits, type Diagnostic, type FileEntry, type OutlineNode, type Usage } from "./api";
+import { api, applyEdits, type Diagnostic, type FileEntry, type ModGroup, type OutlineNode, type Usage } from "./api";
 import { hooks, LANGUAGE, monaco, uriOf } from "./monacoSetup";
 import { FileTree } from "./components/FileTree";
 import { Outline } from "./components/Outline";
@@ -7,6 +7,7 @@ import { ReformWindow } from "./components/ReformWindow";
 import { Creators } from "./components/Creators";
 import { Blocks } from "./components/Blocks";
 import { Analyses } from "./components/Analyses";
+import { GroupEditor } from "./components/ModGroups";
 import { Scripts } from "./components/Scripts";
 import { Tester } from "./components/Tester";
 import { TemplateSave, TemplateUse } from "./components/Templates";
@@ -56,6 +57,7 @@ export function App() {
   const [view, setView] = useState<"code" | "reforms" | "interface" | "create" | "analyses" | "scripts">(
     (new URLSearchParams(location.search).get("view") as "reforms" | "interface" | "create" | "analyses" | "scripts" | null) ?? "code",
   );
+  const [mgModal, setMgModal] = useState<null | { rel: string; group: ModGroup }>(null);
   const [tplModal, setTplModal] = useState<null | { kind: "insert" } | { kind: "save"; text: string; folder: string }>(null);
   const [, force] = useState(0);
   // Panel sizes and the minimap, remembered in this browser (T005).
@@ -250,6 +252,18 @@ export function App() {
       id: "vic2.template.insert", label: "Insert template…", keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyI],
       contextMenuGroupId: "1_modification",
       run: () => { if (here()) setTplModal({ kind: "insert" }); },
+    });
+    ed.addAction({
+      id: "vic2.modgroup", label: "Edit modifier group…", contextMenuGroupId: "1_modification",
+      run: async () => {
+        const h = here(); if (!h) return;
+        await sync(h.rel);
+        const { groups } = await api.modGroups(h.rel);
+        const inside = (g: ModGroup) => g.steps[0].start <= h.offset && h.offset <= g.steps[g.steps.length - 1].end;
+        const g = groups.find((x) => x.steps.some((st) => st.start <= h.offset && h.offset <= st.end)) ?? groups.find(inside);
+        if (g) setMgModal({ rel: h.rel, group: g });
+        else setStatus("No modifier group here: put the cursor in one of several modifiers that differ only in one number");
+      },
     });
     ed.addAction({
       id: "vic2.template.save", label: "Save selection as template…", contextMenuGroupId: "1_modification",
@@ -492,6 +506,27 @@ export function App() {
         <div className="preview-backdrop" onClick={() => setPicker(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <ProjectPicker dirty={dirty.size > 0} onClose={() => setPicker(false)} />
+          </div>
+        </div>
+      )}
+      {mgModal && (
+        <div className="preview-backdrop" onClick={() => setMgModal(null)}>
+          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+            <GroupEditor group={mgModal.group} applyLabel="Apply in the editor (not saved yet)" onCancel={() => setMgModal(null)}
+              onApply={async (rows) => {
+                const { rel, group } = mgModal;
+                await sync(rel);
+                const { edits } = await api.modGroupEdits(rel, group.id, rows);
+                const m = fileOf(rel)?.model;
+                if (!m) return;
+                const ops = edits.map((e) => {
+                  const a = m.getPositionAt(e.start), b = m.getPositionAt(e.end);
+                  return { range: new monaco.Range(a.lineNumber, a.column, b.lineNumber, b.column), text: e.text };
+                });
+                m.pushStackElement(); m.pushEditOperations([], ops, () => null); m.pushStackElement();
+                setMgModal(null);
+                setStatus(`Modifier group ${group.key}: ${rows.length} steps - not saved yet (Ctrl+Z undoes)`);
+              }} />
           </div>
         </div>
       )}

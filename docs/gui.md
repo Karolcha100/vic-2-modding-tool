@@ -84,6 +84,13 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   Template format: see `vic2toolmod/generators/templates.py`; your templates are
   kept in `~/.config/vic2toolmod/templates/` (`%APPDATA%\vic2toolmod\templates`
   on Windows).
+- **Modifier groups** (T008): modifiers of one block that differ only in one
+  number (`num_of_cities = 20 / 30 / 50 …`) as one curve - **right click →
+  Edit modifier group…** in the code, or **Analyses → Modifier groups** for
+  every group of the mod. Table of steps, chart of the combined factor (now /
+  new), new steps from a function (same factor each step, a straight line, a
+  formula of `x`), identical copies changed together. See
+  [`tools.md`](tools.md#modifier-groups-analysismodifier_groups-t008).
 - **Scripts** view (T007): light Python scripts for repeated jobs (replace a
   text in many files, set a value everywhere, find lines, your own ones);
   fields, an editable code box, **Preview** (output + diff, nothing written)

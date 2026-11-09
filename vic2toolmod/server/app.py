@@ -42,6 +42,9 @@ API (all under ``/api/``, JSON in and out):
 ``image``           GET     ``rel`` -> a ``.tga`` / ``.dds`` file under ``gfx/`` as PNG (T006)
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
 ``scripts``         GET     light Python scripts (T007): built-in and own, with fields
+``modgroups``       GET     modifier groups (T008): ``rel?`` (one file) / whole mod
+``modgroups/edits`` POST    ``{rel, id, steps}`` -> text edits for the editor buffer
+``modgroups/plan``  POST    ``{plans: [{rel, id, steps}], write?}`` -> diff (write: backup)
 ``script/run``      POST    ``{id or code, values, write?}`` -> output, error, diff
 ``script/save``     POST    ``{name, code, overwrite?}`` -> save an own script
 ``script/delete``   POST    ``{id}`` -> delete an own script
@@ -107,6 +110,11 @@ def _diag(doc: Document, d: Diagnostic) -> dict[str, Any]:
         "end_line": end_line,
         "end_column": end_col,
     }
+
+
+def _steps(body: dict[str, Any]) -> list[tuple[str, str]]:
+    """``steps: [[value, factor], ...]`` of a request."""
+    return [(str(v), str(f)) for v, f in body.get("steps") or []]
 
 
 class Engine:
@@ -1005,6 +1013,55 @@ class Engine:
             raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
         return {"deleted": tid}
 
+    # -- modifier groups (T008) ------------------------------------------------------
+    def modgroups(self, rel: str) -> dict[str, Any]:
+        """Modifier groups of one file (``rel``) or of every mod file."""
+        from vic2toolmod.analysis.modifier_groups import find_groups, scan
+
+        if rel:
+            name = self._file_or_404(rel)
+            groups = find_groups(self.ws.document(name), name, self.ws.schema)
+        else:
+            groups = scan(self.ws)
+        return {"groups": [{**asdict(g), "signature": g.signature} for g in groups]}
+
+    def modgroup_edits(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Text edits giving a group of the open buffer new steps (applied by the editor)."""
+        from vic2toolmod.analysis.modifier_groups import find_groups, rewrite_edits
+
+        rel = self._file_or_404(str(body["rel"]))
+        doc = self.ws.document(rel)
+        group = next((g for g in find_groups(doc, rel, self.ws.schema) if g.id == body["id"]), None)
+        if group is None:
+            raise ApiError(HTTPStatus.CONFLICT, "the group is gone (the text changed?)")
+        try:
+            edits = rewrite_edits(doc, group, _steps(body))
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        return {"edits": [{"start": e.start, "end": e.end, "text": e.new_text} for e in edits]}
+
+    def modgroup_plan(self, body: dict[str, Any]) -> dict[str, Any]:
+        """New steps for groups in any files: the diff, and with ``write`` the files written."""
+        from vic2toolmod.analysis.modifier_groups import rewrite
+
+        try:
+            plans = [(str(p["rel"]), str(p["id"]), _steps(p)) for p in body.get("plans") or []]
+            changes = rewrite(self.ws, plans)
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        out: dict[str, Any] = {"diff": diff(changes), "files": [c.rel for c in changes]}
+        if body.get("write") and changes:
+            try:
+                backup = self._write(changes)
+            except ValueError as exc:
+                raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+            for c in changes:
+                self.ws.revert(c.rel)
+            self.ws.refresh()
+            out["backup"] = str(backup) if backup else None
+            out["written"] = True
+        return out
+
     # -- light Python scripts (T007) -----------------------------------------------
     def scripts(self) -> dict[str, Any]:
         """All scripts with their fields and code."""
@@ -1376,6 +1433,12 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.template_save(body)
                 case ("POST", "template/delete"):
                     return e.template_delete(str(body["id"]))
+                case ("GET", "modgroups"):
+                    return e.modgroups(q("rel"))
+                case ("POST", "modgroups/edits"):
+                    return e.modgroup_edits(body)
+                case ("POST", "modgroups/plan"):
+                    return e.modgroup_plan(body)
                 case ("GET", "scripts"):
                     return e.scripts()
                 case ("POST", "script/run"):

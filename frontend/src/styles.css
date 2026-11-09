@@ -207,3 +207,30 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .gui-props input { width: 70px; background: var(--bg); color: var(--text); border: 1px solid var(--border); }
 .gui-props .muted { grid-column: 1 / -1; }
 .rw-side .row.active { background: var(--hover); }
+/* modifier groups (T008) */
+.modal.modal-wide { width: min(1100px, 95vw); }
+.mg-editor { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; }
+.mg-head code, .mg-editor code { font-size: 12px; }
+.mg-body { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+.mg-table table { border-collapse: collapse; }
+.mg-table th { text-align: left; font-weight: 600; padding: 2px 6px; }
+.mg-table td { padding: 1px 4px; }
+.mg-table input { width: 80px; }
+.mg-side { flex: 1; min-width: 360px; display: flex; flex-direction: column; gap: 6px; }
+.mg-chart { width: 100%; max-width: 560px; border: 1px solid var(--border); border-radius: 4px; }
+.mg-axis { stroke: var(--muted); stroke-dasharray: 3 3; }
+.mg-tick { font-size: 10px; fill: var(--muted); }
+.mg-old { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 5 4; }
+.mg-new { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.mg-key-old { color: var(--muted); } .mg-key-new { color: var(--accent); }
+.mg-gen { border: 1px solid var(--border); border-radius: 4px; display: flex; flex-direction: column; gap: 4px; }
+.mg-gen input:not([type="radio"]) { width: 64px; }
+.mg-gen input.mg-expr { width: 220px; font-family: monospace; }
+.mg-tab { overflow: hidden; }
+.mg-list { width: 380px; display: flex; flex-direction: column; border-right: 1px solid var(--border); min-height: 0; }
+.mg-list > input { margin: 6px; }
+.mg-items { overflow: auto; flex: 1; }
+.mg-items .row.on { background: var(--hover); }
+.mg-detail { flex: 1; overflow: auto; min-width: 0; }
+.mg-detail .creator-result pre { overflow-x: auto; }
+.pad { padding: 10px; }

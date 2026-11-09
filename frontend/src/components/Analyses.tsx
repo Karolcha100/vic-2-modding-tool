@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { Graph, type GEdge, type GNode } from "./Graph";
+import { ModGroupsTab } from "./ModGroups";
 
 /** Analyses of the mod: pop promotion graph (K59), event chains (K6 C), vs vanilla (K6 H),
  *  statistics (K6 I), localisation editor (K6 E), git changes (K37 = B). */
 
-type Tab = "promotion" | "events" | "vanilla" | "stats" | "localisation" | "git";
+type Tab = "promotion" | "events" | "groups" | "vanilla" | "stats" | "localisation" | "git";
 
 interface Props {
   onOpen: (rel: string, line?: number) => void;
@@ -15,7 +16,7 @@ interface Props {
 export function Analyses({ onOpen, onStatus }: Props) {
   const [tab, setTab] = useState<Tab>("promotion");
   const tabs: [Tab, string][] = [
-    ["promotion", "Pop promotion"], ["events", "Event chains"], ["vanilla", "Vs vanilla"],
+    ["promotion", "Pop promotion"], ["events", "Event chains"], ["groups", "Modifier groups"], ["vanilla", "Vs vanilla"],
     ["stats", "Statistics"], ["localisation", "Localisation"], ["git", "Git changes"],
   ];
   return (
@@ -27,6 +28,7 @@ export function Analyses({ onOpen, onStatus }: Props) {
       <div className="analyses-body">
         {tab === "promotion" && <Promotion onOpen={onOpen} />}
         {tab === "events" && <Events onOpen={onOpen} />}
+        {tab === "groups" && <ModGroupsTab onOpen={onOpen} onStatus={onStatus} />}
         {tab === "vanilla" && <Vanilla />}
         {tab === "stats" && <Stats />}
         {tab === "localisation" && <Localisation onStatus={onStatus} onOpen={onOpen} />}

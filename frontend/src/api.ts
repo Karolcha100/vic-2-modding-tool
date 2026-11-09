@@ -87,6 +87,11 @@ export interface TemplateInfo {
   id: string; name: string; description: string; folder: string; builtin: boolean;
   body: string; loc: string[]; fields: TemplateField[];
 }
+export interface ModStep { value: string; factor: string; line: number; start: number; end: number }
+export interface ModGroup {
+  id: string; rel: string; line: number; path: string[]; key: string; negated: boolean; compare: "gte" | "lte";
+  context: string[]; combine: "multiply" | "add"; base: string | null; base_key: string | null; steps: ModStep[]; signature: string;
+}
 export interface ScriptParam { name: string; type: "text" | "int" | "bool"; default: string; help: string }
 export interface ScriptInfo { id: string; name: string; description: string; builtin: boolean; code: string; params: ScriptParam[] }
 export interface ScriptRun { output: string; error: string; diff: string; files: string[]; backup?: string | null; written?: boolean }
@@ -153,6 +158,11 @@ export const api = {
   templateSave: (body: { name: string; body: string; description: string; folder: string; loc: string[]; overwrite?: boolean }) =>
     call<{ id: string }>("template/save", body),
   templateDelete: (id: string) => call<{ deleted: string }>("template/delete", { id }),
+  modGroups: (rel = "") => call<{ groups: ModGroup[] }>(`modgroups?${q({ rel })}`),
+  modGroupEdits: (rel: string, id: string, steps: [string, string][]) =>
+    call<{ edits: { start: number; end: number; text: string }[] }>("modgroups/edits", { rel, id, steps }),
+  modGroupPlan: (plans: { rel: string; id: string; steps: [string, string][] }[], write: boolean) =>
+    call<{ diff: string; files: string[]; backup?: string | null; written?: boolean }>("modgroups/plan", { plans, write }),
   scripts: () => call<{ dir: string; scripts: ScriptInfo[] }>("scripts"),
   scriptRun: (body: { id: string; code?: string | null; values: Record<string, string>; write: boolean }) =>
     call<ScriptRun>("script/run", body),

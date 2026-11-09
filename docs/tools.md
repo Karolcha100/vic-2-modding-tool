@@ -51,3 +51,40 @@ a backup of changed files in `~/.local/share/vic2toolmod/backups/`.
 
 Adds a key to `localisation/00_vic2toolmod.csv` or changes the line where the
 mod defines it; other lines and columns stay as they are.
+
+## Modifier groups (`analysis.modifier_groups`, T008)
+
+Many modifiers of one block that differ only in one number are one step
+function of that number:
+
+```
+modifier = { factor = 1.1  num_of_cities = 20 }
+modifier = { factor = 1.1  num_of_cities = 30 }
+modifier = { factor = 1.1  num_of_cities = 50 }
+```
+
+`find_groups` finds such groups in any file: the modifiers of one block
+(`mean_time_to_happen`, `ai_chance`, pop weights, `group`, …) with one
+`factor` each, the same other conditions and one number that changes
+(`key = N`, or `NOT = { key = N }`, true below N). At least two modifiers
+with two different numbers make a group. `scan` lists the groups of every
+mod file (RPM: about 3 700 groups in 126 files, ~4 s).
+
+Factors multiply in most blocks; in `common/pop_types.txt` and in the
+reform weights of `common/ideologies.txt` they are added up (`combine`, a
+guess not verified in the game; the GUI can switch it for the chart).
+
+`rewrite` / `rewrite_edits` give a group new `(value, factor)` steps: the
+first modifier is the pattern of the new ones (its layout, comments and other
+conditions stay), the others are removed. Identical groups in other blocks or
+files have the same `signature` and can be changed together.
+
+GUI: **Analyses → Modifier groups** (every group of the mod; table, chart,
+"make the steps from a function", identical copies, preview and write with a
+backup) and **right click → Edit modifier group…** in the code editor
+(the change goes into the editor, one undo step, not saved yet).
+The function is the *combined* factor of the group at x: the same factor at
+each step, a straight line between two values, or a formula of `x`
+(`1.1 ^ ((x - 20) / 10)`, `1 + 0.02 * x`, `sqrt(x)`; `+ - * / ^`, `ln log exp
+sqrt pow min max abs`); the tool computes each step's factor so that the
+product (or sum) reaches it.
