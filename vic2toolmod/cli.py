@@ -24,6 +24,9 @@ Commands:
 * ``install-desktop`` - add a "vic2toolmod" shortcut to the Linux application menu;
 * ``generate-parties IDEOLOGY [options] [--write]`` - add a party of an
   ideology to many countries (K58); shows a diff, writes only with ``--write``;
+* ``format [FILE ...] [--diff] [--write]`` - format the mod's script files
+  lightly (indentation, spaces around ``=``, line ends; T011): a summary per
+  folder, ``--diff`` the changes, ``--write`` writes them (with a backup);
 * ``run-script SCRIPT [-p NAME=VALUE ...] [--write]`` - run a light Python
   script on the mod (T007, `vic2toolmod.pyscripts`); shows its output and a
   diff, writes only with ``--write``; ``run-script --list`` lists the scripts.
@@ -191,6 +194,42 @@ def _cmd_generate_parties(args: argparse.Namespace) -> int:
     if args.write and plan.changes:
         backup = write_changes(plan.changes)
         print(f"written; backup of changed files: {backup}", file=sys.stderr)
+    elif plan.changes:
+        print("dry run - add --write to save", file=sys.stderr)
+    return 0
+
+
+def _cmd_format(args: argparse.Namespace) -> int:
+    from collections import Counter
+
+    from vic2toolmod.changes import diff, write_changes
+    from vic2toolmod.format import format_mod
+
+    ws = _workspace(args)
+    try:
+        plan = format_mod(ws, args.files or None)
+    except ValueError as exc:
+        raise SystemExit(f"error: {exc}") from exc
+    folders: Counter[str] = Counter()
+    lines: Counter[str] = Counter()
+    for c in plan.changes:
+        top = c.rel.split("/")[0]
+        folders[top] += 1
+        lines[top] += plan.lines[c.rel]
+    for top, n in folders.most_common():
+        print(f"{top:20} {n:6} files {lines[top]:8} lines", file=sys.stderr)
+    for rel, why in sorted(plan.skipped.items()):
+        print(f"  not formatted: {rel}: {why}", file=sys.stderr)
+    total = sum(plan.lines.values())
+    print(
+        f"{len(plan.changes)} files would change ({total} lines), {plan.same} already formatted",
+        file=sys.stderr,
+    )
+    if args.diff:
+        print(diff(plan.changes), end="")
+    if args.write and plan.changes:
+        backup = write_changes(plan.changes)
+        print(f"written; backup: {backup}", file=sys.stderr)
     elif plan.changes:
         print("dry run - add --write to save", file=sys.stderr)
     return 0
@@ -482,6 +521,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--loc", help='English name template, e.g. "{adj} Christian Democrats"')
     p.add_argument("--write", action="store_true", help="write the files (with a backup)")
     p.set_defaults(func=_cmd_generate_parties)
+
+    p = sub.add_parser("format", help="format the mod's script files (preview first)")
+    p.add_argument("files", nargs="*", help="only these files (relative to the mod)")
+    p.add_argument("--mod", type=Path, help="mod folder (default: configured)")
+    p.add_argument("--game", type=Path, help="game folder (default: configured)")
+    p.add_argument("--diff", action="store_true", help="print the changes")
+    p.add_argument("--write", action="store_true", help="write the files (with a backup)")
+    p.set_defaults(func=_cmd_format)
 
     p = sub.add_parser("run-script", help="run a light Python script on the mod (preview first)")
     p.add_argument("script", nargs="?", help="script id (replace_text, own/x) or a .py file")

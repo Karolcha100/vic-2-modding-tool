@@ -7,6 +7,7 @@ import { ReformWindow } from "./components/ReformWindow";
 import { Creators } from "./components/Creators";
 import { Blocks } from "./components/Blocks";
 import { Analyses } from "./components/Analyses";
+import { FormatMod } from "./components/FormatMod";
 import { GroupEditor } from "./components/ModGroups";
 import { inTextField, navGet, navSet, undoKey, undoTarget, useNav, useNavModal } from "./nav";
 import { Scripts } from "./components/Scripts";
@@ -46,6 +47,7 @@ export function App() {
   const [modDir, setModDir] = useState<string | null>(null);
   const [readOnly, setReadOnly] = useState(false);
   const [picker, openPicker, closePicker] = useNavModal<true>("picker");
+  const [formatting, openFormat, closeFormat] = useNavModal<true>("format");
   const [open, setOpen] = useState<OpenFile[]>([]);
   const [current, setCurrent] = useState<string | null>(null);
   const [outline, setOutline] = useState<OutlineNode[]>([]);
@@ -392,9 +394,15 @@ export function App() {
     const onLeave = (e: BeforeUnloadEvent) => {
       if ([...files_.current.values()].some((f) => f.model.getValue() !== f.saved)) e.preventDefault();
     };
+    const onStatusEvent = (e: Event) => setStatus((e as CustomEvent<string>).detail);
+    window.addEventListener("vic2-status", onStatusEvent);
     window.addEventListener("keydown", onKey);
     window.addEventListener("beforeunload", onLeave);
-    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("beforeunload", onLeave); };
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("beforeunload", onLeave);
+      window.removeEventListener("vic2-status", onStatusEvent);
+    };
   }, []);
 
   // Restart the server on its new code (same address), then load the page again.
@@ -492,6 +500,7 @@ export function App() {
         <button className={view === "analyses" ? "on" : ""} onClick={() => setView("analyses")}>Analyses</button>
         <button className={view === "scripts" ? "on" : ""} onClick={() => setView("scripts")} title="Light Python scripts for repeated jobs">Scripts</button>
         <button onClick={() => save(current)} disabled={readOnly || !current || !dirty.has(current)}>Save (Ctrl+S)</button>
+        <button onClick={() => openFormat(true)} disabled={readOnly} title="Format every file of the mod (preview first). One file: Shift+Alt+F in the editor">Format…</button>
         <button onClick={async () => { setStatus("Checking the whole mod…"); setBottom({ kind: "mod", files: (await api.check()).files }); setStatus(""); }}>Check mod</button>
       </header>
       <aside className="left">
@@ -595,6 +604,13 @@ export function App() {
         <div className="preview-backdrop" onClick={closePicker}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <ProjectPicker dirty={dirty.size > 0} onClose={closePicker} />
+          </div>
+        </div>
+      )}
+      {formatting && (
+        <div className="preview-backdrop" onClick={closeFormat}>
+          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+            <FormatMod onStatus={setStatus} onClose={closeFormat} />
           </div>
         </div>
       )}

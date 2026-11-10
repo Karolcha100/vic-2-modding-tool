@@ -240,3 +240,10 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 /* server state (server/lifecycle.py) */
 .server-bar { position: fixed; top: 40px; left: 50%; transform: translateX(-50%); z-index: 50; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--warning); background: var(--panel); box-shadow: 0 4px 16px rgba(0,0,0,.3); display: flex; gap: 10px; align-items: center; }
 .server-bar.gone { border-color: var(--error); }
+/* formatting (T011) */
+.format-mod { display: flex; flex-direction: column; gap: 8px; }
+.format-folders { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.format-body { display: flex; gap: 8px; height: 50vh; min-height: 200px; }
+.format-files { width: 340px; overflow: auto; border: 1px solid var(--border); }
+.format-files .row.on { background: var(--hover); }
+.format-diff { flex: 1; overflow: auto; margin: 0; font-size: 12px; border: 1px solid var(--border); padding: 4px; }

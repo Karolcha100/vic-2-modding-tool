@@ -2,4 +2,5 @@
 
 from vic2toolmod.cli import main
 
-raise SystemExit(main())
+if __name__ == "__main__":  # not when a helper process imports it
+    raise SystemExit(main())

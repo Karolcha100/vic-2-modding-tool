@@ -44,6 +44,10 @@ API (all under ``/api/``, JSON in and out):
 ``ping``            GET     ``{stamp, stale, pid}``: is the server there, is its code current
 ``bye``             POST    ``client`` (query): a browser tab was closed (`lifecycle`)
 ``quit``            POST    stop the server; ``restart``: stop and start again (same address)
+``format/text``     POST    ``{text}`` -> the text formatted (T011)
+``format/plan``     POST    format the mod's files: files that change, lines, skipped
+``format/diff``     GET     ``rel`` -> diff of one file of the last plan
+``format/write``    POST    ``{rels}`` -> write those files of the last plan (backup)
 ``scripts``         GET     light Python scripts (T007): built-in and own, with fields
 ``modgroups``       GET     modifier groups (T008): ``rel?`` (one file) / whole mod
 ``modgroups/edits`` POST    ``{rel, id, steps}`` -> text edits for the editor buffer
@@ -156,6 +160,7 @@ class Engine:
         self.stamp = code_stamp()
         """Fingerprint of the tool's code when the server started."""
         self._stale: tuple[float, bool] = (0.0, False)
+        self._format_plan: Any = None  # format.ModPlan of the last "format the whole mod"
         self.lock = threading.Lock()
         self._sprites: dict[tuple[str, int, int, int, int], bytes] = {}
         self._stamps = self._snapshot()
@@ -1106,6 +1111,64 @@ class Engine:
             out["written"] = True
         return out
 
+    # -- formatting (T011) ---------------------------------------------------------------
+    def format_text(self, text: str) -> dict[str, Any]:
+        """One text formatted (the editor applies it as one undo step)."""
+        from vic2toolmod.format import FormatError, format_text
+
+        try:
+            return {"text": format_text(text)}
+        except FormatError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+
+    def format_plan(self) -> dict[str, Any]:
+        """Format every script file of the mod (nothing written): what would change."""
+        from vic2toolmod.format import format_mod
+
+        try:
+            plan = format_mod(self.ws)
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.CONFLICT, str(exc)) from exc
+        self._format_plan = plan
+        return {
+            "files": [{"rel": c.rel, "lines": plan.lines[c.rel]} for c in plan.changes],
+            "skipped": [{"rel": r, "reason": why} for r, why in sorted(plan.skipped.items())],
+            "same": plan.same,
+        }
+
+    def format_diff(self, rel: str) -> dict[str, Any]:
+        """Diff of one file of the last plan."""
+        plan = self._format_plan
+        change = next((c for c in plan.changes if c.rel == rel), None) if plan else None
+        if change is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, f"{rel} is not in the last formatting plan")
+        return {"diff": diff([change])}
+
+    def format_write(self, rels: list[str]) -> dict[str, Any]:
+        """Write chosen files of the last plan (only if they did not change since)."""
+        from vic2toolmod.textio import decode
+
+        plan = self._format_plan
+        if plan is None:
+            raise ApiError(HTTPStatus.CONFLICT, "make the plan first")
+        wanted = set(rels)
+        changes = [c for c in plan.changes if c.rel in wanted]
+        for c in changes:
+            now, _ = decode(c.path.read_bytes())
+            if now != c.old_text or self.ws.has_unsaved(c.rel, now):
+                raise ApiError(
+                    HTTPStatus.CONFLICT, f"{c.rel} changed since the plan: make the plan again"
+                )
+        try:
+            backup = self._write(changes)
+        except ValueError as exc:  # EncodingError
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        for c in changes:
+            self.ws.revert(c.rel)
+        self.ws.refresh()
+        self._format_plan = None
+        return {"written": len(changes), "backup": str(backup) if backup else None}
+
     # -- light Python scripts (T007) -----------------------------------------------
     def scripts(self) -> dict[str, Any]:
         """All scripts with their fields and code."""
@@ -1499,6 +1562,14 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.modgroup_edits(body)
                 case ("POST", "modgroups/plan"):
                     return e.modgroup_plan(body)
+                case ("POST", "format/text"):
+                    return e.format_text(str(body["text"]))
+                case ("POST", "format/plan"):
+                    return e.format_plan()
+                case ("GET", "format/diff"):
+                    return e.format_diff(q("rel"))
+                case ("POST", "format/write"):
+                    return e.format_write([str(r) for r in body.get("rels") or []])
                 case ("GET", "scripts"):
                     return e.scripts()
                 case ("POST", "script/run"):

@@ -96,6 +96,17 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   text in many files, set a value everywhere, find lines, your own ones);
   fields, an editable code box, **Preview** (output + diff, nothing written)
   and **Apply** (write with a backup). See [`scripts.md`](scripts.md).
+- **Formatting** (T011, `vic2toolmod/format.py`): light - indentation (a tab
+  per open `{`), one space around `=`, no spaces at line ends, at most one
+  empty line in a row; line breaks, comments and strings stay, so one-line
+  blocks stay one-line. **Shift+Alt+F** (or "Format Document" in the editor's
+  menu) formats the open file as one undo step, not saved. **Format…** in the
+  header formats every `.txt` / `.gui` / `.gfx` file of the mod: files and
+  changed lines per folder (folders can be left out), the diff of any file,
+  then **Write** with a backup. A file that would not mean exactly the same
+  afterwards (tokens and comments are compared), or has unbalanced braces, or
+  has unsaved text in the editor, is left out. Commit the mod before, and the
+  formatting on its own.
 - **Undo and navigation** (T012): Ctrl+Z undoes and Ctrl+Shift+Z (or Ctrl+Y)
   redoes everywhere - in the code and blocks (one shared history) and in the
   Interface and Reform window views (moves and sizes, one step per drag);

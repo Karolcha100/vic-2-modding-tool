@@ -99,6 +99,11 @@ export interface ModGroup {
   id: string; rel: string; line: number; path: string[]; key: string; negated: boolean; compare: "gte" | "lte";
   context: string[]; combine: "multiply" | "add"; combine_note: string; base: string | null; base_key: string | null; steps: ModStep[]; signature: string;
 }
+export interface FormatPlan {
+  files: { rel: string; lines: number }[];
+  skipped: { rel: string; reason: string }[];
+  same: number;
+}
 export interface ScriptParam { name: string; type: "text" | "int" | "bool"; default: string; help: string }
 export interface ScriptInfo { id: string; name: string; description: string; builtin: boolean; code: string; params: ScriptParam[] }
 export interface ScriptRun { output: string; error: string; diff: string; files: string[]; backup?: string | null; written?: boolean }
@@ -172,6 +177,10 @@ export const api = {
     call<{ edits: { start: number; end: number; text: string }[] }>("modgroups/edits", { rel, id, steps }),
   modGroupPlan: (plans: { rel: string; id: string; steps: [string, string][] }[], write: boolean) =>
     call<{ diff: string; files: string[]; backup?: string | null; written?: boolean }>("modgroups/plan", { plans, write }),
+  formatText: (text: string) => call<{ text: string }>("format/text", { text }),
+  formatPlan: () => call<FormatPlan>("format/plan", {}),
+  formatDiff: (rel: string) => call<{ diff: string }>(`format/diff?${q({ rel })}`),
+  formatWrite: (rels: string[]) => call<{ written: number; backup: string | null }>("format/write", { rels }),
   scripts: () => call<{ dir: string; scripts: ScriptInfo[] }>("scripts"),
   scriptRun: (body: { id: string; code?: string | null; values: Record<string, string>; write: boolean }) =>
     call<ScriptRun>("script/run", body),

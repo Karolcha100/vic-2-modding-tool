@@ -118,3 +118,18 @@ monaco.languages.registerHoverProvider(LANGUAGE, {
 });
 
 export { monaco };
+
+// Light formatting (T011): Shift+Alt+F and "Format Document" in the editor's menu,
+// one undo step, not saved. The engine does it (indentation, spaces around =, line ends).
+monaco.languages.registerDocumentFormattingEditProvider(LANGUAGE, {
+  async provideDocumentFormattingEdits(model) {
+    try {
+      const { text } = await api.formatText(model.getValue());
+      if (text === model.getValue()) return [];
+      return [{ range: model.getFullModelRange(), text }];
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent("vic2-status", { detail: `Not formatted: ${(e as Error).message}` }));
+      return [];
+    }
+  },
+});

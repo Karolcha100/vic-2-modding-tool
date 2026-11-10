@@ -55,6 +55,7 @@ reuses a running server (`--stay` keeps it running; see `docs/gui.md`).
 .venv/bin/python -m vic2toolmod roundtrip                     # lossless check of configured folders
 .venv/bin/python -m vic2toolmod check path/to/mod             # schema + names check of a mod
 .venv/bin/python -m vic2toolmod check --vanilla --summary     # the game itself, counts only
+.venv/bin/python -m vic2toolmod format                         # light formatting of the mod (--diff, --write)
 .venv/bin/python -m vic2toolmod run-script --list             # light Python scripts (docs/scripts.md)
 .venv/bin/python -m vic2toolmod run-script replace_text -p files='events/*.txt' -p old=A -p new=B
 ```
