@@ -68,7 +68,8 @@ def main(alice: Path) -> int:
         check=False,
     ).stdout.strip()
     data: dict[str, dict[str, list[str]]] = {}
-    for context, header in ((Context.TRIGGER, "trigger_parsing.hpp"), (Context.EFFECT, "effect_parsing.hpp")):
+    headers = ((Context.TRIGGER, "trigger_parsing.hpp"), (Context.EFFECT, "effect_parsing.hpp"))
+    for context, header in headers:
         source = (alice / "src/parsing" / header).read_text(encoding="utf-8", errors="replace")
         ours = {k.lower() for (c, k) in schema.commands if c == context}
         found = scopes_by_function(source)

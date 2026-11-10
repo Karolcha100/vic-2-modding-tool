@@ -118,7 +118,8 @@ def test_wrong_operator():
 def test_scope_tracking():
     # has_country_flag is a country trigger; inside any_pop the scope is pop
     found = check("country_event = { id = 1 trigger = { any_pop = { has_country_flag = x } } }")
-    assert [c for c, _ in found] == ["schema.wrong-scope"]
+    # (Project Alice accepts it in pop scope, so the note has its own code: K88)
+    assert [c for c, _ in found] == ["schema.scope-alice"]
     # owner switches back to country
     assert check("province_event = { id = 1 trigger = { owner = { has_country_flag = x } } }") == []
 
@@ -199,7 +200,8 @@ def test_scope_notes_project_alice_accepts():
     """K88 = B: such scope notes get their own code (hidden by default), others stay."""
     schema = default_schema()
     assert schema.alice_scopes[(Context.TRIGGER, "total_pops")] >= {"state", "province"}
-    assert (Context.EFFECT, "add_province_modifier") not in schema.alice_scopes  # an Alice extension
+    # changed by an Alice extension: left out
+    assert (Context.EFFECT, "add_province_modifier") not in schema.alice_scopes
     text = (
         "country_event = { id = 1 trigger = { any_owned_province = { state_scope = {"
         " total_pops = 100 } capital_scope = { tag = ENG } } } option = { name = A } }\n"
