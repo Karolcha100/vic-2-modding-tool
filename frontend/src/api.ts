@@ -94,6 +94,9 @@ export interface TemplateInfo {
   id: string; name: string; description: string; folder: string; builtin: boolean;
   body: string; loc: string[]; fields: TemplateField[];
 }
+/** A saved version of the whole mod (T025): a git commit or a zip copy. */
+export interface ModVersion { id: string; name: string; description: string; date: string; files: number; auto: boolean; current: boolean }
+export interface VersionsInfo { kind: "git" | "copies"; where: string; versions: ModVersion[]; changed: number; note: string }
 export interface ModStep { value: string; factor: string; line: number; start: number; end: number; negated: boolean }
 export interface ModGroup {
   id: string; rel: string; line: number; path: string[]; key: string; negated: boolean; compare: "gte" | "lte";
@@ -174,6 +177,11 @@ export const api = {
   stats: () => call<any>("stats"),
   localisationSearch: (text: string, limit = 200) =>
     call<{ entries: { key: string; english: string; file: string; line: number }[]; total: number }>(`localisation?${q({ q: text, limit })}`),
+  versions: () => call<VersionsInfo>("versions"),
+  versionFiles: (id: string, compare: boolean) =>
+    call<{ files: { status: string; path: string }[] }>(`versions/files?${q({ id, compare: compare ? "1" : "" })}`),
+  versionSave: (name: string, description: string) => call<ModVersion>("versions/save", { name, description }),
+  versionRestore: (id: string, name: string) => call<{ version: ModVersion | null }>("versions/restore", { id, name }),
   git: () => call<{ repo: boolean; branch?: string; changed?: [string, string][]; error?: string }>("git"),
   gitDiff: (rel: string) => call<{ diff: string }>(`git?${q({ rel })}`),
   templates: () => call<{ dir: string; templates: TemplateInfo[] }>("templates"),

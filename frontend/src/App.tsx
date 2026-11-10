@@ -11,6 +11,7 @@ import { FormatMod } from "./components/FormatMod";
 import { GroupEditor } from "./components/ModGroups";
 import { inTextField, navGet, navSet, undoKey, undoTarget, useNav, useNavModal } from "./nav";
 import { Scripts } from "./components/Scripts";
+import { Versions } from "./components/Versions";
 import { Tester } from "./components/Tester";
 import { TemplateSave, TemplateUse } from "./components/Templates";
 import type { Fact } from "./api";
@@ -65,8 +66,8 @@ export function App() {
   const [mode, setMode] = useNav<"code" | "blocks" | "split">(
     "mode", (new URLSearchParams(location.search).get("mode") as "blocks" | "split" | null) ?? "code",
   );
-  const [view, setView] = useNav<"code" | "reforms" | "interface" | "create" | "analyses" | "scripts">(
-    "view", (new URLSearchParams(location.search).get("view") as "reforms" | "interface" | "create" | "analyses" | "scripts" | null) ?? "code",
+  const [view, setView] = useNav<"code" | "reforms" | "interface" | "create" | "analyses" | "scripts" | "versions">(
+    "view", (new URLSearchParams(location.search).get("view") as "reforms" | "interface" | "create" | "analyses" | "scripts" | "versions" | null) ?? "code",
   );
   const [navFile] = useNav<{ rel: string; line: number } | null>("file", null);
   const shown = useRef<{ rel: string; line: number } | null>(null); // what openFile shows / is opening
@@ -511,6 +512,7 @@ export function App() {
         <button className={view === "create" ? "on" : ""} onClick={() => setView("create")}>Create</button>
         <button className={view === "analyses" ? "on" : ""} onClick={() => setView("analyses")}>Analyses</button>
         <button className={view === "scripts" ? "on" : ""} onClick={() => setView("scripts")} title="Light Python scripts for repeated jobs">Scripts</button>
+        <button className={view === "versions" ? "on" : ""} onClick={() => setView("versions")} title="Save the whole mod as a version and go back to saved versions">Versions</button>
         <button onClick={() => save(current)} disabled={readOnly || !current || !dirty.has(current)}>Save (Ctrl+S)</button>
         <button onClick={() => openFormat(true)} disabled={readOnly} title="Format every file of the mod (preview first). One file: Shift+Alt+F in the editor">Format…</button>
         <button onClick={async () => { setStatus("Checking the whole mod…"); setBottom({ kind: "mod", files: (await api.check()).files }); setStatus(""); }}>Check mod</button>
@@ -522,6 +524,9 @@ export function App() {
       <main>
         {view === "analyses" && (
           <Analyses onStatus={setStatus} onOpen={(rel, line) => { setView("code"); openFile(rel, line); }} />
+        )}
+        {view === "versions" && (
+          <Versions readOnly={readOnly} unsaved={dirty.size} onStatus={setStatus} onOpen={(rel) => { setView("code"); openFile(rel); }} />
         )}
         {view === "scripts" && (
           <Scripts readOnly={readOnly} onStatus={setStatus} onOpen={(rel) => { setView("code"); openFile(rel); }} />

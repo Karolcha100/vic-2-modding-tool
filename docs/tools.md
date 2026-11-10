@@ -150,3 +150,26 @@ file. The game has no rules or includes, so the copies are ordinary
   place, groups of them edited as a function with the chart, preview, apply,
   delete) and dashed purple edges in **Pop promotion** (click one to edit its
   rule).
+
+## Versions of the mod (`versions`, T025)
+
+A version is the state of every file of the mod folder at one moment.
+`store(folder)` picks how they are kept (K95 = C):
+
+- `GitVersions` when the mod folder is the top of a git repository: a version
+  is a commit of all changes (`git add -A`, message = the name, trailer
+  `Saved-with: vic2toolmod`); the list is the branch's history, so commits
+  made elsewhere are versions too. Git runs with `core.autocrlf=false`, so
+  files go in and out byte for byte. Nothing is pushed.
+- `CopyVersions` otherwise: a zip of the folder (without `.git`) in
+  `~/.local/share/vic2toolmod/versions/<mod>-<hash>/` and an `index.json`.
+
+`restore(id, name)` (K96 = A) first saves the state now as an automatic
+version when it differs from the newest one, then makes the files what they
+were in that version (`git restore --source=<id> --staged --worktree -- :/`,
+which also removes files the version did not have; with copies the zip is
+unpacked and other files removed) and records that as a new version. History
+only grows: going "forward" again is going to another version of the list.
+`files(id)` lists what a version changed, `compare(id)` what differs now.
+API: `versions`, `versions/files`, `versions/save`, `versions/restore`.
+

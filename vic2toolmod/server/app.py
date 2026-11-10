@@ -38,6 +38,10 @@ API (all under ``/api/``, JSON in and out):
 ``create/decision`` POST    ``{spec, write?}`` -> new decision (K70 B)
 ``localisation``    GET     ``q, limit`` -> keys whose key or English text contains ``q``
 ``git``             GET     the mod's git status (K37 = B); ``rel`` -> diff of one file
+``versions``        GET     saved versions of the mod (T025): kind, list, changed files
+``versions/files``  GET     ``id`` -> files a version changed; ``compare=1`` -> vs. now
+``versions/save``   POST    ``{name, description?}`` -> a new version of the whole mod
+``versions/restore`` POST   ``{id, name}`` -> the files as in that version (now saved first)
 ``picture``         GET     ``name`` -> event picture (``gfx/pictures/events``) as PNG
 ``image``           GET     ``rel`` -> a ``.tga`` / ``.dds`` file under ``gfx/`` as PNG (T006)
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
@@ -1552,6 +1556,73 @@ class Engine:
             return {"diff": gitinfo.diff(mod, rel)}
         return asdict(gitinfo.status(mod))
 
+    # -- versions of the mod (T025) ----------------------------------------------------
+    def _versions(self) -> Any:
+        from vic2toolmod.versions import store
+
+        mod = self.ws.project.mod_dir
+        if mod is None:
+            raise ApiError(
+                HTTPStatus.FORBIDDEN, "the game's own files have no versions: open a mod"
+            )
+        return store(mod)
+
+    def versions(self) -> dict[str, Any]:
+        """How the mod's versions are kept (git / copies) and the list, newest first."""
+        from vic2toolmod.versions import VersionError
+
+        try:
+            return asdict(self._versions().info())
+        except VersionError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+
+    def versions_files(self, vid: str, compare: bool) -> dict[str, Any]:
+        """Files a version changed, or (``compare``) files that differ from it now."""
+        from vic2toolmod.versions import VersionError
+
+        try:
+            v = self._versions()
+            found = v.compare(vid) if compare else v.files(vid)
+        except VersionError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        return {"files": [{"status": s, "path": p} for s, p in found]}
+
+    def versions_save(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Save the whole mod as a new version (editor texts must be saved first)."""
+        from vic2toolmod.versions import VersionError
+
+        name = str(body.get("name", "")).strip()
+        if not name:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, "give the version a name")
+        self._no_unsaved()
+        try:
+            v = self._versions().save(name, str(body.get("description", "")))
+        except VersionError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        return asdict(v)
+
+    def versions_restore(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Make the mod's files what they were in a version; the state now is saved first."""
+        from vic2toolmod.versions import VersionError
+
+        self._no_unsaved()
+        try:
+            v = self._versions().restore(str(body["id"]), str(body.get("name", body["id"])))
+        except VersionError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        # every file may have changed: read them from disk again
+        self.ws.refresh()
+        self._groups.clear()
+        return {"version": asdict(v) if v else None}
+
+    def _no_unsaved(self) -> None:
+        unsaved = self.ws.unsaved()
+        if unsaved:
+            shown = ", ".join(unsaved[:5]) + (" …" if len(unsaved) > 5 else "")
+            raise ApiError(
+                HTTPStatus.CONFLICT, f"save or revert the files open in the editor first: {shown}"
+            )
+
     def picture(self, name: str) -> bytes:
         """An event picture as PNG (``gfx/pictures/events/<name>.tga``)."""
         from vic2toolmod.images import ImageError, tga_to_png
@@ -1827,6 +1898,14 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.localisation_search(q("q"), int(q("limit", "200")))
                 case ("GET", "git"):
                     return e.git(q("rel"))
+                case ("GET", "versions"):
+                    return e.versions()
+                case ("GET", "versions/files"):
+                    return e.versions_files(q("id"), q("compare") == "1")
+                case ("POST", "versions/save"):
+                    return e.versions_save(body)
+                case ("POST", "versions/restore"):
+                    return e.versions_restore(body)
                 case ("GET", "templates"):
                     return e.templates()
                 case ("GET", "template"):

@@ -273,3 +273,6 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .stretch-frame input { width: 52px; margin: 0 8px 0 2px; }
 .resize-bgs { display: flex; flex-direction: column; gap: 4px; }
 .resize-bgs input:not([type="checkbox"]) { width: 140px; }
+.versions-save { padding: 8px; border-bottom: 1px solid var(--border); }
+.versions-files .row { cursor: pointer; }
+.chip.status-A { color: var(--info); } .chip.status-D { color: var(--error); } .chip.status-M { color: var(--warning); }

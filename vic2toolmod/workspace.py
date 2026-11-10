@@ -133,6 +133,21 @@ class Workspace:
         entry = self._entries.get(rel.lower())
         return entry is not None and entry.stamp is None and entry.document.text != disk_text
 
+    def unsaved(self) -> list[str]:
+        """Files whose editor text differs from the file on disk."""
+        out = []
+        for key, entry in self._entries.items():
+            if entry.stamp is not None:
+                continue
+            f = self.file(key)
+            if f is None or not f.path.exists():
+                out.append(key)
+                continue
+            disk, _ = decode(f.path.read_bytes())
+            if entry.document.text != disk:
+                out.append(f.rel)
+        return out
+
     def revert(self, rel: str) -> None:
         """Forget editor content of a file (read it from disk again)."""
         self._entries.pop(rel.lower(), None)
