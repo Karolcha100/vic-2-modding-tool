@@ -150,11 +150,12 @@ export const api = {
   trigger: (rel: string, offset: number, answers?: Record<string, string | boolean>) =>
     call<{ start: number; facts: Fact[]; result: TriggerResult | null }>("trigger", { rel, offset, answers }),
   // K75 B: answers from the history at a date; which countries meet a trigger
-  triggerWorld: (rel: string, offset: number, tag: string, date: string, player: string) =>
-    call<{ answers: Record<string, boolean>; result: TriggerResult; value: boolean | null; reasons: string[] }>("trigger/world", { rel, offset, tag, date, player }),
+  triggerWorld: (rel: string, offset: number, tag: string, w: WorldOptions) =>
+    call<{ answers: Record<string, boolean>; result: TriggerResult; value: boolean | null; reasons: string[] }>("trigger/world", { rel, offset, tag, ...w }),
+  triggerPowers: (date: string) => call<{ great: string[]; secondary: string[] }>(`trigger/powers?${q({ date })}`),
   mapInfo: (date: string) => call<MapInfo>(`map/info?${q({ date })}`),
-  triggerCountries: (rel: string, offset: number, date: string, player: string) =>
-    call<{ true: string[]; unknown: { tag: string; reasons: string[] }[]; false: number }>("trigger/countries", { rel, offset, date, player }),
+  triggerCountries: (rel: string, offset: number, w: WorldOptions) =>
+    call<{ true: string[]; unknown: { tag: string; reasons: string[] }[]; false: number }>("trigger/countries", { rel, offset, ...w }),
   blocks: (rel: string) => call<{ items: BlockNode[]; root_rule: string | null }>(`blocks?${q({ rel })}`),
   edit: (body: Record<string, unknown>) => call<{ edits: TextEdit[] }>("edit", body),
   localisation: (key: string, english: string, write: boolean) =>
@@ -229,6 +230,8 @@ export const api = {
 export const pictureUrl = (name: string) => `/api/picture?${q({ name, token })}`;
 /** One frame (from 1) of a sprite of interface/*.gfx as PNG (T003). */
 export const spriteUrl = (name: string, frame: number) => `/api/sprite?${q({ name, frame, token })}`;
+/** The world the trigger tester reads from history (K75 B): date, player, powers (tags, spaces). */
+export interface WorldOptions { date: string; player: string; great: string; secondary: string }
 /** map/provinces.bmp as PNG, every `scale`-th pixel (province colours, K75 A). */
 export const mapUrl = (scale: number) => `/api/map/image?${q({ scale, token })}`;
 export interface MapInfo {

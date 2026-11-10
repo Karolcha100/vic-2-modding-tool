@@ -178,3 +178,33 @@ def test_province_map(tmp_path):
         "land": True,
     }
     assert d["colors"]["PRU"] == [10, 20, 30]
+
+
+def test_pops_and_powers(tmp_path):
+    """B2: pops of history/pops (the latest folder up to the date) and the powers."""
+    ws = make(tmp_path)
+    write(
+        tmp_path / "game/history/pops/1836.1.1/Germany.txt",
+        "549 = { farmers = { culture = north_german religion = protestant\n"
+        "size = 3000 militancy = 2 }\n"
+        "clergymen = { culture = jewish religion = jewish size = 1000 } }\n"
+        "550 = { farmers = { culture = south_german religion = catholic size = 500 } }\n",
+    )
+    write(tmp_path / "game/history/pops/1861.1.1/Germany.txt", "549 = { farmers = { size = 1 } }\n")
+    w = World.read(ws)
+    assert w.pops_folder == "1836.1.1" and len(w.pops[549]) == 2
+    assert check(w, "total_pops = 4000").value is True
+    assert check(w, "total_pops = 4001").value is False
+    assert check(w, "has_pop_culture = jewish").value is True
+    assert check(w, "average_militancy = 1.5").value is True  # 2 * 3000 / 4000
+    assert check(w, "capital_scope = { culture = north_german religion = protestant }").value
+    assert check(w, "any_pop = { culture = jewish type = clergymen }").value is True
+    assert check(w, "any_pop = { militancy = 3 }").value is False
+    assert check(w, "550 = { culture = south_german total_pops = 500 }").value is True
+    assert check(w, "is_greater_power = yes").value is None
+    w.great, w.secondary = ["PRU"], ["SAX"]
+    assert check(w, "is_greater_power = yes").value is True
+    assert check(w, "is_secondary_power = yes").value is False
+    assert check(w, "any_greater_power = { tag = PRU }").value is True
+    assert w.guess_powers() == (["PRU"], [])  # SAX is not civilised in this history
+    assert World.read(ws, "1870.1.1").pops_folder == "1861.1.1"

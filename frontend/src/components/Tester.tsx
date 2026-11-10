@@ -21,6 +21,12 @@ export function Tester({ rel, offset, facts, onOpen }: Props) {
   const [tag, setTag] = useStored("vic2.tester.tag", "");
   const [date, setDate] = useStored("vic2.tester.date", "1836.1.1");
   const [player, setPlayer] = useStored("vic2.tester.player", "");
+  const [great, setGreat] = useStored("vic2.tester.great", "");
+  const [secondary, setSecondary] = useStored("vic2.tester.secondary", "");
+  const world = { date, player, great, secondary };
+  const guess = async () => {
+    try { const r = await api.triggerPowers(date); setGreat(r.great.join(" ")); setSecondary(r.secondary.join(" ")); } catch (e) { setError((e as Error).message); }
+  };
   const [why, setWhy] = useState<string[]>([]);
   const [countries, setCountries] = useState<{ true: string[]; unknown: { tag: string; reasons: string[] }[]; false: number } | null>(null);
   const [error, setError] = useState("");
@@ -28,13 +34,13 @@ export function Tester({ rel, offset, facts, onOpen }: Props) {
     if (!t.trim()) { setError("write a country tag"); return; }
     setError(""); setTag(t.toUpperCase());
     try {
-      const r = await api.triggerWorld(rel, offset, t.trim(), date, player);
+      const r = await api.triggerWorld(rel, offset, t.trim(), world);
       setAnswers(r.answers); setResult(r.result); setWhy(r.value === true ? [] : r.reasons);
     } catch (e) { setError((e as Error).message); }
   };
   const which = async () => {
     setError(""); setCountries(null);
-    try { setCountries(await api.triggerCountries(rel, offset, date, player)); } catch (e) { setError((e as Error).message); }
+    try { setCountries(await api.triggerCountries(rel, offset, world)); } catch (e) { setError((e as Error).message); }
   };
   const run = async (next: Record<string, string | boolean>) => {
     setAnswers(next);
@@ -56,6 +62,10 @@ export function Tester({ rel, offset, facts, onOpen }: Props) {
         {" "}player <input value={player} onChange={(e) => setPlayer(e.target.value)} placeholder="(for ai)" size={6} title="the player's country: ai = no for it, yes for the others" />
         {" "}<button className="mini" onClick={() => fromHistory()}>Fill from history</button>
         <button className="mini" onClick={which} title="every country that exists at the date">Which countries?</button>
+        <div>great powers <input value={great} onChange={(e) => setGreat(e.target.value)} placeholder="(not known)" size={30}
+          title="tags; the game ranks the powers by its own score, so is_greater_power is not known until you give them" />
+          {" "}secondary <input value={secondary} onChange={(e) => setSecondary(e.target.value)} placeholder="(not known)" size={30} />
+          {" "}<button className="mini" onClick={guess} title="the 8 + 8 civilised countries with the most prestige at the date">guess from prestige</button></div>
         {error && <span className="creator-error"> {error}</span>}
         {why.length > 0 && <div className="muted">{result?.value === false ? "false because: " : "not known from history (answer these yourself): "}{why.join("; ")}</div>}
         {countries && (

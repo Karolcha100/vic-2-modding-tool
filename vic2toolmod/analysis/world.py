@@ -96,6 +96,18 @@ class Province:
 
 
 @dataclass
+class Pop:
+    """A pop of ``history/pops``."""
+
+    type: str
+    culture: str
+    religion: str
+    size: float
+    militancy: float = 0.0
+    consciousness: float = 0.0
+
+
+@dataclass
 class World:
     """The state the history files give at one date."""
 
@@ -114,6 +126,13 @@ class World:
     issues: set[str] = field(default_factory=set)
     #: The player's country (``ai = no`` for it, ``yes`` for the others); "" = unknown.
     player: str = ""
+    #: Province -> its pops (``history/pops/<the latest date folder up to the date>``).
+    pops: dict[int, list[Pop]] = field(default_factory=dict)
+    pops_folder: str = ""
+    #: Great / secondary powers when given (the game ranks them by its own score);
+    #: None = not known (see `guess_powers`).
+    great: list[str] | None = None
+    secondary: list[str] | None = None
 
     # -- reading ---------------------------------------------------------------------
     @classmethod
@@ -162,6 +181,7 @@ class World:
                         for v in r.value.items
                         if isinstance(v, Scalar) and v.value.isdigit()
                     }
+        w._pops(ws, files)
         cul = ws.file("common/cultures.txt")
         if cul is not None:
             for g in ws.document(cul.rel).items:
@@ -248,6 +268,134 @@ class World:
                 defenders.discard(value)
         if attackers and defenders:
             self.wars.append((attackers, defenders))
+
+    def _pops(self, ws: Workspace, files: list[tuple[str, Any]]) -> None:
+        """Pops of the latest ``history/pops/<date>`` folder not after the date."""
+        folders: dict[Date, str] = {}
+        for low, _ in files:
+            parts = low.split("/")
+            if len(parts) == 4 and parts[:2] == ["history", "pops"]:
+                m = _DATE.fullmatch(parts[2])
+                if m:
+                    folders[(int(m[1]), int(m[2]), int(m[3]))] = parts[2]
+        usable = [d for d in folders if d <= self.date]
+        if not usable:
+            return
+        self.pops_folder = folders[max(usable)]
+        prefix = f"history/pops/{self.pops_folder}/"
+        for low, f in files:
+            if not (low.startswith(prefix) and low.endswith(".txt")):
+                continue
+            for prov in ws.document(f.rel).items:
+                if not (isinstance(prov, Assignment) and prov.key_text.isdigit()):
+                    continue
+                if not isinstance(prov.value, Block):
+                    continue
+                out = self.pops.setdefault(int(prov.key_text), [])
+                for pop in prov.value.items:
+                    if isinstance(pop, Assignment) and isinstance(pop.value, Block):
+                        fields = {i.key_text.lower(): _scalar(i) for i in pop.value.assignments()}
+
+                        def num(key: str, fields: dict[str, str] = fields) -> float:
+                            try:
+                                return float(fields.get(key, 0) or 0)
+                            except ValueError:
+                                return 0.0
+
+                        out.append(
+                            Pop(
+                                pop.key_text.lower(),
+                                fields.get("culture", "").lower(),
+                                fields.get("religion", "").lower(),
+                                num("size"),
+                                num("militancy"),
+                                num("consciousness"),
+                            )
+                        )
+
+    def guess_powers(self) -> tuple[list[str], list[str]]:
+        """Great (8) and secondary (8) powers guessed from prestige among civilised countries.
+
+        The game ranks by prestige, industry and army; history has only prestige.
+        """
+        ranked = sorted(
+            (
+                t
+                for t, c in self.countries.items()
+                if self.owned(t) and c.values.get("civilized") == "yes"
+            ),
+            key=lambda t: -float(self.countries[t].values.get("prestige", 0) or 0),
+        )
+        return ranked[:8], ranked[8:16]
+
+    def pops_of(self, tag: str = "", province: int = 0) -> list[Pop]:
+        """Pops of a province, or of every province a country owns."""
+        if province:
+            return self.pops.get(province, [])
+        return [pop for p in self.owned(tag) for pop in self.pops.get(p.id, [])]
+
+    def _pop_trigger(self, key: str, value: str, pops: list[Pop], where: str) -> Verdict | None:
+        """Triggers about the pops of a province or a country; None if ``key`` is not one."""
+        if key not in _POP_TRIGGERS:
+            return None
+        if not self.pops_folder:
+            return Verdict(None, [f"{key}: no history/pops folder for the date"])
+        low = value.lower()
+        total = sum(p.size for p in pops)
+
+        def is_(b: bool, why: str) -> Verdict:
+            return Verdict(b, [] if b else [why])
+
+        if key == "total_pops":
+            return is_(total >= float(value), f"{where} has {total:.0f} pops")
+        if key in ("has_pop_culture", "has_pop_religion"):
+            attr = "culture" if key == "has_pop_culture" else "religion"
+            return is_(any(getattr(p, attr) == low for p in pops), f"{where}: no {low} pops")
+        if key in ("average_militancy", "average_consciousness"):
+            attr = "militancy" if key == "average_militancy" else "consciousness"
+            avg = sum(getattr(p, attr) * p.size for p in pops) / total if total else 0.0
+            return is_(avg >= float(value), f"{where}: {attr} {avg:.2f}")
+        # dominant culture / religion of a province
+        attr = "culture" if key == "culture" else "religion"
+        sizes: dict[str, float] = {}
+        for p in pops:
+            sizes[getattr(p, attr)] = sizes.get(getattr(p, attr), 0) + p.size
+        top = max(sizes, key=lambda k: sizes[k]) if sizes else ""
+        return is_(top == low, f"{where}: the main {attr} is {top or '?'}")
+
+    def _pop_check(self, items: list[Node], pop: Pop) -> Verdict:
+        """A trigger block in the scope of one pop (``any_pop = { … }``)."""
+        out: list[Verdict] = []
+        for item in items:
+            if not isinstance(item, Assignment):
+                continue
+            key = item.key_text.lower()
+            if isinstance(item.value, Block):
+                inner = self._pop_check(item.value.items, pop)
+                if key == "or":
+                    sub = [self._pop_check([i], pop) for i in item.value.assignments()]
+                    out.append(_any(sub))
+                elif key == "not":
+                    sub = [self._pop_check([i], pop) for i in item.value.assignments()]
+                    out.append(_not(_any(sub)))
+                elif key == "and":
+                    out.append(inner)
+                else:
+                    out.append(Verdict(None, [f"{key} = {{ }} in a pop: not known from history"]))
+                continue
+            value = _scalar(item).lower()
+            if key in ("culture", "religion", "type"):
+                have = getattr(pop, key)
+                out.append(Verdict(have == value, [] if have == value else [f"pop {key} {have}"]))
+            elif key in ("militancy", "consciousness"):
+                have = getattr(pop, key)
+                ok = have >= float(value)
+                out.append(Verdict(ok, [] if ok else [f"pop {key} {have}"]))
+            elif key in ("pop_type", "strata"):
+                out.append(Verdict(None, [f"{key}: not known from history"]))
+            else:
+                out.append(Verdict(None, [f"{key} in a pop: not known from history"]))
+        return _all(out)
 
     # -- facts -----------------------------------------------------------------------
     def owned(self, tag: str) -> list[Province]:
@@ -417,6 +565,16 @@ class World:
             return is_(c.values.get(key, "0") not in ("0", "", "no"), f"{key}: not researched")
         if key in self.issues:
             return is_(c.values.get(key, "") == low, f"{key} is {c.values.get(key, '?')}")
+        pop_verdict = self._pop_trigger(key, value, self.pops_of(tag), tag)
+        if pop_verdict is not None and key != "culture" and key != "religion":
+            return pop_verdict
+        if key in ("is_greater_power", "is_secondary_power"):
+            ranks = self.great if key == "is_greater_power" else self.secondary
+            if ranks is None:
+                return Verdict(None, [f"{key}: give the great powers (the game ranks them itself)"])
+            return is_(
+                (tag in ranks) == yes, f"{tag} is {'not ' if tag not in ranks else ''}in the list"
+            )
         if key == "upper_house" or key == "has_country_modifier":
             return Verdict(None, [f"{key}: not decided from history"])
         return Verdict(None, [f"{key}: not known from history"])
@@ -455,6 +613,9 @@ class World:
             return is_(
                 (owner is not None and owner.values.get("capital") == str(p.id)) == (low == "yes")
             )
+        pop_verdict = self._pop_trigger(key, value, self.pops_of(province=p.id), f"province {p.id}")
+        if pop_verdict is not None:
+            return pop_verdict
         if key in ("tag", "exists", "has_country_flag", "government", "civilized", "ai", "year"):
             if not p.owner:
                 return Verdict(False, [f"province {p.id} has no owner"])
@@ -467,6 +628,13 @@ class World:
             return self.check(block, Scope("province", root, "", int(key)))
         if _TAG.fullmatch(key) and key.upper() in self.countries:
             return self.check(block, Scope("country", root, key.upper(), 0))
+        if key == "any_pop":
+            pops = self.pops_of(scope.tag, scope.province if scope.kind == "province" else 0)
+            if not self.pops_folder:
+                return Verdict(None, ["any_pop: no history/pops folder for the date"])
+            if not pops:
+                return Verdict(False, ["any_pop: no pops"])
+            return _any([self._pop_check(block.items, pop) for pop in pops])
         if scope.kind == "province":
             p = self.provinces.get(scope.province)
             if key in ("owner", "controller"):
@@ -496,6 +664,8 @@ class World:
             if not lord:
                 return Verdict(False, [f"{tag} has no overlord"])
             return self.check(block, Scope("country", root, lord, 0))
+        if key == "any_greater_power" and self.great is not None:
+            return _any([self.check(block, Scope("country", root, t, 0)) for t in self.great])
         if key in ("any_country", "any_greater_power", "any_neighbor_country", "war_countries"):
             if key == "any_country":
                 verdicts = [
@@ -552,6 +722,19 @@ class Verdict:
 
     value: bool | None
     reasons: list[str] = field(default_factory=list)
+
+
+_POP_TRIGGERS = frozenset(
+    {
+        "total_pops",
+        "has_pop_culture",
+        "has_pop_religion",
+        "average_militancy",
+        "average_consciousness",
+        "culture",
+        "religion",
+    }
+)
 
 
 def _all(vs: list[Verdict]) -> Verdict:

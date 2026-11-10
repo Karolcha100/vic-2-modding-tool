@@ -49,6 +49,8 @@ API (all under ``/api/``, JSON in and out):
 ``map/info``        GET     ``date`` -> province colours, names, owners, cores; country colours
 ``trigger/world``   POST    ``{rel, offset, tag, date?, player?}`` -> answers from history (K75 B)
 ``trigger/countries`` POST  ``{rel, offset, date?, player?}`` -> countries that meet it
+                            (both also take ``great`` / ``secondary``: the powers, tags)
+``trigger/powers``  GET     ``date`` -> great / secondary powers guessed from prestige
 ``ping``            GET     ``{stamp, stale, pid}``: is the server there, is its code current
 ``bye``             POST    ``client`` (query): a browser tab was closed (`lifecycle`)
 ``quit``            POST    stop the server; ``restart``: stop and start again (same address)
@@ -778,14 +780,33 @@ class Engine:
                 raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
         return self._worlds["world"]
 
+    def _world_for(self, body: dict[str, Any]) -> Any:
+        """The world at the request's date with its player and great / secondary powers."""
+        world = self._world(str(body.get("date") or "1836.1.1"))
+        world.player = str(body.get("player") or "").upper()
+
+        def tags(key: str) -> list[str] | None:
+            raw = body.get(key)
+            if raw is None or raw == "":
+                return None
+            items = raw.split() if isinstance(raw, str) else raw
+            return [str(t).upper() for t in items]
+
+        world.great, world.secondary = tags("great"), tags("secondary")
+        return world
+
+    def trigger_powers(self, date: str) -> dict[str, Any]:
+        """Great and secondary powers guessed from prestige (the game ranks them itself)."""
+        great, secondary = self._world(date or "1836.1.1").guess_powers()
+        return {"great": great, "secondary": secondary}
+
     def trigger_world(self, body: dict[str, Any]) -> dict[str, Any]:
         """Answers from the history for a country at a date, and the result (K75 B)."""
         from vic2toolmod.analysis.trigger_tester import TriggerTester
         from vic2toolmod.analysis.world import Scope
 
         doc, block = self._trigger_block(str(body["rel"]), int(body["offset"]))
-        world = self._world(str(body.get("date") or "1836.1.1"))
-        world.player = str(body.get("player") or "").upper()
+        world = self._world_for(body)
         tag = str(body["tag"]).upper()
         if tag not in world.countries:
             raise ApiError(HTTPStatus.NOT_FOUND, f"no history for the country {tag}")
@@ -805,8 +826,7 @@ class Engine:
         from vic2toolmod.analysis.world import Scope
 
         _, block = self._trigger_block(str(body["rel"]), int(body["offset"]))
-        world = self._world(str(body.get("date") or "1836.1.1"))
-        world.player = str(body.get("player") or "").upper()
+        world = self._world_for(body)
         true: list[str] = []
         unknown: list[dict[str, Any]] = []
         false = 0
@@ -2060,6 +2080,8 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.script_delete(str(body["id"]))
                 case ("POST", "trigger"):
                     return e.trigger(body["rel"], int(body["offset"]), body.get("answers") or {})
+                case ("GET", "trigger/powers"):
+                    return e.trigger_powers(q("date"))
                 case ("GET", "map/info"):
                     return e.map_info(q("date"))
                 case ("POST", "trigger/world"):

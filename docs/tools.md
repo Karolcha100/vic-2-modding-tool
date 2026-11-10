@@ -45,9 +45,17 @@ province scope with three values: `True`, `False` or `None` with the reasons
 there are no spheres or truces at the start of the game). Scopes: `TAG = { }`,
 province ids, `owner`, `controller`, `capital_scope`, `any_owned_province`,
 `any_core`, `all_core`, `overlord`, `any_country`, `war_countries`.
+Pops come from the latest `history/pops/<date>` folder not after the date
+(B2): `total_pops`, `has_pop_culture`, `has_pop_religion`,
+`average_militancy`, `average_consciousness` (size-weighted), a province's
+main `culture` / `religion`, and `any_pop = { culture religion type militancy
+consciousness }`. Great / secondary powers are ranked by the game itself, so
+`is_greater_power`, `is_secondary_power` and `any_greater_power` need
+`World.great` / `World.secondary`; `guess_powers()` takes the 8 + 8 civilised
+countries with the most prestige (RPM 1836: ENG FRA RUS AUS SPA PRU TUR USA).
 `World.answers(tester, block, tag)` gives the tester's facts that history
-decides. API: `trigger/world` (answers for one country) and
-`trigger/countries` (every country existing at the date: meets / unknown /
+decides. API: `trigger/world` (answers for one country),
+`trigger/powers` (the guess) and `trigger/countries` (every country existing at the date: meets / unknown /
 not); the GUI's trigger tester has "Fill from history" and "Which countries?".
 
 ## Party generator (`generators.parties`, K58)
