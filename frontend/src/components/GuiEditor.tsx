@@ -166,6 +166,11 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
   // Sub-windows of the window that lie on top of each other (tab panels: the game shows one at a time).
   const stacked = useMemo(() => overlapping(panels(allPlaced).filter((p) => !hiddenLines.has(p.el.line))), [allPlaced, hiddenLines]); // eslint-disable-line react-hooks/exhaustive-deps
   const selected = placed.find((p) => p.el.line === sel) ?? null;
+  // T017: a window inside another one (a tab panel such as reforms_window) is not the window the
+  // player sees; its own window is the nearest one above it with depth 0.
+  const winIndex = windows.findIndex((w) => w.name === name);
+  const topWindow = winIndex > 0 && windows[winIndex].depth > 0
+    ? [...windows.slice(0, winIndex)].reverse().find((w) => w.depth === 0) ?? null : null;
   // the backgrounds to stretch, while the window has the size they were planned for (Ctrl+Z turns them off)
   const stretching = stretchPlan && root && data && root.w === stretchPlan.w && root.h === stretchPlan.h
     && (data.tree.w !== root.w || data.tree.h !== root.h) ? stretchPlan : null;
@@ -234,7 +239,7 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
         <span className="spacer" />
         <label><input type="checkbox" checked={real} onChange={(e) => setReal(e.target.checked)} /> Real graphics</label>
         {zoom.controls}
-        <button disabled={!data} onClick={() => root && setResize({ w: String(Math.max(root.w, 1600)), h: String(Math.max(root.h, 900)), centre: true, place: "none", bgs: {} })}
+        <button disabled={!data} onClick={() => root && setResize({ w: String(Math.max(root.w, 1600)), h: String(Math.max(root.h, 900)), centre: !topWindow, place: "none", bgs: {} })}
           title="Give the window a new size (K94); its backgrounds can then be stretched to fit">Resize window…</button>
         <button onClick={() => setPanel(!panel)} title="Show or hide the panel with the elements">{panel ? "Hide panel" : "Show panel"}</button>
         <button onClick={() => plan(false)} disabled={!pending}>Preview changes</button>
@@ -404,6 +409,10 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
             <div className="modal" onClick={(e) => e.stopPropagation()}>
               <div className="creator-form">
                 <b>Resize the window {root.name}</b>
+                {topWindow && (
+                  <div className="problem">{root.name} is a part of the window {topWindow.name} (e.g. one tab's page), not the window on the screen: it has no frame or background of its own, and moving it moves everything in it. To make the window bigger, resize {topWindow.name}.{" "}
+                    <button className="mini" onClick={() => { setResize(null); setName(topWindow.name); }}>Open {topWindow.name}</button></div>
+                )}
                 <div className="muted">In the file {was.w}×{was.h} at {was.x}, {was.y} ({root.orientation}). The game does not scale: players with a smaller screen do not see the edges.</div>
                 <label>Width <input value={resize.w} onChange={(e) => setResize({ ...resize, w: e.target.value })} /></label>
                 <label>Height <input value={resize.h} onChange={(e) => setResize({ ...resize, h: e.target.value })} /></label>
@@ -418,6 +427,7 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
                   : resize.place === "edges"
                     ? "Elements that overlap from left to right form a column (e.g. the tabs, the panels and the reform boxes under them), and those that overlap from top to bottom a row. A column near the left edge stays, near the right edge moves with it, in the middle moves by half; rows the same with the top and bottom. Panels as big as the window grow with it."
                     : "Every element moves by half the growth: on the screen it stays where it was."}</div>
+                {!backs.length && (dw !== 0 || dh !== 0) && <div className="muted">This window has no picture as big as itself to stretch (no frame or background).</div>}
                 {backs.length > 0 && (dw !== 0 || dh !== 0) && (
                   <div className="resize-bgs">
                     <b>Pictures of the window, stretched with it</b> ({dw >= 0 ? "+" : ""}{dw}, {dh >= 0 ? "+" : ""}{dh}):
