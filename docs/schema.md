@@ -206,6 +206,7 @@ not described yet: interface, some map files, units' stats).
 | `schema.not-in-game` | error | a name mods use but the game does not know (`not_in_game`) |
 | `schema.wrong-context` | error | effect in a trigger block or vice versa |
 | `schema.wrong-scope` | info | command not known to work in the current scope (the game is lenient; K66). Scopes confirmed in the game go to `game_scopes` |
+| `schema.scope-alice` | info | the same, but [Project Alice](https://github.com/schombert/Project-Alice) (the open-source reimplementation of Victoria 2) accepts the command in that scope; hidden by default in the GUI and in `check` (`--all-notes` shows them; K88 = B). Data: `schema/data/alice_scopes.yaml`, made by `tools/import_alice_scopes.py` - only names of the original game, Alice's own extensions left out |
 | `schema.wrong-value` | error | value of the wrong type |
 | `schema.missing-field` | error | required key missing |
 | `schema.duplicate-key` | warning | key that may appear once appears again |

@@ -42,6 +42,9 @@ const SEVERITY = {
 
 const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
 
+/** Diagnostic codes hidden unless "show hidden notes" is on (K88 = B). */
+const HIDDEN_CODES = new Set(["schema.scope-alice"]);
+
 export function App() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [modDir, setModDir] = useState<string | null>(null);
@@ -73,6 +76,10 @@ export function App() {
   viewRef.current = view;
   const [, force] = useState(0);
   // Panel sizes and the minimap, remembered in this browser (T005).
+  // Scope notes Project Alice accepts (K88 = B): hidden unless asked for.
+  const [showHidden, setShowHidden] = useStored("vic2.hiddenNotes", false);
+  const hiddenRef = useRef(showHidden);
+  hiddenRef.current = showHidden;
   const [leftW, setLeftW] = useStored("vic2.left", 280);
   const [rightW, setRightW] = useStored("vic2.right", 300);
   const [bottomH, setBottomH] = useStored("vic2.bottom", 180);
@@ -92,7 +99,7 @@ export function App() {
     monaco.editor.setModelMarkers(
       f.model,
       "vic2toolmod",
-      f.diagnostics.map((d) => ({
+      f.diagnostics.filter((d) => hiddenRef.current || !HIDDEN_CODES.has(d.code)).map((d) => ({
         severity: SEVERITY[d.severity],
         message: `${d.message} [${d.code}]`,
         startLineNumber: d.line,
@@ -424,7 +431,9 @@ export function App() {
     w: ds.filter((d) => d.severity === "warning").length,
     i: ds.filter((d) => d.severity === "info").length,
   });
-  const c = counts(cur?.diagnostics ?? []);
+  const shownDiagnostics = (cur?.diagnostics ?? []).filter((d) => showHidden || !HIDDEN_CODES.has(d.code));
+  const hiddenCount = (cur?.diagnostics.length ?? 0) - shownDiagnostics.length;
+  const c = counts(shownDiagnostics);
 
   /** Apply engine edits to the open file through Monaco (one undo step, K31). */
   const applyEdits_ = (edits: { start: number; end: number; new_text: string }[]) => {
@@ -576,13 +585,23 @@ export function App() {
           <span className={bottom.kind === "problems" ? "on" : ""} onClick={() => setBottom({ kind: "problems" })}>
             This file: {c.e} errors, {c.w} warnings, {c.i} notes
           </span>
+          {(hiddenCount > 0 || showHidden) && (
+            <label className="hidden-notes" title="Scope notes for commands Project Alice (open-source Victoria 2) accepts in that scope (K88)">
+              <input type="checkbox" checked={showHidden} onChange={(e) => {
+                setShowHidden(e.target.checked);
+                hiddenRef.current = e.target.checked;
+                files_.current.forEach((f) => markers(f));
+              }} />
+              {showHidden ? "showing notes Project Alice accepts" : `${hiddenCount} hidden notes (Project Alice accepts)`}
+            </label>
+          )}
           {bottom.kind === "usages" && <span className="on">{bottom.title}</span>}
           {bottom.kind === "mod" && <span className="on">Whole mod: {bottom.files.length} files with problems</span>}
           {bottom.kind === "tester" && <span className="on">Trigger tester ({bottom.facts.length} facts)</span>}
         </div>
         <div className="bottom-list">
-          {bottom.kind === "problems" && cur?.diagnostics.map((d, i) => (
-            <div key={i} className={`row ${d.severity}`} onClick={() => openFile(cur.rel, d.line)}>
+          {bottom.kind === "problems" && shownDiagnostics.map((d, i) => (
+            <div key={i} className={`row ${d.severity}`} onClick={() => cur && openFile(cur.rel, d.line)}>
               <span className="sev">{d.severity}</span> {d.line}:{d.column} {d.message} <span className="muted">{d.code}</span>
             </div>
           ))}

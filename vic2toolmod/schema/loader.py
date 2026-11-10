@@ -418,6 +418,11 @@ def load_schema(directory: Path = DATA_DIR) -> Schema:
             b.schema.modifiers[low] = spec if isinstance(spec, TypeSpec) else TypeSpec("float")
     for path in sorted((directory / "commands").glob("*.yaml")):
         b.add_commands(read(path))
+    alice = directory / "alice_scopes.yaml"  # tools/import_alice_scopes.py (K88 = B)
+    if alice.is_file():
+        for section, ctx in (("trigger", Context.TRIGGER), ("effect", Context.EFFECT)):
+            for name, scopes in (read(alice).get(section) or {}).items():
+                b.schema.alice_scopes[(ctx, str(name).lower())] = frozenset(map(str, scopes))
     for path in sorted((directory / "files").glob("*.yaml")):
         b.add_rules(read(path))
     b.where = "commands: docs"

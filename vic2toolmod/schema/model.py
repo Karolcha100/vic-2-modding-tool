@@ -262,6 +262,8 @@ class Schema:
     not_in_game: dict[str, str] = field(default_factory=dict)
     modifier_docs: dict[str, str] = field(default_factory=dict)
     modifier_sources: dict[str, str] = field(default_factory=dict)
+    alice_scopes: dict[tuple[Context, str], frozenset[str]] = field(default_factory=dict)
+    """Scopes in which Project Alice accepts a command (K88 = B; ``alice_scopes.yaml``)."""
 
     @staticmethod
     def pushed(command: Command, scope: str | None) -> str | None:

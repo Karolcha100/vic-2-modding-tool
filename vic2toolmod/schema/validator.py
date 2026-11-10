@@ -11,6 +11,8 @@ Diagnostic codes:
 ``schema.not-in-game``      error     a name mods use but the game does not know (K78)
 ``schema.wrong-context``    error     an effect used where triggers belong, or vice versa
 ``schema.wrong-scope``      info      command not known to work in the current scope (K66)
+``schema.scope-alice``      info      the same, but Project Alice accepts that scope (K88 = B;
+                                      hidden by default in the GUI and ``check``)
 ``schema.wrong-value``      error     value of the wrong type
 ``schema.missing-field``    error     required key is missing
 ``schema.duplicate-key``    warning   key that may appear once appears again
@@ -45,6 +47,9 @@ from vic2toolmod.schema.values import SCOPE_KEYWORDS, check_scalar, is_tag
 from vic2toolmod.script.cst import Assignment, Block, Document, ErrorNode, Node, Scalar
 from vic2toolmod.script.diagnostics import Diagnostic, Severity
 from vic2toolmod.script.tokens import Token
+
+ALICE_SCOPE = "schema.scope-alice"
+"""Code of scope notes Project Alice accepts: hidden by default (K88 = B)."""
 
 _INT_KEY = re.compile(r"\d+")
 _DATE_KEY = re.compile(r"\d{1,4}\.\d{1,2}\.\d{1,2}")
@@ -404,12 +409,22 @@ class Validator:
             return
         command = _pick(alternatives, item.value, scope, self.schema)
         if command.scopes and scope is not None and scope not in command.scopes:
-            self._report(
-                Severity.INFO,  # K66 = D: the game is lenient, unverified combinations are info
-                "schema.wrong-scope",
-                f"'{item.key_text}' works in {'/'.join(command.scopes)} scope, not in {scope}",
-                item,
-            )
+            alice = self.schema.alice_scopes.get((context, item.key_text.lower()), frozenset())
+            where = f"'{item.key_text}' works in {'/'.join(command.scopes)} scope, not in {scope}"
+            if scope in alice:  # K88 = B: kept, but marked and hidden by default
+                self._report(
+                    Severity.INFO,
+                    ALICE_SCOPE,
+                    f"{where} - but Project Alice (open-source Victoria 2) accepts it there",
+                    item,
+                )
+            else:
+                self._report(
+                    Severity.INFO,  # K66 = D: the game is lenient, unverified combinations are info
+                    "schema.wrong-scope",
+                    where,
+                    item,
+                )
         self.value_info[id(item)] = ValueInfo(
             command.value, self.schema.pushed(command, scope), context, command.doc, command
         )

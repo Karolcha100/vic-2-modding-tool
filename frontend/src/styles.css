@@ -247,3 +247,4 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .format-files { width: 340px; overflow: auto; border: 1px solid var(--border); }
 .format-files .row.on { background: var(--hover); }
 .format-diff { flex: 1; overflow: auto; margin: 0; font-size: 12px; border: 1px solid var(--border); padding: 4px; }
+.hidden-notes { margin-left: 12px; font-weight: normal; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; }

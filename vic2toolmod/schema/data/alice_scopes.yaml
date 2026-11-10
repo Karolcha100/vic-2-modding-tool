@@ -1,0 +1,733 @@
+# Scopes in which Project Alice (open-source Victoria 2, GPL-3) accepts each
+# trigger / effect of the original game - facts read from its parser, no code.
+# Made by tools/import_alice_scopes.py from Alice 42adaf7 2026-11-08.
+# Used only to mark scope notes "Project Alice accepts this scope" (K88 = B).
+effect:
+  activate_technology:
+  - country
+  add_core:
+  - country
+  - province
+  - state
+  add_crime:
+  - province
+  add_crisis_interest:
+  - country
+  add_tax_relative_income:
+  - country
+  badboy:
+  - country
+  build_factory_in_capital_state:
+  - country
+  capital:
+  - country
+  change_controller:
+  - province
+  - state
+  change_tag:
+  - country
+  change_tag_no_core_switch:
+  - country
+  civilized:
+  - country
+  clr_country_flag:
+  - country
+  consciousness:
+  - country
+  - pop
+  - province
+  - state
+  country_event:
+  - country
+  - province
+  create_alliance:
+  - country
+  create_vassal:
+  - country
+  diplomatic_influence:
+  - province
+  dominant_issue:
+  - country
+  - pop
+  economic_reform:
+  - country
+  election:
+  - country
+  end_military_access:
+  - country
+  end_war:
+  - country
+  flashpoint_tension:
+  - province
+  - state
+  fort:
+  - province
+  - state
+  government:
+  - country
+  infrastructure:
+  - province
+  - state
+  inherit:
+  - country
+  is_slave:
+  - pop
+  - province
+  - state
+  leadership:
+  - country
+  leave_alliance:
+  - country
+  life_rating:
+  - province
+  - state
+  literacy:
+  - pop
+  militancy:
+  - country
+  - pop
+  - province
+  - state
+  military_access:
+  - country
+  military_reform:
+  - country
+  money:
+  - country
+  - pop
+  - province
+  move_issue_percentage:
+  - country
+  - pop
+  - province
+  - state
+  move_pop:
+  - pop
+  nationalize:
+  - country
+  nationalvalue:
+  - country
+  - province
+  naval_base:
+  - province
+  - state
+  neutrality:
+  - country
+  plurality:
+  - country
+  political_reform:
+  - country
+  - province
+  pop_type:
+  - pop
+  prestige:
+  - country
+  prestige_factor:
+  - country
+  primary_culture:
+  - country
+  province_event:
+  - province
+  reduce_pop:
+  - country
+  - pop
+  - province
+  - state
+  relation:
+  - country
+  - province
+  release:
+  - country
+  release_vassal:
+  - country
+  - province
+  remove_accepted_culture:
+  - country
+  remove_core:
+  - country
+  - province
+  - state
+  remove_country_modifier:
+  - country
+  remove_province_modifier:
+  - province
+  - state
+  remove_random_economic_reforms:
+  - country
+  remove_random_military_reforms:
+  - country
+  research_points:
+  - country
+  rgo_size:
+  - province
+  scaled_consciousness:
+  - country
+  - pop
+  - province
+  - state
+  scaled_militancy:
+  - country
+  - pop
+  - province
+  - state
+  set_country_flag:
+  - country
+  - pop
+  - province
+  social_reform:
+  - country
+  - province
+  tech_school:
+  - country
+  trade_goods:
+  - province
+  treasury:
+  - country
+  - province
+  war_exhaustion:
+  - country
+  years_of_research:
+  - country
+trigger:
+  accepted_culture:
+  - country
+  administration_spending:
+  - country
+  - pop
+  - province
+  - state
+  agree_with_ruling_party:
+  - pop
+  ai:
+  - country
+  alliance_with:
+  - country
+  average_consciousness:
+  - country
+  - province
+  - state
+  average_militancy:
+  - country
+  - province
+  - state
+  big_producer:
+  - country
+  blockade:
+  - country
+  brigades_compare:
+  - country
+  - province
+  can_build_factory:
+  - country
+  - pop
+  - province
+  can_build_factory_in_capital_state:
+  - country
+  can_create_vassals:
+  - country
+  can_nationalize:
+  - country
+  capital:
+  - country
+  cash_reserves:
+  - pop
+  casus_belli:
+  - country
+  civilization_progress:
+  - country
+  civilized:
+  - country
+  - pop
+  - province
+  colonial_nation:
+  - country
+  consciousness:
+  - country
+  - pop
+  - province
+  - state
+  constructing_cb_progress:
+  - country
+  constructing_cb_type:
+  - country
+  continent:
+  - country
+  - pop
+  - province
+  - state
+  controlled_by:
+  - province
+  controlled_by_rebels:
+  - province
+  controls:
+  - country
+  country_units_in_state:
+  - state
+  crime_higher_than_education:
+  - country
+  - pop
+  - province
+  - state
+  culture:
+  - country
+  - pop
+  - province
+  - state
+  culture_has_union_tag:
+  - country
+  - pop
+  education_spending:
+  - country
+  - pop
+  - province
+  - state
+  election:
+  - country
+  empty:
+  - province
+  - state
+  everyday_needs:
+  - pop
+  exists:
+  - country
+  - pop
+  - province
+  - state
+  flashpoint_tension:
+  - province
+  - state
+  government:
+  - country
+  - pop
+  has_building:
+  - province
+  - state
+  has_country_flag:
+  - country
+  - pop
+  - province
+  - state
+  has_country_modifier:
+  - country
+  - province
+  has_crime:
+  - province
+  has_cultural_sphere:
+  - country
+  has_culture_core:
+  - pop
+  - province
+  has_empty_adjacent_province:
+  - province
+  has_empty_adjacent_state:
+  - province
+  - state
+  has_factories:
+  - country
+  - state
+  has_flashpoint:
+  - state
+  has_national_minority:
+  - country
+  - province
+  - state
+  has_pop_culture:
+  - country
+  - pop
+  - province
+  - state
+  has_pop_religion:
+  - country
+  - pop
+  - province
+  - state
+  has_pop_type:
+  - country
+  - pop
+  - province
+  - state
+  has_province_modifier:
+  - province
+  has_recent_imigration:
+  - province
+  has_recently_lost_war:
+  - country
+  - pop
+  has_unclaimed_cores:
+  - country
+  have_core_in:
+  - country
+  in_default:
+  - country
+  in_sphere:
+  - country
+  industrial_score:
+  - country
+  invention:
+  - country
+  - pop
+  - province
+  involved_in_crisis:
+  - country
+  - pop
+  is_accepted_culture:
+  - country
+  - pop
+  - province
+  - state
+  is_blockaded:
+  - province
+  is_capital:
+  - province
+  is_coastal:
+  - province
+  - state
+  is_colonial:
+  - country
+  - pop
+  - province
+  - state
+  is_core:
+  - country
+  - pop
+  - province
+  - state
+  is_cultural_union:
+  - country
+  - pop
+  is_disarmed:
+  - country
+  - pop
+  is_greater_power:
+  - country
+  - pop
+  - province
+  is_independant:
+  - country
+  is_mobilised:
+  - country
+  is_next_reform:
+  - country
+  - pop
+  is_our_vassal:
+  - country
+  - province
+  is_overseas:
+  - pop
+  - province
+  - state
+  is_possible_vassal:
+  - country
+  is_primary_culture:
+  - country
+  - pop
+  - province
+  - state
+  is_secondary_power:
+  - country
+  - pop
+  is_slave:
+  - country
+  - pop
+  - province
+  - state
+  is_sphere_leader_of:
+  - country
+  is_state_capital:
+  - pop
+  - province
+  is_state_religion:
+  - pop
+  - province
+  - state
+  is_substate:
+  - country
+  is_vassal:
+  - country
+  life_needs:
+  - pop
+  life_rating:
+  - province
+  - state
+  literacy:
+  - country
+  - pop
+  - province
+  - state
+  lost_national:
+  - country
+  luxury_needs:
+  - pop
+  middle_strata_everyday_needs:
+  - country
+  - pop
+  - province
+  - state
+  middle_strata_life_needs:
+  - country
+  - pop
+  - province
+  - state
+  middle_strata_luxury_needs:
+  - country
+  - pop
+  - province
+  - state
+  middle_strata_militancy:
+  - country
+  - pop
+  - province
+  - state
+  middle_tax:
+  - country
+  - pop
+  militancy:
+  - country
+  - pop
+  - province
+  - state
+  military_access:
+  - country
+  military_score:
+  - country
+  military_spending:
+  - country
+  - pop
+  - province
+  - state
+  minorities:
+  - country
+  - province
+  - state
+  money:
+  - country
+  - province
+  national_provinces_occupied:
+  - country
+  nationalvalue:
+  - country
+  - pop
+  - province
+  neighbour:
+  - country
+  num_of_allies:
+  - country
+  num_of_cities:
+  - country
+  num_of_ports:
+  - country
+  num_of_revolts:
+  - country
+  num_of_substates:
+  - country
+  num_of_vassals:
+  - country
+  num_of_vassals_no_substates:
+  - country
+  number_of_states:
+  - country
+  owned_by:
+  - province
+  - state
+  owns:
+  - country
+  - province
+  part_of_sphere:
+  - country
+  plurality:
+  - country
+  - pop
+  political_movement:
+  - pop
+  political_movement_strength:
+  - country
+  political_reform_want:
+  - country
+  - pop
+  poor_strata_everyday_needs:
+  - country
+  - pop
+  - province
+  - state
+  poor_strata_life_needs:
+  - country
+  - pop
+  - province
+  - state
+  poor_strata_luxury_needs:
+  - country
+  - pop
+  - province
+  - state
+  poor_strata_militancy:
+  - country
+  - pop
+  - province
+  - state
+  poor_tax:
+  - country
+  - pop
+  pop_majority_culture:
+  - country
+  - province
+  - state
+  pop_majority_ideology:
+  - country
+  - pop
+  - province
+  - state
+  pop_majority_issue:
+  - country
+  - pop
+  - province
+  - state
+  pop_majority_religion:
+  - country
+  - province
+  - state
+  pop_unemployment:
+  - country
+  - pop
+  - province
+  - state
+  port:
+  - province
+  prestige:
+  - country
+  primary_culture:
+  - country
+  - pop
+  produces:
+  - country
+  - pop
+  - province
+  - state
+  province_control_days:
+  - province
+  province_id:
+  - province
+  rank:
+  - country
+  rebel_power_fraction:
+  - country
+  recruited_percentage:
+  - country
+  - pop
+  region:
+  - pop
+  - province
+  - state
+  revanchism:
+  - country
+  - pop
+  revolt_percentage:
+  - country
+  rich_strata_everyday_needs:
+  - country
+  - pop
+  - province
+  - state
+  rich_strata_life_needs:
+  - country
+  - pop
+  - province
+  - state
+  rich_strata_luxury_needs:
+  - country
+  - pop
+  - province
+  - state
+  rich_strata_militancy:
+  - country
+  - pop
+  - province
+  - state
+  rich_tax:
+  - country
+  - pop
+  rich_tax_above_poor:
+  - country
+  social_movement:
+  - pop
+  social_movement_strength:
+  - country
+  social_reform_want:
+  - country
+  - pop
+  social_spending:
+  - country
+  - pop
+  - province
+  state_id:
+  - province
+  - state
+  strata:
+  - pop
+  stronger_army_than:
+  - country
+  substate_of:
+  - country
+  tag:
+  - country
+  - pop
+  - province
+  - state
+  tech_school:
+  - country
+  terrain:
+  - pop
+  - province
+  this_culture_union:
+  - country
+  total_amount_of_divisions:
+  - country
+  total_amount_of_ships:
+  - country
+  total_num_of_ports:
+  - country
+  total_pops:
+  - country
+  - pop
+  - province
+  - state
+  trade_goods:
+  - province
+  trade_goods_in_state:
+  - province
+  - state
+  truce_with:
+  - country
+  unemployment:
+  - country
+  - pop
+  - province
+  - state
+  unemployment_by_type:
+  - country
+  - pop
+  - province
+  - state
+  unit_has_leader:
+  - province
+  unit_in_battle:
+  - province
+  units_in_province:
+  - province
+  vassal_of:
+  - country
+  - province
+  war:
+  - country
+  - pop
+  war_exhaustion:
+  - country
+  - pop
+  - province
+  war_score:
+  - country
+  war_with:
+  - country
+  work_available:
+  - country
+  - province
+  - state

@@ -146,6 +146,16 @@ def _cmd_check(args: argparse.Namespace) -> int:
         raise SystemExit("no game or mod folder given or configured")
     project = Project.open(game, mod)
     reports = list(check_project(project, only_mod=mod is not None))
+    hidden = 0
+    if not args.all_notes:  # K88 = B: scope notes Project Alice accepts are hidden
+        from dataclasses import replace
+
+        from vic2toolmod.schema.validator import ALICE_SCOPE
+
+        for i, r in enumerate(reports):
+            kept = [d for d in r.diagnostics if d.code != ALICE_SCOPE]
+            hidden += len(r.diagnostics) - len(kept)
+            reports[i] = replace(r, diagnostics=kept)
     if args.summary:
         print(summarise(reports))
     else:
@@ -156,7 +166,8 @@ def _cmd_check(args: argparse.Namespace) -> int:
     problems = [d for r in reports for d in r.diagnostics if d.severity != "info"]
     infos = sum(1 for r in reports for d in r.diagnostics if d.severity == "info")
     files = sum(1 for r in reports if any(d.severity != "info" for d in r.diagnostics))
-    print(f"{len(problems)} problems in {files} files (+ {infos} notes)", file=sys.stderr)
+    more = f", {hidden} hidden: Project Alice accepts the scope; --all-notes" if hidden else ""
+    print(f"{len(problems)} problems in {files} files (+ {infos} notes{more})", file=sys.stderr)
     return 1 if problems else 0
 
 
@@ -459,6 +470,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--game", type=Path, help="game folder (default: configured)")
     p.add_argument("--vanilla", action="store_true", help="check the game itself, no mod")
     p.add_argument("--summary", action="store_true", help="counts instead of every problem")
+    p.add_argument(
+        "--all-notes",
+        action="store_true",
+        help="also the scope notes Project Alice accepts (hidden by default, K88)",
+    )
     p.set_defaults(func=_cmd_check)
 
     p = sub.add_parser("install-desktop", help="add a shortcut to the Linux application menu")

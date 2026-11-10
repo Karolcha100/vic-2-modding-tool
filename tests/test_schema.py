@@ -193,3 +193,17 @@ def test_docs_for_unknown_commands_are_reported(tmp_path):
     (tmp_path / "commands" / "a.yaml").write_text("trigger:\n  x: {value: int}\ndocs:\n  y: text\n")
     with pytest.raises(SchemaError, match="unknown command 'y'"):
         load_schema(tmp_path)
+
+
+def test_scope_notes_project_alice_accepts():
+    """K88 = B: such scope notes get their own code (hidden by default), others stay."""
+    schema = default_schema()
+    assert schema.alice_scopes[(Context.TRIGGER, "total_pops")] >= {"state", "province"}
+    assert (Context.EFFECT, "add_province_modifier") not in schema.alice_scopes  # an Alice extension
+    text = (
+        "country_event = { id = 1 trigger = { any_owned_province = { state_scope = {"
+        " total_pops = 100 } capital_scope = { tag = ENG } } } option = { name = A } }\n"
+    )
+    found = {(code, message.split("'")[1]) for code, message in check(text) if "scope" in code}
+    assert ("schema.scope-alice", "total_pops") in found
+    assert ("schema.wrong-scope", "capital_scope") in found
