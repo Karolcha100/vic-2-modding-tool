@@ -1,13 +1,20 @@
 // Thin typed client of the engine's JSON API (vic2toolmod/server/app.py).
 
 const token = new URLSearchParams(location.search).get("token") ?? "";
+/** This browser tab, so the server knows when the last one was closed (server/lifecycle.py). */
+const client = Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+/** Tell the server this tab is going away (it stops when the last one is gone). */
+export function sayBye(): void {
+  navigator.sendBeacon(`/api/bye?token=${encodeURIComponent(token)}&client=${client}`);
+}
 
 export class ApiError extends Error {}
 
 async function call<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(`/api/${path}`, {
     method: body === undefined ? "GET" : "POST",
-    headers: { "X-Token": token, "Content-Type": "application/json" },
+    headers: { "X-Token": token, "X-Client": client, "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await response.json();
@@ -116,7 +123,9 @@ export const api = {
   references: (rel: string, offset: number) => call<{ usages: Usage[] }>(`references?${q({ rel, offset })}`),
   rename: (rel: string, offset: number, newName: string) =>
     call<{ edits: Record<string, TextEdit[]> }>("rename", { rel, offset, new_name: newName }),
-  changed: () => call<{ changed: string[] }>("changed"),
+  changed: () => call<{ changed: string[]; stale: boolean; memory_mb: number | null }>("changed"),
+  ping: () => call<{ stamp: string; stale: boolean; pid: number }>("ping"),
+  restart: () => call<{ ok: boolean }>("restart", {}),
   outline: (rel: string) => call<{ items: OutlineNode[] }>(`outline?${q({ rel })}`),
   trigger: (rel: string, offset: number, answers?: Record<string, string | boolean>) =>
     call<{ start: number; facts: Fact[]; result: TriggerResult | null }>("trigger", { rel, offset, answers }),

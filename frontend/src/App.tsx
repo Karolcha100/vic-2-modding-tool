@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, applyEdits, type Diagnostic, type FileEntry, type ModGroup, type OutlineNode, type Usage } from "./api";
+import { api, applyEdits, sayBye, type Diagnostic, type FileEntry, type ModGroup, type OutlineNode, type Usage } from "./api";
 import { hooks, LANGUAGE, monaco, uriOf } from "./monacoSetup";
 import { FileTree } from "./components/FileTree";
 import { Outline } from "./components/Outline";
@@ -51,6 +51,9 @@ export function App() {
   const [cursor, setCursor] = useState(0);
   const [bottom, setBottom] = useState<Bottom>({ kind: "problems" });
   const [status, setStatus] = useState("Loading…");
+  /** The server: fine, running older code than is on disk, restarting, or gone. */
+  const [memory, setMemory] = useState<number | null>(null);
+  const [server, setServer] = useState<"ok" | "stale" | "restarting" | "gone">("ok");
   const [mode, setMode] = useState<"code" | "blocks" | "split">(
     (new URLSearchParams(location.search).get("mode") as "blocks" | "split" | null) ?? "code",
   );
@@ -307,8 +310,19 @@ export function App() {
       const rel = params.get("open");
       if (rel) openFile(rel, Number(params.get("line")) || undefined);
     }).catch((e) => setStatus(`Cannot reach the engine: ${(e as Error).message}`));
+    window.addEventListener("pagehide", sayBye);
+    let misses = 0;
     const id = window.setInterval(async () => {
-      const { changed } = await api.changed();
+      let changed: string[];
+      try {
+        const r = await api.changed();
+        changed = r.changed; misses = 0;
+        setMemory(r.memory_mb);
+        setServer((s) => (s === "restarting" ? s : r.stale ? "stale" : "ok"));
+      } catch {
+        if (++misses >= 2) setServer((s) => (s === "restarting" ? s : "gone"));
+        return;
+      }
       if (!changed.length) return;
       const p = await api.project();
       setFiles(p.files);
@@ -325,8 +339,20 @@ export function App() {
         }
       }
     }, 3000);
-    return () => window.clearInterval(id);
+    return () => { window.clearInterval(id); window.removeEventListener("pagehide", sayBye); };
   }, []);
+
+  // Restart the server on its new code (same address), then load the page again.
+  const restartServer = async () => {
+    if (dirty.size && !window.confirm(`${dirty.size} file(s) have unsaved changes that will be lost. Restart anyway?`)) return;
+    setServer("restarting");
+    try { await api.restart(); } catch { /* it may already be going down */ }
+    for (let i = 0; i < 120; i++) {
+      await new Promise((r) => window.setTimeout(r, 500));
+      try { if (!(await api.ping()).stale) { location.reload(); return; } } catch { /* not up yet */ }
+    }
+    setServer("gone");
+  };
 
   const cur = fileOf(current);
   const dirty = new Set(open.filter((f) => f.model.getValue() !== f.saved).map((f) => f.rel));
@@ -389,6 +415,13 @@ export function App() {
 
   return (
     <div className="app" style={{ gridTemplateColumns: `${leftW}px minmax(0, 1fr) ${rightW}px`, gridTemplateRows: `36px minmax(0, 1fr) ${bottomH}px 24px` }}>
+      {server !== "ok" && (
+        <div className={`server-bar ${server}`}>
+          {server === "stale" && <>The tool was updated: this window still runs the old version. <button onClick={restartServer}>Restart now</button></>}
+          {server === "restarting" && <>Restarting the server…</>}
+          {server === "gone" && <>The server is not running any more. Start vic2toolmod again; unsaved text stays in this window until you close it.</>}
+        </div>
+      )}
       <header>
         <b>vic2toolmod</b>
         <button className="project-button" title="Open another mod or the game's own files" onClick={() => setPicker(true)}>
@@ -542,7 +575,7 @@ export function App() {
           </div>
         </div>
       )}
-      <footer>{status}</footer>
+      <footer><span className="footer-status">{status}</span>{memory !== null && <span title="Memory used by the vic2toolmod server (it stops when this window is closed)">server {(memory / 1024).toFixed(1)} GB</span>}</footer>
     </div>
   );
 }

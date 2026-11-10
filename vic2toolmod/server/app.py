@@ -41,6 +41,9 @@ API (all under ``/api/``, JSON in and out):
 ``picture``         GET     ``name`` -> event picture (``gfx/pictures/events``) as PNG
 ``image``           GET     ``rel`` -> a ``.tga`` / ``.dds`` file under ``gfx/`` as PNG (T006)
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
+``ping``            GET     ``{stamp, stale, pid}``: is the server there, is its code current
+``bye``             POST    ``client`` (query): a browser tab was closed (`lifecycle`)
+``quit``            POST    stop the server; ``restart``: stop and start again (same address)
 ``scripts``         GET     light Python scripts (T007): built-in and own, with fields
 ``modgroups``       GET     modifier groups (T008): ``rel?`` (one file) / whole mod
 ``modgroups/edits`` POST    ``{rel, id, steps}`` -> text edits for the editor buffer
@@ -57,8 +60,10 @@ from __future__ import annotations
 
 import gc
 import json
+import os
 import secrets
 import threading
+import time
 from dataclasses import asdict
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -69,6 +74,7 @@ from urllib.parse import parse_qs, urlparse
 from vic2toolmod.changes import FileChange, diff, write_changes
 from vic2toolmod.script.cst import Assignment, Block, Document, Node, Scalar
 from vic2toolmod.script.diagnostics import Diagnostic
+from vic2toolmod.server.lifecycle import Lifetime, code_stamp
 from vic2toolmod.services import LanguageService
 from vic2toolmod.workspace import Workspace
 
@@ -112,6 +118,15 @@ def _diag(doc: Document, d: Diagnostic) -> dict[str, Any]:
     }
 
 
+def memory_mb() -> int | None:
+    """Memory the server holds now, in MB (Linux only; elsewhere ``None``)."""
+    try:
+        with open("/proc/self/statm") as f:
+            return int(f.read().split()[1]) * os.sysconf("SC_PAGE_SIZE") // 2**20
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
 def _steps(body: dict[str, Any]) -> list[tuple[str, str]]:
     """``steps: [[value, factor], ...]`` of a request."""
     return [(str(v), str(f)) for v, f in body.get("steps") or []]
@@ -132,6 +147,11 @@ class Engine:
         self.scripts_dir = scripts_dir
         """Own scripts folder (default: next to the settings file)."""
         self.services = LanguageService(workspace)
+        self.lifetime: Lifetime | None = None
+        """When to stop the server (``None``: never on its own)."""
+        self.stamp = code_stamp()
+        """Fingerprint of the tool's code when the server started."""
+        self._stale: tuple[float, bool] = (0.0, False)
         self.lock = threading.Lock()
         self._sprites: dict[tuple[str, int, int, int, int], bytes] = {}
         self._stamps = self._snapshot()
@@ -564,7 +584,27 @@ class Engine:
                 if now.keys() != old.keys():
                     self.ws.project._files = None  # files appeared / vanished
                 self.ws.invalidate()
-        return {"changed": changed}
+        return {"changed": changed, "stale": self.stale(), "memory_mb": memory_mb()}
+
+    def stale(self) -> bool:
+        """The tool's code on disk is no longer what this server runs (looked at every 5 s)."""
+        at, value = self._stale
+        now = time.monotonic()
+        if not value and now - at > 5:
+            value = code_stamp() != self.stamp
+            self._stale = (now, value)
+        return value
+
+    def ping(self) -> dict[str, Any]:
+        """Who answers here: the code's fingerprint, whether it is out of date, the process."""
+        mod = self.ws.project.mod_dir
+        return {
+            "stamp": self.stamp,
+            "stale": self.stale(),
+            "pid": os.getpid(),
+            "memory_mb": memory_mb(),
+            "mod_dir": str(mod) if mod else None,
+        }
 
     def parties(self, body: dict[str, Any], write: bool) -> dict[str, Any]:
         """Plan (and with ``write`` write) new parties (K58)."""
@@ -1303,12 +1343,29 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
         def _handle(self, method: str) -> None:
             url = urlparse(self.path)
             query = parse_qs(url.query)
+            life = engine.lifetime
             if not url.path.startswith("/api/"):
                 if method == "GET":
+                    if life is not None:
+                        life.seen()
                     return self._static(url.path)
                 return self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             if not self._authorised(query):
                 return self._json(HTTPStatus.FORBIDDEN, {"error": "bad or missing token"})
+            route = (method, url.path[len("/api/") :])
+            # The server's own life: answered without waiting for the engine.
+            if route == ("GET", "ping"):
+                return self._json(HTTPStatus.OK, engine.ping())
+            if route in (("POST", "bye"), ("POST", "quit"), ("POST", "restart")):
+                if life is not None:
+                    if route[1] == "bye":
+                        life.bye((query.get("client") or [""])[0])
+                    else:
+                        life.restart = route[1] == "restart"
+                        life.stop_now = True
+                return self._json(HTTPStatus.OK, {"ok": life is not None})
+            if life is not None:
+                life.seen(self.headers.get("X-Client") or "")
             body: dict[str, Any] = {}
             if method == "POST":
                 length = int(self.headers.get("Content-Length") or 0)
@@ -1320,7 +1377,6 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
             def q(name: str, default: str = "") -> str:
                 return (query.get(name) or [default])[0]
 
-            route = (method, url.path[len("/api/") :])
             if route == ("GET", "changed"):  # takes the lock itself, only briefly
                 return self._json(HTTPStatus.OK, engine.changed())
             if route in (("GET", "picture"), ("GET", "sprite"), ("GET", "image")):
@@ -1473,16 +1529,24 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
 
 
 def make_server(
-    workspace: Workspace, port: int = 0, token: str | None = None, warm_up: bool = False
+    workspace: Workspace,
+    port: int = 0,
+    token: str | None = None,
+    warm_up: bool = False,
+    lifetime: Lifetime | None = None,
 ) -> tuple[ThreadingHTTPServer, str]:
     """Create (not start) the server on 127.0.0.1; returns it and its token.
 
     With ``warm_up`` the index is built and the mod checked in a background
     thread right away (`Engine.warm_up`), so the first requests are fast.
+    With ``lifetime`` the server stops on its own (`lifecycle.Lifetime`); the
+    caller starts ``lifetime.watch(server.shutdown)``.
     """
     token = token or secrets.token_urlsafe(24)
     engine = Engine(workspace)
+    engine.lifetime = lifetime
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(engine, token))
+    server.engine = engine  # type: ignore[attr-defined]
     if warm_up:
         threading.Thread(target=engine.warm_up, name="warm-up", daemon=True).start()
     return server, token

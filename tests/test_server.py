@@ -81,7 +81,8 @@ def test_save_writes_into_mod_with_backup(api, tmp_path, monkeypatch):
 
 
 def test_changed_and_static(api):
-    assert api("/api/changed") == {"changed": []}
+    first = api("/api/changed")
+    assert first["changed"] == [] and first["stale"] is False
     (api.mod / "events/c.txt").write_text("country_event = { id = 9 }\n")
     assert api("/api/changed")["changed"] == ["events/c.txt"]
     with urllib.request.urlopen(api.base + "/") as r:

@@ -16,8 +16,11 @@ Commands:
   triggered-only events nothing fires; ``--json`` saves the graph;
 * ``poptypes [--json FILE] [--registry R]`` - which reforms / techs change
   which pop weights (K59); ``--json`` saves the promotion graph;
-* ``gui [--port N] [--no-browser]`` - start the local server for the GUI
-  (127.0.0.1 only, with a random token in the address);
+* ``gui [--port N] [--no-browser] [--stay]`` - start the local server for the GUI
+  (127.0.0.1 only, with a random token in the address). It stops when the
+  browser window is closed (``--stay``: keeps running); a second plain
+  ``gui`` opens a tab on the running server, or replaces it when the tool's
+  code changed (`vic2toolmod.server.lifecycle`);
 * ``install-desktop`` - add a "vic2toolmod" shortcut to the Linux application menu;
 * ``generate-parties IDEOLOGY [options] [--write]`` - add a party of an
   ideology to many countries (K58); shows a diff, writes only with ``--write``;
@@ -327,18 +330,48 @@ def _cmd_install_desktop(args: argparse.Namespace) -> int:
 
 
 def _cmd_gui(args: argparse.Namespace) -> int:
+    import os
     import webbrowser
 
-    from vic2toolmod.server import make_server
+    from vic2toolmod.server import lifecycle, make_server
     from vic2toolmod.workspace import Workspace
 
     settings = load_settings()
-    mod = args.mod or (settings.mod_dirs[0] if settings.mod_dirs else None)
-    ws = Workspace.open(args.game or settings.game_dir, mod)
-    server, token = make_server(ws, args.port, warm_up=True)
-    url = f"http://127.0.0.1:{server.server_address[1]}/?token={token}"
+    resume = json.loads(os.environ.pop(lifecycle.RESUME_ENV, "") or "{}")
+    # A plain start is "the" GUI server: found and reused by the next plain start.
+    plain = args.port == 0 and args.mod is None and args.game is None
+    register = bool(resume.get("register")) if resume else plain
+    if plain and not resume and (state := lifecycle.read_state()) is not None:
+        info = lifecycle.ping(state)
+        if info is not None and info.get("stamp") == lifecycle.code_stamp():
+            url = lifecycle.url_of(state)
+            print(f"vic2toolmod GUI is already running: {url}", flush=True)
+            if not args.no_browser:
+                webbrowser.open(url)
+            return 0
+        if info is not None:
+            print("replacing the running GUI server (the tool's code changed)", flush=True)
+            lifecycle.ask_to_quit(state)
+
+    if resume:
+        game = Path(resume["game"]) if resume.get("game") else None
+        mod = Path(resume["mod"]) if resume.get("mod") else None
+    else:
+        game = args.game or settings.game_dir
+        mod = args.mod or (settings.mod_dirs[0] if settings.mod_dirs else None)
+    ws = Workspace.open(game, mod)
+    stay = bool(resume.get("stay")) if resume else args.stay
+    life = lifecycle.Lifetime(auto=not stay)
+    server, token = make_server(
+        ws, args.port, token=resume.get("token"), warm_up=True, lifetime=life
+    )
+    port = server.server_address[1]
+    url = f"http://127.0.0.1:{port}/?token={token}"
     print(f"vic2toolmod GUI: {url}  (Ctrl+C to stop)", flush=True)
-    if not args.no_browser:
+    if register:
+        lifecycle.write_state(port, token)
+    life.watch(server.shutdown)
+    if not args.no_browser and not resume:
         webbrowser.open(url)
     try:
         server.serve_forever()
@@ -346,6 +379,25 @@ def _cmd_gui(args: argparse.Namespace) -> int:
         pass
     finally:
         server.server_close()
+        if register:
+            lifecycle.clear_state(port)
+    if life.restart:
+        project = server.engine.ws.project  # type: ignore[attr-defined]
+        state = {
+            "token": token,
+            "register": register,
+            "stay": stay,
+            "game": str(project.game_dir) if project.game_dir else None,
+            "mod": str(project.mod_dir) if project.mod_dir else None,
+        }
+        env = {**os.environ, lifecycle.RESUME_ENV: json.dumps(state)}
+        argv = [sys.executable, "-m", "vic2toolmod", "gui", "--port", str(port), "--no-browser"]
+        if sys.platform == "win32":
+            import subprocess
+
+            subprocess.Popen(argv, env=env)  # noqa: S603 - our own command
+        else:
+            os.execve(sys.executable, argv, env)  # noqa: S606 - our own command
     return 0
 
 
@@ -377,6 +429,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--mod", type=Path, help="mod folder (default: configured)")
     p.add_argument("--game", type=Path, help="game folder (default: configured)")
     p.add_argument("--port", type=int, default=0, help="port (default: any free one)")
+    p.add_argument(
+        "--stay",
+        action="store_true",
+        help="keep running after the browser window is closed",
+    )
     p.add_argument("--no-browser", action="store_true", help="do not open a browser")
     p.set_defaults(func=_cmd_gui)
 
