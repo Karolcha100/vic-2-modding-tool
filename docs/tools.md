@@ -225,3 +225,24 @@ paints the map and finds the province under the mouse by its colour.
 neighbours, its file). API: `map/image`, `map/info`, `map/province`,
 `map/trigger` (a trigger checked in every land province or in its owner).
 
+## Save games (`analysis.savegame`, K98 A)
+
+`parse_save` reads a `.v2` save with its own small tokenizer (one regular
+expression; a 43 MB save in about 3 s) into lists of `(key, value)`.
+`read_save(ws, data)` gives a `World` at the save's date: the player, global
+flags, great powers (`great_nations`: indices into `common/countries.txt`
+from 0), countries (capital, government, cultures, religion, civilisation,
+prestige, money, `badboy`, plurality, national value, school, reforms,
+technologies and inventions, flags, modifiers, upper house, ruling party - its
+number counts every party of `common/countries/*.txt` in `countries.txt`
+order from 1 - relations and spheres, `level = 5`), land provinces (owner,
+controller, cores, life rating, trade goods, buildings, modifiers, pops with
+`mil` / `con`), alliances / vassals / substates / unions and the active wars.
+With a save the world also answers `has_country_modifier`,
+`has_province_modifier`, `money`, `badboy`, `relation = { who value }`,
+`in_sphere`, `is_sphere_leader_of`, `part_of_sphere` and `sphere_owner`.
+`save_folders` lists Victoria II's save folders (one per mod; also under
+Steam's Proton on Linux) and the game's tutorial. API: `saves`; the world
+endpoints (`trigger/world`, `trigger/countries`, `map/info`, `map/province`,
+`map/trigger`) take `save` (a `.v2` path) instead of `date`.
+

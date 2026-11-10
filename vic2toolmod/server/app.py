@@ -52,6 +52,8 @@ API (all under ``/api/``, JSON in and out):
 ``trigger/world``   POST    ``{rel, offset, tag, date?, player?}`` -> answers from history (K75 B)
 ``trigger/countries`` POST  ``{rel, offset, date?, player?}`` -> countries that meet it
                             (both also take ``great`` / ``secondary``: the powers, tags)
+``saves``           GET     save games found on this computer (K98 A); the world endpoints
+                            take ``save`` (a .v2 path) instead of ``date``
 ``trigger/powers``  GET     ``date`` -> great / secondary powers guessed from prestige
 ``ping``            GET     ``{stamp, stale, pid}``: is the server there, is its code current
 ``bye``             POST    ``client`` (query): a browser tab was closed (`lifecycle`)
@@ -193,6 +195,7 @@ class Engine:
         self._worlds: dict[str, Any] = {}  # the world at a date (K75 B), see _world
         self._map: dict[str, Any] = {}  # the province picture (map_image)
         self._adj: dict[str, Any] = {}  # provinces that touch (_adjacency)
+        self._saves: dict[str, Any] = {}  # the world of the last save game read (_save_world)
         self._vanilla: tuple[dict[str, tuple[int, int]], list[dict[str, Any]]] | None = None
         self.lock = threading.Lock()
         self._sprites: dict[tuple[str, int, int, int, int], bytes] = {}
@@ -741,17 +744,17 @@ class Engine:
         image: bytes = self._map["image"].png
         return image
 
-    def map_info(self, date: str) -> dict[str, Any]:
+    def map_info(self, date: str, save: str = "") -> dict[str, Any]:
         """Province colours, names, owners and cores at a date; the countries' colours."""
         from vic2toolmod.analysis.provmap import info
 
-        return info(self.ws, self._world(date or "1836.1.1"))
+        return info(self.ws, self._world_for({"date": date, "save": save}))
 
-    def map_province(self, pid: int, date: str) -> dict[str, Any]:
+    def map_province(self, pid: int, date: str, save: str = "") -> dict[str, Any]:
         """One province at a date: history values, cores, pops, neighbours, its file."""
         from vic2toolmod.analysis.provmap import province
 
-        return province(self.ws, self._world(date or "1836.1.1"), pid)
+        return province(self.ws, self._world_for({"date": date, "save": save}), pid)
 
     def map_trigger(self, body: dict[str, Any]) -> dict[str, Any]:
         """Where a trigger holds: every land province (``scope: province``) or its owner."""
@@ -840,10 +843,59 @@ class Engine:
         result: dict[int, set[int]] | None = self._adj["adj"]
         return result
 
+    def _save_world(self, path: str) -> Any:
+        """The world of a save game (K98 A), read again when the file changes."""
+        from vic2toolmod.analysis.savegame import read_save_file
+
+        p = Path(path).expanduser()
+        if p.suffix.lower() != ".v2" or not p.is_file():
+            raise ApiError(HTTPStatus.NOT_FOUND, f"no save game {path!r} (a .v2 file)")
+        key = (str(p), p.stat().st_mtime_ns, self.ws.names_version)
+        if self._saves.get("key") != key:
+            world = read_save_file(self.ws, p)
+            world.neighbours = self._adjacency()
+            self._saves = {"key": key, "world": world, "player": world.player, "great": world.great}
+        return self._saves["world"]
+
+    def saves(self) -> dict[str, Any]:
+        """Save games found on this computer, newest first (Victoria II's save folders)."""
+        from vic2toolmod.analysis.savegame import save_folders
+
+        found: list[dict[str, Any]] = []
+        for folder in save_folders(self.ws):
+            for f in folder.glob("*.v2"):
+                st = f.stat()
+                found.append(
+                    {
+                        "path": str(f),
+                        "name": f.name,
+                        "folder": folder.parent.name
+                        if folder.name == "save games"
+                        else folder.name,
+                        "time": int(st.st_mtime),
+                        "size": st.st_size,
+                    }
+                )
+        found.sort(key=lambda s: -int(s["time"]))
+        # the newest 60 of each folder (one mod's many saves do not hide the others)
+        kept: list[dict[str, Any]] = []
+        per: dict[str, int] = {}
+        for item in found:
+            per[item["folder"]] = per.get(item["folder"], 0) + 1
+            if per[item["folder"]] <= 60:
+                kept.append(item)
+        return {"saves": kept}
+
     def _world_for(self, body: dict[str, Any]) -> Any:
-        """The world at the request's date with its player and great / secondary powers."""
-        world = self._world(str(body.get("date") or "1836.1.1"))
-        world.player = str(body.get("player") or "").upper()
+        """The world (history at the date, or a save) with its player and powers."""
+        save = str(body.get("save") or "")
+        if save:
+            world = self._save_world(save)
+            world.player = str(body.get("player") or self._saves["player"] or "").upper()
+            world.great = self._saves["great"]
+        else:
+            world = self._world(str(body.get("date") or "1836.1.1"))
+            world.player = str(body.get("player") or "").upper()
 
         def tags(key: str) -> list[str] | None:
             raw = body.get(key)
@@ -852,7 +904,9 @@ class Engine:
             items = raw.split() if isinstance(raw, str) else raw
             return [str(t).upper() for t in items]
 
-        world.great, world.secondary = tags("great"), tags("secondary")
+        if tags("great") is not None or not save:
+            world.great = tags("great")
+        world.secondary = tags("secondary")
         return world
 
     def trigger_powers(self, date: str) -> dict[str, Any]:
@@ -2143,11 +2197,13 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                 case ("GET", "trigger/powers"):
                     return e.trigger_powers(q("date"))
                 case ("GET", "map/province"):
-                    return e.map_province(int(q("id")), q("date"))
+                    return e.map_province(int(q("id")), q("date"), q("save"))
                 case ("POST", "map/trigger"):
                     return e.map_trigger(body)
                 case ("GET", "map/info"):
-                    return e.map_info(q("date"))
+                    return e.map_info(q("date"), q("save"))
+                case ("GET", "saves"):
+                    return e.saves()
                 case ("POST", "trigger/world"):
                     return e.trigger_world(body)
                 case ("POST", "trigger/countries"):

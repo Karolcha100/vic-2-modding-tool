@@ -153,8 +153,9 @@ export const api = {
   triggerWorld: (rel: string, offset: number, tag: string, w: WorldOptions) =>
     call<{ answers: Record<string, boolean>; result: TriggerResult; value: boolean | null; reasons: string[] }>("trigger/world", { rel, offset, tag, ...w }),
   triggerPowers: (date: string) => call<{ great: string[]; secondary: string[] }>(`trigger/powers?${q({ date })}`),
-  mapInfo: (date: string) => call<MapInfo>(`map/info?${q({ date })}`),
-  mapProvince: (id: number, date: string) => call<ProvinceDetail>(`map/province?${q({ id, date })}`),
+  mapInfo: (date: string, save = "") => call<MapInfo>(`map/info?${q({ date, save })}`),
+  mapProvince: (id: number, date: string, save = "") => call<ProvinceDetail>(`map/province?${q({ id, date, save })}`),
+  saves: () => call<{ saves: SaveGame[] }>("saves"),
   mapTrigger: (text: string, scope: "province" | "owner", w: WorldOptions) =>
     call<{ results: Record<string, boolean | null>; true: number; false: number; unknown: number }>("map/trigger", { text, scope, ...w }),
   triggerCountries: (rel: string, offset: number, w: WorldOptions) =>
@@ -234,7 +235,9 @@ export const pictureUrl = (name: string) => `/api/picture?${q({ name, token })}`
 /** One frame (from 1) of a sprite of interface/*.gfx as PNG (T003). */
 export const spriteUrl = (name: string, frame: number) => `/api/sprite?${q({ name, frame, token })}`;
 /** The world the trigger tester reads from history (K75 B): date, player, powers (tags, spaces). */
-export interface WorldOptions { date: string; player: string; great: string; secondary: string }
+export interface WorldOptions { date: string; player: string; great: string; secondary: string; save?: string }
+/** A save game found on this computer (K98 A). */
+export interface SaveGame { path: string; name: string; folder: string; time: number; size: number }
 /** map/provinces.bmp as PNG, every `scale`-th pixel (province colours, K75 A). */
 export const mapUrl = (scale: number) => `/api/map/image?${q({ scale, token })}`;
 export type RGB = [number, number, number];

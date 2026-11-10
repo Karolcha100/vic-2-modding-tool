@@ -150,7 +150,8 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   windows), then the window's new size. One Ctrl+Z undoes the size, the moves
   and the stretching. **stretch picture…** does the same for any selected
   element with a picture, with a preview.
-- **Map** (K97 A, Analyses → Map): the province map at a start date coloured
+- **Map** (K97 A, Analyses → Map): the province map at a start date (or from
+  a save game, K98 A: **from** lists the saves of every mod) coloured
   by owner, culture or religion (most pops; colours of `common/cultures.txt` /
   `religion.txt`), trade goods, terrain, continent or pop count, with a legend;
   **Show where it holds** colours by a trigger checked in each province or in

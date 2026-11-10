@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, type Fact, type TriggerResult } from "../api";
 import { useStored } from "./Layout";
+import { WorldSource } from "./WorldSource";
 
 /**
  * Trigger tester (K53): answer the facts of a trigger block, see the result. "From history"
@@ -23,7 +24,8 @@ export function Tester({ rel, offset, facts, onOpen }: Props) {
   const [player, setPlayer] = useStored("vic2.tester.player", "");
   const [great, setGreat] = useStored("vic2.tester.great", "");
   const [secondary, setSecondary] = useStored("vic2.tester.secondary", "");
-  const world = { date, player, great, secondary };
+  const [save, setSave] = useStored("vic2.tester.save", "");
+  const world = { date, player, great, secondary, save };
   const guess = async () => {
     try { const r = await api.triggerPowers(date); setGreat(r.great.join(" ")); setSecondary(r.secondary.join(" ")); } catch (e) { setError((e as Error).message); }
   };
@@ -58,12 +60,12 @@ export function Tester({ rel, offset, facts, onOpen }: Props) {
       <div className="tester-world">
         From history: country <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="PRU" size={5}
           onKeyDown={(e) => { if (e.key === "Enter") fromHistory(); }} />
-        {" "}at <input value={date} onChange={(e) => setDate(e.target.value)} size={10} title="the start date of a bookmark, e.g. 1836.1.1" />
-        {" "}player <input value={player} onChange={(e) => setPlayer(e.target.value)} placeholder="(for ai)" size={6} title="the player's country: ai = no for it, yes for the others" />
+        {" "}<WorldSource date={date} setDate={setDate} save={save} setSave={setSave} />
+        {" "}player <input value={player} onChange={(e) => setPlayer(e.target.value)} placeholder={save ? "(the save's)" : "(for ai)"} size={6} title="the player's country: ai = no for it, yes for the others (a save says it)" />
         {" "}<button className="mini" onClick={() => fromHistory()}>Fill from history</button>
         <button className="mini" onClick={which} title="every country that exists at the date">Which countries?</button>
-        <div>great powers <input value={great} onChange={(e) => setGreat(e.target.value)} placeholder="(not known)" size={30}
-          title="tags; the game ranks the powers by its own score, so is_greater_power is not known until you give them" />
+        <div>great powers <input value={great} onChange={(e) => setGreat(e.target.value)} placeholder={save ? "(the save's)" : "(not known)"} size={30}
+          title="tags; the game ranks the powers by its own score (a save has the great powers), so from history is_greater_power is not known until you give them" />
           {" "}secondary <input value={secondary} onChange={(e) => setSecondary(e.target.value)} placeholder="(not known)" size={30} />
           {" "}<button className="mini" onClick={guess} title="the 8 + 8 civilised countries with the most prestige at the date">guess from prestige</button></div>
         {error && <span className="creator-error"> {error}</span>}

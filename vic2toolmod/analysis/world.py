@@ -82,6 +82,10 @@ class Country:
     decisions: set[str] = field(default_factory=set)
     upper_house: dict[str, float] = field(default_factory=dict)
     party_ideology: str = ""
+    #: From a save only (K98 A): country modifiers, relations (tag -> value), sphere members.
+    modifiers: set[str] = field(default_factory=set)
+    relations: dict[str, int] = field(default_factory=dict)
+    sphere: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -93,6 +97,7 @@ class Province:
     controller: str = ""
     cores: set[str] = field(default_factory=set)
     values: dict[str, str] = field(default_factory=dict)  # trade_goods, life_rating, terrain …
+    modifiers: set[str] = field(default_factory=set)  # from a save only
 
 
 @dataclass
@@ -135,16 +140,15 @@ class World:
     secondary: list[str] | None = None
     #: Province -> provinces it touches (from the map, `provmap.adjacency`); None = no map.
     neighbours: dict[int, set[int]] | None = None
+    #: "history" or the save game's file name (`savegame.read_save`).
+    source: str = "history"
 
     # -- reading ---------------------------------------------------------------------
     @classmethod
     def read(cls, ws: Workspace, date: str = "1836.1.1") -> World:
         """Read the history of the open mod (with the game's files under it)."""
         w = cls(parse_date(date))
-        regs = ws.registries()
-        w.technologies = set(regs.names.get("technology", {}))
-        w.inventions = set(regs.names.get("invention", {}))
-        w.issues = set(regs.names.get("issue", {}))
+        w.read_static(ws)
         files = sorted(ws.project.files().items())
         parties: dict[str, str] = {}
         for low, f in files:
@@ -165,6 +169,16 @@ class World:
                 w._diplomacy(ws.document(f.rel))
             elif low.startswith("history/wars/") and low.endswith(".txt"):
                 w._war(ws.document(f.rel))
+        w._pops(ws, files)
+        return w
+
+    def read_static(self, ws: Workspace) -> None:
+        """What does not change during a game: names, continents, regions, culture groups."""
+        regs = ws.registries()
+        self.technologies = set(regs.names.get("technology", {}))
+        self.inventions = set(regs.names.get("invention", {}))
+        self.issues = set(regs.names.get("issue", {}))
+        w = self
         cont = ws.file("map/continent.txt")
         if cont is not None:
             for c in ws.document(cont.rel).items:
@@ -183,7 +197,6 @@ class World:
                         for v in r.value.items
                         if isinstance(v, Scalar) and v.value.isdigit()
                     }
-        w._pops(ws, files)
         cul = ws.file("common/cultures.txt")
         if cul is not None:
             for g in ws.document(cul.rel).items:
@@ -191,7 +204,6 @@ class World:
                     for c in g.value.items:
                         if isinstance(c, Assignment) and isinstance(c.value, Block):
                             w.culture_group[c.key_text.lower()] = g.key_text.lower()
-        return w
 
     def _country(self, tag: str, doc: Document, parties: dict[str, str]) -> None:
         c = Country(tag)
@@ -576,7 +588,9 @@ class World:
             return is_(bool(self.at_war(tag)) == yes)
         if key == "war_with":
             return is_(self._ref(value, scope) in self.at_war(tag))
-        if key in ("truce_with", "in_sphere", "is_sphere_leader_of", "part_of_sphere"):
+        if key in ("truce_with", "in_sphere", "is_sphere_leader_of", "part_of_sphere") and (
+            self.source == "history"
+        ):
             # at the start of a game there are no truces and no spheres yet
             if self.date == (1836, 1, 1):
                 return is_(False, f"{key}: none at the start of the game")
@@ -606,6 +620,20 @@ class World:
             return is_(
                 (tag in ranks) == yes, f"{tag} is {'not ' if tag not in ranks else ''}in the list"
             )
+        if self.source != "history":  # what only a save game knows (K98 A)
+            if key == "has_country_modifier":
+                return is_(low in c.modifiers, f"{tag} has no modifier {value}")
+            if key in ("money", "badboy"):
+                have = float(c.values.get(key, 0) or 0)
+                return is_(have >= float(value), f"{key} is {have:.1f}")
+            if key in ("in_sphere", "is_sphere_leader_of"):
+                other = self._ref(value, scope)
+                lord, member = (other, tag) if key == "in_sphere" else (tag, other)
+                leader = self.countries.get(lord)
+                return is_(leader is not None and member in leader.sphere)
+            if key == "part_of_sphere":
+                inside = any(tag in o.sphere for o in self.countries.values())
+                return is_(inside == yes)
         if key == "upper_house" or key == "has_country_modifier":
             return Verdict(None, [f"{key}: not decided from history"])
         return Verdict(None, [f"{key}: not known from history"])
@@ -639,6 +667,8 @@ class World:
             return is_(p.values.get(key, "") == low)
         if key == "life_rating":
             return is_(float(p.values.get(key, 0) or 0) >= float(value))
+        if key == "has_province_modifier" and self.source != "history":
+            return is_(low in p.modifiers, f"province {p.id} has no modifier {value}")
         if key == "is_coastal":
             coast = self.coastal(p.id)
             if coast is None:
@@ -733,6 +763,20 @@ class World:
                 return (
                     _any(verdicts) if verdicts else Verdict(False, [f"{tag} is at war with nobody"])
                 )
+        if key == "relation" and c is not None and self.source != "history":
+            fields = {i.key_text.lower(): _scalar(i) for i in block.assignments()}
+            who = self._ref(fields.get("who", ""), scope)
+            try:
+                want = float(fields.get("value", "0"))
+            except ValueError:
+                return Verdict(None, ["relation: bad value"])
+            rel = c.relations.get(who, 0)
+            return Verdict(rel >= want, [] if rel >= want else [f"relation with {who} is {rel}"])
+        if key == "sphere_owner" and self.source != "history":
+            lord = next((t for t, o in self.countries.items() if tag in o.sphere), "")
+            if not lord:
+                return Verdict(False, [f"{tag} is in no sphere"])
+            return self.check(block, Scope("country", root, lord, 0))
         if key == "upper_house" and c is not None and c.upper_house:
             fields = {i.key_text.lower(): _scalar(i).lower() for i in block.assignments()}
             ideo, share = fields.get("ideology", ""), fields.get("value", "")

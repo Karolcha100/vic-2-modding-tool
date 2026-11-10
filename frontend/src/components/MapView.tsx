@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type MapInfo, type MapProvince, type ProvinceDetail, type RGB } from "../api";
 import { SidePanel, useStored } from "./Layout";
 import { ProvinceMap } from "./ProvinceMap";
+import { WorldSource } from "./WorldSource";
 
 /**
  * Analyses → Map (K97 A): the province map at a start date coloured by owner, culture,
@@ -29,6 +30,7 @@ function hashColor(name: string): RGB {
 
 export function MapView({ onOpen }: { onOpen: (rel: string, line?: number) => void }) {
   const [date, setDate] = useStored("vic2.map.date", "1836.1.1");
+  const [save, setSave] = useStored("vic2.map.save", "");
   const [mode, setMode] = useStored<Mode>("vic2.map.mode", "owner");
   const [text, setText] = useStored("vic2.map.trigger", "is_core = ENG");
   const [scope, setScope] = useStored<"province" | "owner">("vic2.map.scope", "province");
@@ -38,14 +40,14 @@ export function MapView({ onOpen }: { onOpen: (rel: string, line?: number) => vo
   const [detail, setDetail] = useState<ProvinceDetail | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => { setInfo(null); api.mapInfo(date).then(setInfo).catch((e) => setError((e as Error).message)); }, [date]);
+  useEffect(() => { setInfo(null); setError(""); api.mapInfo(date, save).then(setInfo).catch((e) => setError((e as Error).message)); }, [date, save]);
   useEffect(() => {
     if (sel === null) { setDetail(null); return; }
-    api.mapProvince(sel, date).then(setDetail).catch((e) => setError((e as Error).message));
-  }, [sel, date]);
+    api.mapProvince(sel, date, save).then(setDetail).catch((e) => setError((e as Error).message));
+  }, [sel, date, save]);
   const runTrigger = async () => {
     setError("");
-    try { setResults(await api.mapTrigger(text, scope, { date, player: "", great: "", secondary: "" })); setMode("trigger"); }
+    try { setResults(await api.mapTrigger(text, scope, { date, player: "", great: "", secondary: "", save })); setMode("trigger"); }
     catch (e) { setError((e as Error).message); }
   };
 
@@ -82,7 +84,7 @@ export function MapView({ onOpen }: { onOpen: (rel: string, line?: number) => vo
     <div className="split-view mg-tab">
       <div className="mg-detail map-main">
         <div className="map-tools">
-          at <input value={date} onChange={(e) => setDate(e.target.value)} size={10} title="a start date: the history up to it (e.g. 1836.1.1, 1861.4.14)" />
+          <WorldSource date={date} setDate={setDate} save={save} setSave={setSave} />
           {" "}colour by <select value={mode} onChange={(e) => setMode(e.target.value as Mode)}>{MODES.map(([m, l]) => <option key={m} value={m}>{l}</option>)}</select>
           {error && <span className="creator-error"> {error}</span>}
         </div>

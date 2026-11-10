@@ -261,3 +261,118 @@ def test_map_endpoints(tmp_path):
     )
     info = engine.map_info("1836.1.1")
     assert info["provinces"][550]["trade_goods"] == "coal" and "culture_colors" in info
+
+
+SAVE = b"""date="1850.6.1"
+player="PRU"
+flags=
+{
+	crimean_war=yes
+}
+549=
+{
+	name="Berlin"
+	owner="PRU"
+	controller="PRU"
+	core="PRU"
+	railroad=
+	{
+		2 0.000
+	}
+	modifier=
+	{
+		modifier=nitrates
+		date="1.1.1"
+	}
+	farmers=
+	{
+		id=1
+		size=5000
+		north_german=protestant
+		mil=3.5
+		con=1.0
+	}
+}
+550=
+{
+	owner="SAX"
+	core="SAX"
+}
+3001=
+{
+	name="North Sea"
+}
+REB=
+{
+}
+PRU=
+{
+	capital=549
+	technology=
+	{
+		flintlock_rifles={1 0.000}
+	}
+	ruling_party=1
+	primary_culture="north_german"
+	money=12345.6
+	civilized=yes
+	modifier=
+	{
+		modifier=good_harvest
+		date="1851.1.1"
+	}
+	SAX=
+	{
+		value=150
+		level=5
+	}
+}
+SAX=
+{
+	capital=550
+}
+diplomacy=
+{
+	alliance=
+	{
+		first="PRU"
+		second="SAX"
+		start_date="1840.1.1"
+	}
+}
+great_nations=
+{
+0 }
+"""
+
+
+def test_save_game(tmp_path):
+    """K98 A: the world from a save game."""
+    from vic2toolmod.analysis.savegame import parse_save, read_save
+
+    ws = make(tmp_path)
+    tree = parse_save(b'a=1 b={ 1 2 } c="x y"')
+    assert tree == [("a", "1"), ("b", [(None, "1"), (None, "2")]), ("c", "x y")]
+    w = read_save(ws, SAVE, "test.v2")
+    assert w.source == "test.v2" and w.date == (1850, 6, 1) and w.player == "PRU"
+    assert w.great == ["PRU"]  # index 0 of common/countries.txt here (PRU, SAX)
+    pru = w.countries["PRU"]
+    assert pru.party_ideology == "conservative" and pru.modifiers == {"good_harvest"}
+    assert pru.relations == {"SAX": 150} and pru.sphere == {"SAX"}
+    assert w.provinces[549].values["railroad"] == "2" and w.pops[549][0].militancy == 3.5
+    assert 3001 not in w.provinces  # sea
+    for t in (
+        "money = 10000",
+        "has_country_modifier = good_harvest",
+        "is_sphere_leader_of = SAX",
+        "SAX = { in_sphere = PRU part_of_sphere = yes sphere_owner = { tag = PRU } }",
+        "relation = { who = SAX value = 100 }",
+        "alliance_with = SAX",
+        "has_global_flag = crimean_war",
+        "flintlock_rifles = 1",
+        "is_greater_power = yes",
+        "capital_scope = { has_province_modifier = nitrates average_militancy = 3 }",
+    ):
+        assert check(w, t).value is True, t
+    assert check(w, "money = 20000").value is False
+    assert check(w, "truce_with = SAX").value is None  # not read from saves yet
