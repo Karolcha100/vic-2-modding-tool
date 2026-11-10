@@ -195,6 +195,8 @@ export const api = {
   codeGroups: (text: string, block: string, target: string) => call<{ groups: ModGroup[] }>("modgroups/text", { text, block, target }),
   codeGroupEdit: (text: string, block: string, target: string, id: string, steps: [string, string][]) =>
     call<{ text: string }>("modgroups/text-edit", { text, block, target, id, steps }),
+  stretchPicture: (body: { sprite: string; width: number; height: number; border: number; write: boolean; rel?: string; line?: number }) =>
+    call<{ file: string; from: [number, number]; to: [number, number]; preview?: string; written?: boolean; texture?: string; sprite?: string; backup?: string | null }>("picture/stretch", body),
   formatText: (text: string) => call<{ text: string }>("format/text", { text }),
   formatPlan: () => call<FormatPlan>("format/plan", {}),
   formatDiff: (rel: string) => call<{ diff: string }>(`format/diff?${q({ rel })}`),

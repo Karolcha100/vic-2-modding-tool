@@ -48,6 +48,8 @@ API (all under ``/api/``, JSON in and out):
 ``meta/plan``       POST    ``{rule?, old_name?, delete?, force?, write?}`` -> diff of all files
 ``modgroups/text``  POST    ``{text, block, target?}`` -> groups in a rule's modifiers
 ``modgroups/text-edit`` POST ``{text, id, steps}`` -> the modifiers' text with new steps
+``picture/stretch`` POST    ``{sprite, width, height, border, write?}`` -> a sprite's picture at a
+                            new size, frame kept (K94): preview; ``write`` into the mod
 ``format/text``     POST    ``{text}`` -> the text formatted (T011)
 ``format/plan``     POST    format the mod's files: files that change, lines, skipped
 ``format/diff``     GET     ``rel`` -> diff of one file of the last plan
@@ -1132,9 +1134,7 @@ class Engine:
         pops = meta.pop_types(self.ws)
         names = self.ws.registries().names
         return {
-            "rules": [
-                {**asdict(r), "pops": meta.matches(r, pops)} for r in meta.rules(self.ws)
-            ],
+            "rules": [{**asdict(r), "pops": meta.matches(r, pops)} for r in meta.rules(self.ws)],
             "pops": pops,
             "blocks": {"pop": list(meta.POP_BLOCKS), "chance": list(meta.CHANCE_BLOCKS)},
             "names": {
@@ -1232,6 +1232,131 @@ class Engine:
         except ValueError as exc:
             raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
         return {"text": new[len(head) : -len("\n}\n")]}
+
+    # -- bigger window backgrounds (K94) ---------------------------------------------------
+    def stretch_picture(self, body: dict[str, Any]) -> dict[str, Any]:
+        """A sprite's picture at a new size with its frame kept (nine-slice, K94).
+
+        Without ``write``: a small PNG preview (base64). With ``write``: the
+        picture becomes a *new* file and a new sprite, and only the element
+        (``rel`` + ``line`` of its block in a ``.gui`` file) is pointed at it -
+        textures such as ``main_bg.dds`` are shared by many windows, so the
+        original stays as it is:
+
+        - ``gfx/interface/vic2toolmod/<stem>_<w>x<h>.dds`` (or ``.tga``),
+        - ``GFX_<name>_<w>x<h>`` in ``interface/vic2toolmod_stretched.gfx``,
+        - the element's ``spriteType`` / ``quadTextureSprite`` in the ``.gui``.
+        """
+        import base64
+
+        from vic2toolmod.analysis.gui_tree import _SPRITE_KEYS
+        from vic2toolmod.edit import apply_edits, replace_token_text
+        from vic2toolmod.images import ImageError, dds, image_to_rgba, png, shrink, stretch, tga
+
+        name = str(body["sprite"])
+        s = self.ws.registries().sprites.get(name.lower())
+        rel = self.texture(s.texture) if s else None
+        f = self.ws.file(rel) if rel else None
+        if s is None or f is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, f"no picture for sprite {name!r}")
+        if s.frames > 1:
+            raise ApiError(
+                HTTPStatus.UNPROCESSABLE_ENTITY, "an icon strip (several frames) is not stretched"
+            )
+        width, height = int(body["width"]), int(body["height"])
+        if not (1 <= width <= 8192 and 1 <= height <= 8192):
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, "the size must be 1..8192")
+        try:
+            w, h, px = image_to_rgba(f.path.read_bytes())
+            out = stretch(w, h, px, width, height, int(body.get("border", 40)))
+        except ImageError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        result: dict[str, Any] = {"file": f.rel, "from": [w, h], "to": [width, height]}
+        if not body.get("write"):
+            pw, ph, small = shrink(width, height, out, 480)
+            result["preview"] = base64.b64encode(png(pw, ph, small)).decode()
+            return result
+        mod = self.ws.project.mod_dir
+        if mod is None:
+            self._write([])  # refused: only the game is open
+        assert mod is not None
+        # the element that shows the picture
+        gui = self._file_or_404(str(body.get("rel", "")))
+        doc = self.ws.document(gui)
+        line = int(body.get("line", 0))
+        node = next(
+            (
+                n
+                for n in doc.walk()
+                if isinstance(n, Assignment)
+                and isinstance(n.value, Block)
+                and doc.position(n.start)[0] == line
+            ),
+            None,
+        )
+        ref = (
+            next(
+                (
+                    i
+                    for i in node.value.items
+                    if isinstance(i, Assignment)
+                    and i.key_text.lower() in _SPRITE_KEYS
+                    and isinstance(i.value, Scalar)
+                ),
+                None,
+            )
+            if node is not None and isinstance(node.value, Block)
+            else None
+        )
+        if ref is None or not isinstance(ref.value, Scalar):
+            raise ApiError(
+                HTTPStatus.UNPROCESSABLE_ENTITY, f"no element with a picture at line {line}"
+            )
+        base = name[4:] if name.upper().startswith("GFX_") else name
+        stem = Path(f.rel).stem
+        suffix = ".tga" if f.rel.lower().endswith(".tga") else ".dds"
+        tex_rel = f"gfx/interface/vic2toolmod/{stem}_{width}x{height}{suffix}"
+        new_name = f"GFX_{base}_{width}x{height}"
+        gfx_rel = "interface/vic2toolmod_stretched.gfx"
+        gfx_file = self.ws.file(gfx_rel)
+        gfx_old = self.ws.document(gfx_file.rel).text if gfx_file else None
+        entry = (
+            f'\tspriteType = {{\n\t\tname = "{new_name}"\n'
+            f'\t\ttexturefile = "{tex_rel.replace("/", chr(92) * 2)}"\n'
+            f"\t\tnorefcount = yes\n\t}}\n"
+        )
+        if gfx_old is None:
+            gfx_new = (
+                "# Pictures stretched by vic2toolmod (K94): bigger window backgrounds.\n"
+                "spriteTypes = {\n" + entry + "}\n"
+            )
+        elif f'"{new_name}"' in gfx_old:
+            gfx_new = gfx_old
+        else:
+            end = gfx_old.rstrip().rfind("}")
+            gfx_new = gfx_old[:end] + entry + gfx_old[end:]
+        gui_old = doc.text
+        gui_new = apply_edits(gui_old, [replace_token_text(ref.value, f'"{new_name}"')])
+        changes = [
+            FileChange(gfx_rel, mod / gfx_rel, gfx_old, gfx_new),
+            FileChange(gui, mod / gui, gui_old, gui_new, self.ws.encoding(gui)),
+        ]
+        backup = self._write([c for c in changes if c.old_text != c.new_text])
+        target = mod / tex_rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        data = tga(width, height, out) if suffix == ".tga" else dds(width, height, out)
+        target.write_bytes(data)
+        self.ws.revert(gui)
+        self._sprites.clear()
+        self.ws.refresh()
+        self._stamps = self._snapshot()
+        result.update(
+            written=True,
+            texture=tex_rel,
+            sprite=new_name,
+            backup=str(backup) if backup else None,
+        )
+        return result
 
     # -- formatting (T011) ---------------------------------------------------------------
     def format_text(self, text: str) -> dict[str, Any]:
@@ -1692,6 +1817,8 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.modgroups_text(body, None)
                 case ("POST", "modgroups/text-edit"):
                     return e.modgroups_text(body, _steps(body))
+                case ("POST", "picture/stretch"):
+                    return e.stretch_picture(body)
                 case ("POST", "format/text"):
                     return e.format_text(str(body["text"]))
                 case ("POST", "format/plan"):

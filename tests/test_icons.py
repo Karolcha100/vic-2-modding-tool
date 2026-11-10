@@ -161,3 +161,46 @@ def test_tga_16_bits():
     header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, 2, 1, 16, 0x20)
     w, h, px = image_to_rgba(header + struct.pack("<HH", 31 << 10, 0x7FFF))
     assert (w, h, px) == (2, 1, bytes([255, 0, 0, 255, 255, 255, 255, 255]))
+
+
+def test_stretch_picture_endpoint(tmp_path):
+    """K94: a picture stretched into a new file and sprite; only the element points at it."""
+    from vic2toolmod.images import dds as make_dds
+    from vic2toolmod.images import dds_to_rgba
+    from vic2toolmod.server.app import ApiError
+
+    game = tmp_path / "game"
+    (game / "interface").mkdir(parents=True)
+    tex = "gfx\\\\interface\\\\bg.dds"
+    (game / "interface/x.gfx").write_text(
+        f'spriteTypes = {{ spriteType = {{ name = "GFX_bg" texturefile = "{tex}" }}\n'
+        f'spriteType = {{ name = "GFX_strip" texturefile = "{tex}" noOfFrames = 2 }} }}\n'
+    )
+    (game / "interface/w.gui").write_text(
+        'guiTypes = {\n\twindowType = {\n\t\tname = "w"\n\t\ticonType = {\n'
+        '\t\t\tname = "back"\n\t\t\tspriteType = "GFX_bg"\n\t\t}\n\t}\n}\n'
+    )
+    (game / "gfx/interface").mkdir(parents=True)
+    original = make_dds(8, 6, bytes([10, 20, 30, 255]) * 48)
+    (game / "gfx/interface/bg.dds").write_bytes(original)
+    (tmp_path / "mod").mkdir()
+    engine = Engine(Workspace.open(game, tmp_path / "mod"))
+    body = {"sprite": "GFX_bg", "width": 12, "height": 9, "border": 2}
+    preview = engine.stretch_picture(body)
+    assert preview["from"] == [8, 6] and preview["to"] == [12, 9] and preview["preview"]
+    assert not (tmp_path / "mod/gfx").exists()
+    done = engine.stretch_picture({**body, "write": True, "rel": "interface/w.gui", "line": 4})
+    assert done["sprite"] == "GFX_bg_12x9"
+    assert done["texture"] == "gfx/interface/vic2toolmod/bg_12x9.dds"
+    w, h, px = dds_to_rgba((tmp_path / "mod" / done["texture"]).read_bytes())
+    assert (w, h) == (12, 9) and px[:4] == bytes([10, 20, 30, 255])
+    assert (game / "gfx/interface/bg.dds").read_bytes() == original  # shared texture untouched
+    gfx = (tmp_path / "mod/interface/vic2toolmod_stretched.gfx").read_text()
+    assert 'name = "GFX_bg_12x9"' in gfx and "vic2toolmod\\\\bg_12x9.dds" in gfx
+    assert 'spriteType = "GFX_bg_12x9"' in (tmp_path / "mod/interface/w.gui").read_text()
+    sprite = engine.ws.registries().sprites.get("gfx_bg_12x9")
+    assert sprite is not None and engine.texture(sprite.texture) == done["texture"]
+    with pytest.raises(ApiError, match="strip"):
+        engine.stretch_picture({**body, "sprite": "GFX_strip"})
+    with pytest.raises(ApiError, match="no element"):
+        engine.stretch_picture({**body, "write": True, "rel": "interface/w.gui", "line": 2})

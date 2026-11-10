@@ -53,3 +53,24 @@ def test_png_structure():
 def test_unsupported():
     with pytest.raises(ImageError):
         tga_to_rgba(b"\x00" * 10)
+
+
+def test_stretch_keeps_the_frame_and_writes_dds_and_tga():
+    """K94: nine-slice stretching; uncompressed DDS / Targa read back the same."""
+    from vic2toolmod.images import dds, dds_to_rgba, stretch, tga, tga_to_rgba
+
+    w, h = 6, 4
+    px = bytes(v for i in range(w * h) for v in (i * 10 % 256, 0, 255 - i, 255))
+    out = stretch(w, h, px, 10, 7, 1)
+    assert len(out) == 10 * 7 * 4
+
+    def at(data, width, x, y):
+        return data[(y * width + x) * 4 : (y * width + x) * 4 + 4]
+
+    # the corner pixels (frame of 1) stay as they were
+    assert at(out, 10, 0, 0) == at(px, w, 0, 0)
+    assert at(out, 10, 9, 6) == at(px, w, 5, 3)
+    assert at(out, 10, 9, 0) == at(px, w, 5, 0)
+    assert stretch(w, h, px, w, h, 1) == px  # same size: unchanged
+    assert dds_to_rgba(dds(10, 7, out)) == (10, 7, out)
+    assert tga_to_rgba(tga(10, 7, out)) == (10, 7, out)

@@ -65,6 +65,9 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
     setHiddenAll(hiddenRef.current);
   };
   const zoom = useZoom();
+  // K94: a bigger window - its new size (keeping its centre) and pictures stretched to fit
+  const [resize, setResize] = useState<null | { w: string; h: string; centre: boolean }>(null);
+  const [stretchOf, setStretchOf] = useState<null | { sprite: string; line: number; w: string; h: string; border: string; preview?: string; note?: string }>(null);
   const [windows, setWindows] = useState<{ name: string; line: number; depth: number }[]>([]);
   const [data, setData] = useState<GuiWindow | null>(null);
   // Moves and sizes not written yet; Ctrl+Z / Ctrl+Shift+Z step through them (T012).
@@ -172,6 +175,8 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
         <span className="spacer" />
         <label><input type="checkbox" checked={real} onChange={(e) => setReal(e.target.checked)} /> Real graphics</label>
         {zoom.controls}
+        <button disabled={!data} onClick={() => root && setResize({ w: String(Math.max(root.w, 1600)), h: String(Math.max(root.h, 900)), centre: true })}
+          title="Give the window a new size (K94); its backgrounds can then be stretched to fit">Resize window…</button>
         <button onClick={() => setPanel(!panel)} title="Show or hide the panel with the elements">{panel ? "Hide panel" : "Show panel"}</button>
         <button onClick={() => plan(false)} disabled={!pending}>Preview changes</button>
         <button onClick={() => plan(true)} disabled={!pending}>Save</button>
@@ -243,7 +248,9 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
                 ))}
                 <div className="muted small">
                   {selected.el.orientation !== "upper_left" && <>orientation {selected.el.orientation}<br /></>}
-                  {selected.el.sprite && <>sprite {selected.el.sprite}<br /></>}
+                  {selected.el.sprite && <>sprite {selected.el.sprite}{" "}
+                    <a href="#" onClick={(e) => { e.preventDefault(); const sp = data?.sprites[selected.el.sprite];
+                      setStretchOf({ sprite: selected.el.sprite, line: selected.el.line, w: String(sp?.w || selected.w), h: String(sp?.h || selected.h), border: "40" }); }}>stretch picture…</a><br /></>}
                   {selected.el.text && <>text {selected.el.text}{data?.texts[selected.el.text] ? ` = “${data.texts[selected.el.text]}”` : ""}<br /></>}
                   {selected.el.font && <>font {selected.el.font}<br /></>}
                   {original.get(selected.el.line) && changes[selected.el.line] && (
@@ -270,6 +277,77 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
           <div className="muted rw-help">Click an element to select it, drag to move, drag the corner square to resize; numbers change it too. Positions are relative to the parent (and its corner / centre given by orientation). Double click opens the element in the code. Untick an element to hide it in the drawing (e.g. tab panels of one window that cover each other; the game shows one at a time). Ctrl + mouse wheel zooms.</div>
         </SidePanel>}
       </div>
+      {resize && root && data && (() => {
+        const was = original.get(root.line) ?? root; // the size in the file, before any change here
+        const w = Number(resize.w) || root.w, h = Number(resize.h) || root.h;
+        const dw = w - was.w, dh = h - was.h;
+        // backgrounds: pictures of the window's own elements nearly as big as the window
+        const backs = root.children.filter((c) => c.sprite && data.sprites[c.sprite]?.found
+          && (data.sprites[c.sprite]?.w ?? 0) >= was.w * 0.7 && (data.sprites[c.sprite]?.h ?? 0) >= was.h * 0.7);
+        return (
+          <div className="preview-backdrop" onClick={() => setResize(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="creator-form">
+                <b>Resize the window {root.name}</b>
+                <div className="muted">In the file {was.w}×{was.h} at {was.x}, {was.y} ({root.orientation}). Elements placed from the right or bottom edge move with it; the rest stay. The game does not scale: players with a smaller screen do not see the edges.</div>
+                <label>Width <input value={resize.w} onChange={(e) => setResize({ ...resize, w: e.target.value })} /></label>
+                <label>Height <input value={resize.h} onChange={(e) => setResize({ ...resize, h: e.target.value })} /></label>
+                <label><input type="checkbox" checked={resize.centre} onChange={(e) => setResize({ ...resize, centre: e.target.checked })} /> keep the centre where it is (moves the window by {-Math.round(dw / 2)}, {-Math.round(dh / 2)})</label>
+                <div className="creator-buttons">
+                  <button onClick={() => {
+                    set(root.line, { w, h, ...(resize.centre ? { x: was.x - Math.round(dw / 2), y: was.y - Math.round(dh / 2) } : {}) });
+                    onStatus(`Window ${root.name}: ${w}×${h} - not saved yet (Preview changes / Save)`);
+                  }}>Apply the size</button>
+                  <button onClick={() => setResize(null)}>Close</button>
+                </div>
+                {backs.length > 0 && <div><b>Backgrounds to stretch by the same amount</b> ({dw >= 0 ? "+" : ""}{dw}, {dh >= 0 ? "+" : ""}{dh}):</div>}
+                {backs.map((c) => {
+                  const sp = data.sprites[c.sprite]!;
+                  return (
+                    <div key={c.line} className="row">{c.name} <span className="muted">{c.sprite} {sp.w}×{sp.h}</span>{" "}
+                      <button className="mini" onClick={() => setStretchOf({ sprite: c.sprite, line: c.line, w: String(sp.w + dw), h: String(sp.h + dh), border: "40" })}>
+                        stretch to {sp.w + dw}×{sp.h + dh}…</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+      {stretchOf && (
+        <div className="preview-backdrop" onClick={() => setStretchOf(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="creator-form">
+              <b>Stretch the picture of {stretchOf.sprite}</b>
+              <div className="muted">The frame stays sharp: the corners ({stretchOf.border} px) are kept as they are, the edges and the middle are stretched. The picture becomes a new file and a new sprite (in interface/vic2toolmod_stretched.gfx), and only this element is pointed at it: the original picture is often shared by many windows and stays as it is.</div>
+              <label>Width <input value={stretchOf.w} onChange={(e) => setStretchOf({ ...stretchOf, w: e.target.value, preview: undefined })} /></label>
+              <label>Height <input value={stretchOf.h} onChange={(e) => setStretchOf({ ...stretchOf, h: e.target.value, preview: undefined })} /></label>
+              <label>Frame (px kept at each edge) <input value={stretchOf.border} onChange={(e) => setStretchOf({ ...stretchOf, border: e.target.value, preview: undefined })} /></label>
+              <div className="creator-buttons">
+                <button onClick={async () => {
+                  try {
+                    const r = await api.stretchPicture({ sprite: stretchOf.sprite, width: Number(stretchOf.w), height: Number(stretchOf.h), border: Number(stretchOf.border), write: false });
+                    setStretchOf({ ...stretchOf, preview: r.preview, note: `${r.file}: ${r.from.join("×")} → ${r.to.join("×")}` });
+                  } catch (e) { setStretchOf({ ...stretchOf, note: (e as Error).message }); }
+                }}>Preview</button>
+                <button disabled={!stretchOf.preview} onClick={async () => {
+                  if (!window.confirm(`Write the stretched picture into the mod? A backup is made first.`)) return;
+                  try {
+                    const r = await api.stretchPicture({ sprite: stretchOf.sprite, width: Number(stretchOf.w), height: Number(stretchOf.h), border: Number(stretchOf.border), write: true, rel: data?.file ?? rel, line: stretchOf.line });
+                    onStatus(`New picture ${r.texture} (${r.to.join("×")}), sprite ${r.sprite}${r.backup ? `; backup: ${r.backup}` : ""}`);
+                    setStretchOf(null);
+                    if (data) setData(await api.guiWindow(rel, name));
+                  } catch (e) { setStretchOf({ ...stretchOf, note: (e as Error).message }); }
+                }}>Write</button>
+                <button onClick={() => setStretchOf(null)}>Cancel</button>
+              </div>
+              {stretchOf.note && <div className="muted">{stretchOf.note}</div>}
+              {stretchOf.preview && <img className="stretch-preview" src={`data:image/png;base64,${stretchOf.preview}`} alt="preview" />}
+            </div>
+          </div>
+        </div>
+      )}
       {diff !== null && (
         <div className="rw-diff">
           <div className="panel-title">Changes <span onClick={() => setDiff(null)}>close</span></div>

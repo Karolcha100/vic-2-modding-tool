@@ -226,3 +226,110 @@ def frame(width: int, height: int, rgba: bytes, frames: int, index: int) -> tupl
     row = width * 4
     pixels = b"".join(rgba[y * row + x0 : y * row + x0 + fw * 4] for y in range(height))
     return fw, height, pixels
+
+
+# -- writing (K94: bigger window backgrounds) ------------------------------------------
+def dds(width: int, height: int, rgba: bytes) -> bytes:
+    """An uncompressed 32-bit DDS file (A8R8G8B8, one image), as the game reads it."""
+    header = bytearray(128)
+    header[:4] = b"DDS "
+    # size, flags (caps | height | width | pitch | pixel format), height, width, pitch
+    struct.pack_into("<IIIII", header, 4, 124, 0x100F, height, width, width * 4)
+    # pixel format: size, flags (RGB | alpha), FourCC, bits, R G B A masks
+    struct.pack_into(
+        "<II4s5I", header, 76, 32, 0x41, b"\0\0\0\0", 32, 0xFF0000, 0xFF00, 0xFF, 0xFF000000
+    )
+    struct.pack_into("<I", header, 108, 0x1000)  # caps: texture
+    body = bytearray(len(rgba))
+    body[0::4] = rgba[2::4]  # B
+    body[1::4] = rgba[1::4]  # G
+    body[2::4] = rgba[0::4]  # R
+    body[3::4] = rgba[3::4]  # A
+    return bytes(header) + bytes(body)
+
+
+def tga(width: int, height: int, rgba: bytes) -> bytes:
+    """An uncompressed 32-bit Targa file, rows from the top."""
+    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, width, height, 32, 0x28)
+    body = bytearray(len(rgba))
+    body[0::4] = rgba[2::4]
+    body[1::4] = rgba[1::4]
+    body[2::4] = rgba[0::4]
+    body[3::4] = rgba[3::4]
+    return header + bytes(body)
+
+
+def _axis(size: int, new: int, border: int) -> list[tuple[int, int, float]]:
+    """For each new pixel: two source pixels and the weight of the second.
+
+    The first and last ``border`` pixels are copied as they are; the part between
+    them is stretched (linear interpolation).
+    """
+    b = max(0, min(border, size // 2, new // 2))
+    out: list[tuple[int, int, float]] = []
+    inner, new_inner = size - 2 * b, new - 2 * b
+    for i in range(new):
+        if i < b:
+            out.append((i, i, 0.0))
+        elif i >= new - b:
+            j = size - (new - i)
+            out.append((j, j, 0.0))
+        else:
+            # the centre of new pixel i, mapped into the source's inner part
+            f = (i - b + 0.5) * inner / max(new_inner, 1) - 0.5
+            f = min(max(f, 0.0), inner - 1.0)
+            j0 = int(f)
+            j1 = min(j0 + 1, inner - 1)
+            out.append((b + j0, b + j1, f - j0))
+    return out
+
+
+def stretch(width: int, height: int, rgba: bytes, new_w: int, new_h: int, border: int) -> bytes:
+    """Resize a picture with its frame kept ("nine-slice").
+
+    The corners (``border`` pixels) stay as they are, the edges stretch along
+    their length and the middle in both directions.
+    """
+    if new_w < 1 or new_h < 1:
+        raise ImageError("the new size must be at least 1×1")
+    cols = _axis(width, new_w, border)
+    rows = _axis(height, new_h, border)
+    row = width * 4
+    # horizontal pass: every source row at the new width
+    wide: list[bytes] = []
+    for y in range(height):
+        src = rgba[y * row : (y + 1) * row]
+        out = bytearray(new_w * 4)
+        for x, (a, b, t) in enumerate(cols):
+            pa, pb = a * 4, b * 4
+            if t == 0.0:
+                out[x * 4 : x * 4 + 4] = src[pa : pa + 4]
+            else:
+                for c in range(4):
+                    out[x * 4 + c] = int(src[pa + c] + (src[pb + c] - src[pa + c]) * t + 0.5)
+        wide.append(bytes(out))
+    # vertical pass
+    result = bytearray()
+    for a, b, t in rows:
+        if t == 0.0:
+            result += wide[a]
+        else:
+            ra, rb = wide[a], wide[b]
+            result += bytes(int(p + (q - p) * t + 0.5) for p, q in zip(ra, rb, strict=True))
+    return bytes(result)
+
+
+def shrink(width: int, height: int, rgba: bytes, max_w: int) -> tuple[int, int, bytes]:
+    """A small copy for a preview (nearest pixel), at most ``max_w`` wide."""
+    if width <= max_w:
+        return width, height, rgba
+    k = width / max_w
+    new_h = max(1, int(height / k))
+    out = bytearray()
+    for y in range(new_h):
+        sy = min(height - 1, int(y * k))
+        line = rgba[sy * width * 4 : (sy + 1) * width * 4]
+        for x in range(max_w):
+            sx = min(width - 1, int(x * k)) * 4
+            out += line[sx : sx + 4]
+    return max_w, new_h, bytes(out)

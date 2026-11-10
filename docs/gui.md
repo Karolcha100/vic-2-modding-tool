@@ -119,6 +119,15 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   "shown" tick (remembered per window) - tab panels of one window lie on top
   of each other (the game shows one at a time) and the panel says which;
   texts on real pictures get an outline so they stay readable.
+- **Bigger windows** (K94): **Resize window…** in Interface gives the window a
+  new size (keeping its centre; elements placed from the right / bottom edge
+  move with it) and lists its backgrounds; **stretch picture…** (also for any
+  selected element with a picture) makes the picture bigger with its frame
+  kept sharp (corners as they are, edges and middle stretched; preview
+  first). The stretched picture becomes a new file
+  (`gfx/interface/vic2toolmod/<name>_<w>x<h>.dds`) and a new sprite
+  (`interface/vic2toolmod_stretched.gfx`), and only that element points at
+  it: textures such as `main_bg.dds` are shared by many windows.
 - **Panels** (T019): side lists (Modifier groups, Meta relations, Pop promotion,
   Event chains, Vs vanilla, Git, Interface / Reform window panels, Format)
   are widened by dragging their inner border; the width is remembered.

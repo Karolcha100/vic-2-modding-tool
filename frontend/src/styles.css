@@ -268,3 +268,4 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .rw-side .row.hidden-el { opacity: 0.5; }
 .link-like { cursor: pointer; padding: 0 6px; color: var(--muted); }
 .link-like:hover { color: var(--text); }
+.stretch-preview { max-width: 100%; border: 1px solid var(--border); background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
