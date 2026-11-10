@@ -14,8 +14,12 @@ own releasable countries:
   text copied from the template's parties);
 - flags: the template's ``gfx/flags/<TPL>*.tga`` copied as placeholders.
 
-The country owns no provinces: it appears when released or created by an
-event / decision (``release``, ``release_vassal``, ``change_tag``).
+Provinces (K76 = C): the given ones get ``add_core = TAG`` in their
+``history/provinces`` file (the country can then be released there); with
+``exists`` it also owns and controls them from the start (``owner`` /
+``controller``, taken from the old owner). Without provinces the country
+appears only when released or created by an event / decision (``release``,
+``release_vassal``, ``change_tag``).
 """
 
 from __future__ import annotations
@@ -25,7 +29,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from vic2toolmod.changes import FileChange
-from vic2toolmod.edit import TextEdit, apply_edits, delete, newline_of, set_value
+from vic2toolmod.edit import (
+    TextEdit,
+    apply_edits,
+    delete,
+    insert,
+    insert_after,
+    newline_of,
+    set_value,
+)
 from vic2toolmod.project.localisation import set_entries
 from vic2toolmod.script.cst import Assignment, Block, Document
 from vic2toolmod.textio import Encoding
@@ -57,6 +69,8 @@ class CountrySpec:
         government: Default: the template's.
         civilized: ``None`` keeps the template's.
         copy_flags: Copy the template's flags as placeholders.
+        provinces: Province ids that get ``add_core = TAG`` (K76).
+        exists: The country owns and controls ``provinces`` from the start.
     """
 
     tag: str
@@ -71,6 +85,8 @@ class CountrySpec:
     government: str | None = None
     civilized: bool | None = None
     copy_flags: bool = True
+    provinces: list[int] = field(default_factory=list)
+    exists: bool = False
 
 
 @dataclass
@@ -108,6 +124,11 @@ def plan_country(ws: Workspace, spec: CountrySpec) -> CountryPlan:
             raise ValueError(f"unknown {kind} {value!r}")
     if spec.capital is not None and not regs.has("province", str(spec.capital)):
         raise ValueError(f"unknown province {spec.capital}")
+    bad = [p for p in spec.provinces if not regs.has("province", str(p))]
+    if bad:
+        raise ValueError(f"unknown province(s) {', '.join(map(str, bad))}")
+    if spec.exists and not spec.provinces:
+        raise ValueError("a country that exists from the start needs provinces")
 
     changes: list[FileChange] = []
     notes: list[str] = []
@@ -211,11 +232,92 @@ def plan_country(ws: Workspace, spec: CountrySpec) -> CountryPlan:
             notes.append(f"{len(copies)} flags copied from {tpl} as placeholders: draw your own")
         else:
             notes.append(f"{tpl} has no flags: add gfx/flags/{tag}.tga etc. yourself")
-    notes.append(
-        f"{tag} owns no provinces: release it or create it with an event / decision"
-        f" (cores: add_core = {tag} in history/provinces)"
-    )
+    # provinces (K76 = C)
+    changes += _provinces(ws, spec, tag, notes)
+    if not spec.exists:
+        notes.append(
+            f"{tag} owns no provinces at the start: release it or create it with an event /"
+            " decision" + (" (it has cores in the chosen provinces)" if spec.provinces else "")
+        )
     return CountryPlan(changes, copies, notes)
+
+
+_PROVINCE_FILE = re.compile(r"history/provinces/[^/]+/(\d+)(?!\d)")
+
+
+def _province_files(ws: Workspace) -> dict[int, str]:
+    """Province id -> its history file."""
+    out: dict[int, str] = {}
+    for low, f in sorted(ws.project.files().items()):
+        m = _PROVINCE_FILE.match(low)
+        if m:
+            out.setdefault(int(m[1]), f.rel)
+    return out
+
+
+def _provinces(ws: Workspace, spec: CountrySpec, tag: str, notes: list[str]) -> list[FileChange]:
+    """``add_core = TAG`` (and with ``exists`` owner / controller) in the provinces' history."""
+    if not spec.provinces:
+        return []
+    files = _province_files(ws)
+    changes: list[FileChange] = []
+    taken: dict[str, list[int]] = {}
+    later: list[int] = []
+    for pid in dict.fromkeys(spec.provinces):
+        rel = files.get(pid)
+        if rel is None:
+            notes.append(f"province {pid} has no history file: add add_core = {tag} yourself")
+            continue
+        doc = ws.document(rel)
+        top = [a for a in doc.items if isinstance(a, Assignment)]
+        edits: list[TextEdit] = []
+        cores = [a for a in top if a.key_text.lower() == "add_core"]
+        has_core = any(
+            a.value is not None and a.value.to_text().strip().upper() == tag for a in cores
+        )
+        if spec.exists:
+            for key in ("owner", "controller"):
+                node = next((a for a in top if a.key_text.lower() == key), None)
+                if node is None:
+                    edits.append(insert(doc, doc, [(key, tag)], 0))
+                    continue
+                old = node.value.to_text().strip().upper() if node.value is not None else ""
+                if key == "owner" and old and old != tag:
+                    taken.setdefault(old, []).append(pid)
+                edits.append(set_value(doc, node, tag))
+            if any(
+                _DATE.fullmatch(a.key_text)
+                and isinstance(a.value, Block)
+                and any(i.key_text.lower() == "owner" for i in a.value.assignments())
+                for a in top
+            ):
+                later.append(pid)
+        if not has_core:
+            anchor = (
+                cores[-1]
+                if cores
+                else next((a for a in top if a.key_text.lower() in ("controller", "owner")), None)
+            )
+            if anchor is not None:
+                edits.append(insert_after(doc, anchor, [("add_core", tag)]))
+            else:
+                edits.append(insert(doc, doc, [("add_core", tag)], 0))
+        if not edits:
+            continue
+        f = ws.file(rel)
+        assert f is not None
+        new = apply_edits(doc.text, edits)
+        changes.append(
+            _change(ws, f.rel, doc.text if f.origin == "mod" else None, new, ws.encoding(f.rel))
+        )
+    if spec.exists:
+        if spec.capital is not None and spec.capital not in spec.provinces:
+            notes.append(f"the capital {spec.capital} is not one of {tag}'s provinces")
+        for old, pids in sorted(taken.items()):
+            notes.append(f"taken from {old}: {', '.join(map(str, pids))} (check {old}'s capital)")
+        if later:
+            notes.append("dated blocks change the owner later in: " + ", ".join(map(str, later)))
+    return changes
 
 
 def write_copies(copies: list[tuple[Path, Path]]) -> list[Path]:

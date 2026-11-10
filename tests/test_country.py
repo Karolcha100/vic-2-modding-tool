@@ -104,3 +104,37 @@ def test_country_checks(tmp_path):
     plan = plan_country(ws, CountrySpec("BOE", **ok))  # all from the template
     hist = plan.changes[2].new_text
     assert "culture = scottish" in hist and "capital = 300" in hist and "oob" not in hist
+
+
+def test_new_country_with_provinces(tmp_path):
+    """K76 = C: cores in the provinces; with ``exists`` also owner and controller."""
+    ws = make(tmp_path)
+    write(
+        tmp_path / "game/history/provinces/africa/2087 - Pretoria.txt",
+        "owner = ENG\ncontroller = ENG\nadd_core = ENG\ntrade_goods = cattle\n"
+        "1861.1.1 = { owner = ZUL }\n",
+    )
+    write(tmp_path / "game/history/provinces/africa/300 - London.txt", "trade_goods = coal\n")
+    spec = CountrySpec("BOE", "Boer Republic", "Boer", "ENG", (1, 2, 3), capital=2087)
+    spec.provinces = [2087, 300]
+    plan = plan_country(ws, spec)
+    files = {c.rel: c.new_text for c in plan.changes}
+    pretoria = files["history/provinces/africa/2087 - Pretoria.txt"]
+    assert "add_core = ENG\nadd_core = BOE\n" in pretoria and "owner = ENG" in pretoria
+    assert files["history/provinces/africa/300 - London.txt"].startswith("add_core = BOE\n")
+    assert any("owns no provinces at the start" in n for n in plan.notes)
+
+    spec.exists = True
+    plan = plan_country(ws, spec)
+    files = {c.rel: c.new_text for c in plan.changes}
+    pretoria = files["history/provinces/africa/2087 - Pretoria.txt"]
+    assert pretoria.startswith("owner = BOE\ncontroller = BOE\nadd_core = ENG\nadd_core = BOE\n")
+    london = files["history/provinces/africa/300 - London.txt"]
+    assert "owner = BOE" in london and "controller = BOE" in london and "add_core = BOE" in london
+    assert any("taken from ENG: 2087" in n for n in plan.notes)
+    assert any("change the owner later in: 2087" in n for n in plan.notes)
+
+    with pytest.raises(ValueError, match="unknown province"):
+        plan_country(ws, CountrySpec("BOF", "B", "B", "ENG", (1, 2, 3), provinces=[9999]))
+    with pytest.raises(ValueError, match="needs provinces"):
+        plan_country(ws, CountrySpec("BOF", "B", "B", "ENG", (1, 2, 3), exists=True))

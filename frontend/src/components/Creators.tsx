@@ -78,6 +78,8 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   const [cGovernment, setCGovernment] = useState("");
   const [cCivilized, setCCivilized] = useState<"" | "yes" | "no">("");
   const [cFlags, setCFlags] = useState(true);
+  const [cProvinces, setCProvinces] = useState(""); // K76: ids that get add_core = TAG
+  const [cExists, setCExists] = useState(false); // … and are owned from the start
   const [names, setNames] = useState<Record<string, string[]>>({});
   // parties
   const [pIdeology, setPIdeology] = useState("");
@@ -130,6 +132,8 @@ export function Creators({ onStatus, files, onOpen }: Props) {
           cultures: cCultures === null ? null : cCultures.split(/[ ,]+/).filter(Boolean),
           religion: cReligion || null, government: cGovernment || null,
           civilized: cCivilized === "" ? null : cCivilized === "yes", copy_flags: cFlags,
+          provinces: cProvinces.split(/[\s,;]+/).filter(Boolean).map(Number).filter((n) => Number.isInteger(n) && n > 0),
+          exists: cExists,
         };
         const r = await api.createCountry(spec, write);
         setResult({ diff: r.diff, lines: [...r.notes, `files: ${r.files.join(", ")}`, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
@@ -256,6 +260,9 @@ export function Creators({ onStatus, files, onOpen }: Props) {
               <option value="">(the template's)</option><option value="yes">yes</option><option value="no">no</option>
             </select></label>
             <label><input type="checkbox" checked={cFlags} onChange={(e) => setCFlags(e.target.checked)} /> copy the template's flags as placeholders</label>
+            <label>Provinces (cores) <input value={cProvinces} onChange={(e) => setCProvinces(e.target.value)} placeholder="ids, e.g. 2156 2157 2160"
+              title="These provinces get add_core = TAG in history/provinces, so the country can be released there" /></label>
+            <label><input type="checkbox" checked={cExists} onChange={(e) => setCExists(e.target.checked)} /> the country exists from the start: it also owns and controls these provinces (taken from their owner)</label>
             <datalist id="c-tags">{(names.country ?? []).map((t) => <option key={t} value={t.toUpperCase()} />)}</datalist>
             <datalist id="c-cultures">{(names.culture ?? []).map((t) => <option key={t} value={t} />)}</datalist>
             <datalist id="c-religions">{(names.religion ?? []).map((t) => <option key={t} value={t} />)}</datalist>

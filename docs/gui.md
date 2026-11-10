@@ -75,7 +75,11 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   new colour and the parties renamed to the new tag, history without dated
   blocks / units / investments, name, adjective and party localisation,
   placeholder flags; capital, cultures, religion, government and
-  civilisation can be changed. The country starts without provinces.
+  civilisation can be changed. **Provinces** (K76 = C): the listed ones get
+  `add_core = TAG` in their `history/provinces` file (the country can be
+  released there); with **the country exists from the start** it also owns and
+  controls them (`owner` / `controller`, taken from the old owner; the notes
+  name the old owners and provinces whose dated blocks change the owner later).
 - **Templates** (K39 = B): **Create → From a template** fills a template's
   fields (free event ids proposed, known names offered for `ref:` fields) and
   appends the code to a mod file, with its localisation; in the editor

@@ -971,6 +971,8 @@ class Engine:
                         government=opt("government"),
                         civilized=None if civilized in (None, "") else bool(civilized),
                         copy_flags=bool(s.get("copy_flags", True)),
+                        provinces=[int(p) for p in s.get("provinces") or []],
+                        exists=bool(s.get("exists", False)),
                     ),
                 )
                 changes, notes, copies = plan5.changes, plan5.notes, plan5.copies
