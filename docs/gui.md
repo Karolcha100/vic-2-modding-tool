@@ -96,6 +96,14 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   text in many files, set a value everywhere, find lines, your own ones);
   fields, an editable code box, **Preview** (output + diff, nothing written)
   and **Apply** (write with a backup). See [`scripts.md`](scripts.md).
+- **Undo and navigation** (T012): Ctrl+Z undoes and Ctrl+Shift+Z (or Ctrl+Y)
+  redoes everywhere - in the code and blocks (one shared history) and in the
+  Interface and Reform window views (moves and sizes, one step per drag);
+  text fields keep their own undo. The **mouse's back / forward buttons** and
+  Alt+Left / Alt+Right go through the views, open files (back to the line you
+  were on), tabs, chosen items (script, modifier group, interface window) and
+  dialogs ("back" closes a dialog), like in a web browser. Leaving the page
+  with unsaved text asks first.
 - **Analyses** view: interactive pop promotion graph (K59; drag the pop
   types, click a pop type or an arrow for the modifiers and their conditions;
   with a pop type selected its outgoing arrows are red, incoming blue; click

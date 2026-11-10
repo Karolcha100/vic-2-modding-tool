@@ -8,6 +8,7 @@ import { Creators } from "./components/Creators";
 import { Blocks } from "./components/Blocks";
 import { Analyses } from "./components/Analyses";
 import { GroupEditor } from "./components/ModGroups";
+import { inTextField, navGet, navSet, undoKey, undoTarget, useNav, useNavModal } from "./nav";
 import { Scripts } from "./components/Scripts";
 import { Tester } from "./components/Tester";
 import { TemplateSave, TemplateUse } from "./components/Templates";
@@ -44,7 +45,7 @@ export function App() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [modDir, setModDir] = useState<string | null>(null);
   const [readOnly, setReadOnly] = useState(false);
-  const [picker, setPicker] = useState(false);
+  const [picker, openPicker, closePicker] = useNavModal<true>("picker");
   const [open, setOpen] = useState<OpenFile[]>([]);
   const [current, setCurrent] = useState<string | null>(null);
   const [outline, setOutline] = useState<OutlineNode[]>([]);
@@ -54,14 +55,20 @@ export function App() {
   /** The server: fine, running older code than is on disk, restarting, or gone. */
   const [memory, setMemory] = useState<number | null>(null);
   const [server, setServer] = useState<"ok" | "stale" | "restarting" | "gone">("ok");
-  const [mode, setMode] = useState<"code" | "blocks" | "split">(
-    (new URLSearchParams(location.search).get("mode") as "blocks" | "split" | null) ?? "code",
+  // Views, modes, the open file and dialogs are steps of the browser's history:
+  // mouse back / forward and Alt+Left / Alt+Right move through them (T012, nav.ts).
+  const [mode, setMode] = useNav<"code" | "blocks" | "split">(
+    "mode", (new URLSearchParams(location.search).get("mode") as "blocks" | "split" | null) ?? "code",
   );
-  const [view, setView] = useState<"code" | "reforms" | "interface" | "create" | "analyses" | "scripts">(
-    (new URLSearchParams(location.search).get("view") as "reforms" | "interface" | "create" | "analyses" | "scripts" | null) ?? "code",
+  const [view, setView] = useNav<"code" | "reforms" | "interface" | "create" | "analyses" | "scripts">(
+    "view", (new URLSearchParams(location.search).get("view") as "reforms" | "interface" | "create" | "analyses" | "scripts" | null) ?? "code",
   );
-  const [mgModal, setMgModal] = useState<null | { rel: string; group: ModGroup }>(null);
-  const [tplModal, setTplModal] = useState<null | { kind: "insert" } | { kind: "save"; text: string; folder: string }>(null);
+  const [navFile] = useNav<{ rel: string; line: number } | null>("file", null);
+  const shown = useRef<{ rel: string; line: number } | null>(null); // what openFile shows / is opening
+  const [mgModal, setMgModal, closeMgModal] = useNavModal<{ rel: string; group: ModGroup }>("modgroup");
+  const [tplModal, setTplModal, closeTplModal] = useNavModal<{ kind: "insert" } | { kind: "save"; text: string; folder: string }>("template");
+  const viewRef = useRef(view);
+  viewRef.current = view;
   const [, force] = useState(0);
   // Panel sizes and the minimap, remembered in this browser (T005).
   const [leftW, setLeftW] = useStored("vic2.left", 280);
@@ -117,8 +124,16 @@ export function App() {
 
   hooks.sync = async (rel) => sync(rel);
 
-  /** Open a file (loading it if needed) and optionally reveal a line. */
-  const openFile = useCallback(async (rel: string, line?: number) => {
+  /** Open a file (loading it if needed) and optionally reveal a line; `record`: as a navigation step. */
+  const openFile = useCallback(async (rel: string, line?: number, record = true) => {
+    if (record) {
+      // "Back" returns to where the cursor was, not only to the file.
+      const here = currentRef.current;
+      const at = editor.current?.getPosition()?.lineNumber;
+      if (here && at && navGet<{ rel: string }>("file")?.rel === here) navSet({ file: { rel: here, line: at } }, "replace");
+      navSet({ file: { rel, line: line ?? 0 } });
+    }
+    shown.current = { rel, line: line ?? 0 };
     let f = fileOf(rel);
     if (!f) {
       setStatus(`Opening ${rel}…`);
@@ -227,6 +242,8 @@ export function App() {
       const p = ed.getPosition();
       return m && p ? { rel: decodeURIComponent(m.uri.path.slice(1)), offset: m.getOffsetAt(p), m } : null;
     };
+    // Redo also under Ctrl+Shift+Z (T012), next to Monaco's Ctrl+Y.
+    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ, () => ed.trigger("keyboard", "redo", null));
     ed.addAction({
       id: "vic2.save", label: "Save", keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
       run: () => { const h = here(); if (h) save(h.rel); },
@@ -308,7 +325,11 @@ export function App() {
       // Deep link: ?token=…&open=events/x.txt&line=12
       const params = new URLSearchParams(location.search);
       const rel = params.get("open");
-      if (rel) openFile(rel, Number(params.get("line")) || undefined);
+      if (rel) {
+        const line = Number(params.get("line")) || undefined;
+        navSet({ file: { rel, line: line ?? 0 } }, "replace");
+        openFile(rel, line, false);
+      }
     }).catch((e) => setStatus(`Cannot reach the engine: ${(e as Error).message}`));
     window.addEventListener("pagehide", sayBye);
     let misses = 0;
@@ -340,6 +361,40 @@ export function App() {
       }
     }, 3000);
     return () => { window.clearInterval(id); window.removeEventListener("pagehide", sayBye); };
+  }, []);
+
+  // "Back" / "forward" changed the open file (or its line): show it without a new step.
+  useEffect(() => {
+    if (!navFile) return;
+    const s = shown.current;
+    if (s && s.rel === navFile.rel && s.line === navFile.line) return;
+    openFile(navFile.rel, navFile.line || undefined, false);
+  }, [navFile, openFile]);
+
+  // Ctrl+Z / Ctrl+Shift+Z (Ctrl+Y) outside text fields: undo / redo in the shown view (T012).
+  // In the code and block views that is the editor's own undo (shared by both).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const k = undoKey(e);
+      if (!k || inTextField(e.target)) return;
+      if (viewRef.current === "code") {
+        const ed = editor.current;
+        if (!ed?.getModel()) return;
+        ed.trigger("keyboard", k === 1 ? "undo" : "redo", null);
+      } else {
+        const t = undoTarget();
+        if (!t) return;
+        if (k === 1) t.undo(); else t.redo();
+      }
+      e.preventDefault();
+    };
+    // Leaving the page with unsaved text (e.g. "back" past the first step) asks first.
+    const onLeave = (e: BeforeUnloadEvent) => {
+      if ([...files_.current.values()].some((f) => f.model.getValue() !== f.saved)) e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("beforeunload", onLeave);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("beforeunload", onLeave); };
   }, []);
 
   // Restart the server on its new code (same address), then load the page again.
@@ -424,7 +479,7 @@ export function App() {
       )}
       <header>
         <b>vic2toolmod</b>
-        <button className="project-button" title="Open another mod or the game's own files" onClick={() => setPicker(true)}>
+        <button className="project-button" title="Open another mod or the game's own files" onClick={() => openPicker(true)}>
           {modDir ? modDir.split(/[\\/]/).filter(Boolean).pop() : "Vanilla"} ▾
         </button>
         {readOnly && <span className="chip">read-only</span>}
@@ -537,16 +592,16 @@ export function App() {
         </div>
       </section>
       {picker && (
-        <div className="preview-backdrop" onClick={() => setPicker(false)}>
+        <div className="preview-backdrop" onClick={closePicker}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <ProjectPicker dirty={dirty.size > 0} onClose={() => setPicker(false)} />
+            <ProjectPicker dirty={dirty.size > 0} onClose={closePicker} />
           </div>
         </div>
       )}
       {mgModal && (
-        <div className="preview-backdrop" onClick={() => setMgModal(null)}>
+        <div className="preview-backdrop" onClick={closeMgModal}>
           <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-            <GroupEditor group={mgModal.group} applyLabel="Apply in the editor (not saved yet)" onCancel={() => setMgModal(null)}
+            <GroupEditor group={mgModal.group} applyLabel="Apply in the editor (not saved yet)" onCancel={closeMgModal}
               onApply={async (rows) => {
                 const { rel, group } = mgModal;
                 await sync(rel);
@@ -558,19 +613,19 @@ export function App() {
                   return { range: new monaco.Range(a.lineNumber, a.column, b.lineNumber, b.column), text: e.text };
                 });
                 m.pushStackElement(); m.pushEditOperations([], ops, () => null); m.pushStackElement();
-                setMgModal(null);
+                closeMgModal();
                 setStatus(`Modifier group ${group.key}: ${rows.length} steps - not saved yet (Ctrl+Z undoes)`);
               }} />
           </div>
         </div>
       )}
       {tplModal && (
-        <div className="preview-backdrop" onClick={() => setTplModal(null)}>
+        <div className="preview-backdrop" onClick={closeTplModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             {tplModal.kind === "insert" ? (
-              <TemplateUse mode="cursor" onStatus={setStatus} onClose={() => setTplModal(null)} onInsert={insertAtCursor} />
+              <TemplateUse mode="cursor" onStatus={setStatus} onClose={closeTplModal} onInsert={insertAtCursor} />
             ) : (
-              <TemplateSave text={tplModal.text} folder={tplModal.folder} onStatus={setStatus} onClose={() => setTplModal(null)} />
+              <TemplateSave text={tplModal.text} folder={tplModal.folder} onStatus={setStatus} onClose={closeTplModal} />
             )}
           </div>
         </div>

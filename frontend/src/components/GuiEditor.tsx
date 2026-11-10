@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type GuiElement, type GuiWindow } from "../api";
 import { GuiNode, placeOf, sizeOf, type DrawContext } from "./GuiDraw";
 import { useStored } from "./Layout";
+import { useNavStored, useUndoable, useUndoTarget } from "../nav";
 
 /**
  * Editor of any window of interface/*.gui (K80 B): the window drawn as outlines
@@ -47,16 +48,19 @@ function flatten(root: GuiElement, ctx: DrawContext): Placed[] {
 
 export function GuiEditor({ files, onOpen, onStatus }: Props) {
   const guiFiles = useMemo(() => files.filter((f) => /^interface\/.*\.gui$/i.test(f)).sort(), [files]);
-  const [rel, setRel] = useStored("vic2.gui.file", "interface/country_politics.gui");
-  const [name, setName] = useStored("vic2.gui.window", "country_politics");
+  const [rel, setRel] = useNavStored("vic2.gui.file", "interface/country_politics.gui");
+  const [name, setName] = useNavStored("vic2.gui.window", "country_politics");
   const [real, setReal] = useStored("vic2.gui.real", false);
   const [windows, setWindows] = useState<{ name: string; line: number; depth: number }[]>([]);
   const [data, setData] = useState<GuiWindow | null>(null);
-  const [changes, setChanges] = useState<Record<number, Change>>({});
+  // Moves and sizes not written yet; Ctrl+Z / Ctrl+Shift+Z step through them (T012).
+  const history = useUndoable<Record<number, Change>>({});
+  const changes = history.value;
+  useUndoTarget(history);
   const [sel, setSel] = useState<number | null>(null);
   const [diff, setDiff] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const drag = useRef<null | { mode: "move" | "size"; line: number; px: number; py: number; a: number; b: number }>(null);
+  const drag = useRef<null | { mode: "move" | "size"; line: number; px: number; py: number; a: number; b: number; moved?: boolean }>(null);
   const svg = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -67,7 +71,7 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
     if (!rel || !name) return;
     try {
       setData(await api.guiWindow(rel, name));
-      setChanges({}); setSel(null); setDiff(null); setError("");
+      history.reset({}); setSel(null); setDiff(null); setError("");
     } catch (e) {
       setData(null);
       setError((e as Error).message);
@@ -92,7 +96,9 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
     const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
     return [p.x, p.y];
   };
-  const set = (line: number, c: Change) => setChanges((all) => ({ ...all, [line]: { ...all[line], ...c } }));
+  const set = (line: number, c: Change) => history.set((all) => ({ ...all, [line]: { ...all[line], ...c } }));
+  /** While dragging: one undo step for the whole drag (made when it starts). */
+  const setDragging = (line: number, c: Change) => history.setQuiet((all) => ({ ...all, [line]: { ...all[line], ...c } }));
 
   if (!guiFiles.length) return <div className="muted pad">No interface/*.gui files in this project.</div>;
   const pending = Object.keys(changes).length;
@@ -156,8 +162,9 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
               const [x, y] = toSvg(e);
               const dx = Math.round(x - d.px);
               const dy = Math.round(y - d.py);
-              if (d.mode === "move") set(d.line, { x: d.a + dx, y: d.b + dy });
-              else set(d.line, { w: Math.max(1, d.a + dx), h: Math.max(1, d.b + dy) });
+              if (!d.moved) { d.moved = true; history.mark(); } // the whole drag is one undo step
+              if (d.mode === "move") setDragging(d.line, { x: d.a + dx, y: d.b + dy });
+              else setDragging(d.line, { w: Math.max(1, d.a + dx), h: Math.max(1, d.b + dy) });
             }}
             onPointerUp={() => (drag.current = null)}
             onDoubleClick={() => sel && onOpen(data.file, sel)}

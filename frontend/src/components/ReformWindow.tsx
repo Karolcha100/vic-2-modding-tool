@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Box, type GuiElement, type ReformLayout } from "../api";
 import { contentExtent, GuiNode, type DrawContext } from "./GuiDraw";
 import { useStored } from "./Layout";
+import { useUndoable, useUndoTarget } from "../nav";
 
 /**
  * Reform window editor (K60, K69 = A, K80 = A): the window of the politics
@@ -27,13 +28,17 @@ interface Props {
 
 export function ReformWindow({ onOpen, onStatus }: Props) {
   const [layout, setLayout] = useState<ReformLayout | null>(null);
-  const [pos, setPos] = useState<Record<string, [number, number]>>({});
+  // Box positions; Ctrl+Z / Ctrl+Shift+Z step through the moves (T012).
+  const history = useUndoable<Record<string, [number, number]>>({});
+  const pos = history.value;
+  const setPos = history.set;
+  useUndoTarget(history);
   const [diff, setDiff] = useState<string | null>(null);
   const [cat, setCat] = useState("political_reforms");
   const [cols, setCols] = useState(3);
   const [origin, setOrigin] = useState<[number, number]>([380, 60]);
   const [cell, setCell] = useState<[number, number]>([150, 75]);
-  const drag = useRef<{ name: string; dx: number; dy: number } | null>(null);
+  const drag = useRef<{ name: string; dx: number; dy: number; moved?: boolean } | null>(null);
   const [real, setReal] = useStored("vic2.rw.real", false);
   const svg = useRef<SVGSVGElement>(null);
 
@@ -41,7 +46,7 @@ export function ReformWindow({ onOpen, onStatus }: Props) {
     try {
       const l = await api.reformWindow();
       setLayout(l);
-      setPos(Object.fromEntries(l.boxes.map((b) => [b.name, [b.x, b.y] as [number, number]])));
+      history.reset(Object.fromEntries(l.boxes.map((b) => [b.name, [b.x, b.y] as [number, number]])));
       setDiff(null);
     } catch (e) {
       onStatus(`Reform window: ${(e as Error).message}`);
@@ -165,7 +170,8 @@ export function ReformWindow({ onOpen, onStatus }: Props) {
             if (!drag.current) return;
             const [x, y] = toSvg(e);
             const d = drag.current;
-            setPos((p) => ({ ...p, [d.name]: [Math.round(x - d.dx), Math.round(y - d.dy)] }));
+            if (!d.moved) { d.moved = true; history.mark(); } // the whole drag is one undo step
+            history.setQuiet((p) => ({ ...p, [d.name]: [Math.round(x - d.dx), Math.round(y - d.dy)] }));
           }}
           onPointerUp={() => (drag.current = null)}
           onPointerLeave={() => (drag.current = null)}

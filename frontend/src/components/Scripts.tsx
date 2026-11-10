@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type ScriptInfo, type ScriptRun } from "../api";
+import { navSet, useNav } from "../nav";
 
 /**
  * Light Python scripts (T007): built-in and own ones, fields, a code box,
@@ -46,7 +47,11 @@ export function Scripts({ readOnly, onStatus, onOpen }: Props) {
   const script = useMemo(() => list.find((s) => s.id === id) ?? null, [list, id]);
   const edited = script ? code !== script.code : code.trim() !== "";
 
-  const pick = (sid: string, from = list) => {
+  // The chosen script is a navigation step ("back" returns to the previous one, T012).
+  const [navId] = useNav<string>("scripts.id", "");
+  useEffect(() => { if (navId !== id && list.length) show(navId); }, [navId, list]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pick = (sid: string, from = list) => { navSet({ "scripts.id": sid }); show(sid, from); };
+  const show = (sid: string, from = list) => {
     const s = from.find((x) => x.id === sid);
     setId(sid); setResult(null); setError("");
     setCode(s?.code ?? ""); setName(s && !s.builtin ? s.name : "");

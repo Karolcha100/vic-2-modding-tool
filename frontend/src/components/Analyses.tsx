@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { Graph, type GEdge, type GNode } from "./Graph";
 import { ModGroupsTab } from "./ModGroups";
+import { useNav } from "../nav";
 
 /** Analyses of the mod: pop promotion graph (K59), event chains (K6 C), vs vanilla (K6 H),
  *  statistics (K6 I), localisation editor (K6 E), git changes (K37 = B). */
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export function Analyses({ onOpen, onStatus }: Props) {
-  const [tab, setTab] = useState<Tab>("promotion");
+  const [tab, setTab] = useNav<Tab>("analyses.tab", "promotion");
   const tabs: [Tab, string][] = [
     ["promotion", "Pop promotion"], ["events", "Event chains"], ["groups", "Modifier groups"], ["vanilla", "Vs vanilla"],
     ["stats", "Statistics"], ["localisation", "Localisation"], ["git", "Git changes"],

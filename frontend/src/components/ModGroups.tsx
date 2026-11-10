@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type ModGroup } from "../api";
+import { useNav } from "../nav";
 
 /**
  * Modifier groups (T008): many `modifier = { factor = F  key = N }` of one block that differ
@@ -256,7 +257,10 @@ export function GroupEditor({ group: g, copies = [], applyLabel, onApply, onPrev
 export function ModGroupsTab({ onOpen, onStatus }: { onOpen: (rel: string, line?: number) => void; onStatus: (t: string) => void }) {
   const [groups, setGroups] = useState<ModGroup[] | null>(null);
   const [filter, setFilter] = useState("");
-  const [sel, setSel] = useState<ModGroup | null>(null);
+  // The chosen group is a navigation step ("back" returns to the previous one, T012).
+  const [selKey, setSelKey] = useNav<string | null>("groups.sel", null);
+  const sel = useMemo(() => (groups ?? []).find((g) => `${g.rel}:${g.id}` === selKey) ?? null, [groups, selKey]);
+  const setSel = (g: ModGroup | null) => setSelKey(g ? `${g.rel}:${g.id}` : null);
   const [result, setResult] = useState<{ diff: string; files: string[]; backup?: string | null; written?: boolean } | null>(null);
   const [error, setError] = useState("");
   const load = () => api.modGroups().then((r) => setGroups(r.groups)).catch((e) => setError((e as Error).message));

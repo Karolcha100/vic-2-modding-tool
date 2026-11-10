@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNav } from "../nav";
 import { api } from "../api";
 import { TemplateUse } from "./Templates";
 
@@ -28,7 +29,7 @@ const parseModifiers = (text: string) =>
   );
 
 export function Creators({ onStatus, files, onOpen }: Props) {
-  const [kind, setKind] = useState<Kind>("reform");
+  const [kind, setKind] = useNav<Kind>("create.kind", "reform");
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
   const [ideologies, setIdeologies] = useState<string[]>([]);
