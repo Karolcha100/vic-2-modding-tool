@@ -133,6 +133,8 @@ class World:
     #: None = not known (see `guess_powers`).
     great: list[str] | None = None
     secondary: list[str] | None = None
+    #: Province -> provinces it touches (from the map, `provmap.adjacency`); None = no map.
+    neighbours: dict[int, set[int]] | None = None
 
     # -- reading ---------------------------------------------------------------------
     @classmethod
@@ -327,6 +329,24 @@ class World:
             key=lambda t: -float(self.countries[t].values.get("prestige", 0) or 0),
         )
         return ranked[:8], ranked[8:16]
+
+    def neighbour_countries(self, tag: str) -> set[str] | None:
+        """Countries owning a province next to one of ``tag``'s (None without the map)."""
+        if self.neighbours is None:
+            return None
+        out: set[str] = set()
+        for p in self.owned(tag):
+            for n in self.neighbours.get(p.id, ()):
+                other = self.provinces.get(n)
+                if other is not None and other.owner and other.owner != tag:
+                    out.add(other.owner)
+        return out
+
+    def coastal(self, province: int) -> bool | None:
+        """The province touches the sea (a province without history), None without the map."""
+        if self.neighbours is None:
+            return None
+        return any(n not in self.provinces for n in self.neighbours.get(province, ()))
 
     def pops_of(self, tag: str = "", province: int = 0) -> list[Pop]:
         """Pops of a province, or of every province a country owns."""
@@ -561,6 +581,8 @@ class World:
             if self.date == (1836, 1, 1):
                 return is_(False, f"{key}: none at the start of the game")
             return Verdict(None, [f"{key}: not in the history files"])
+        if key == "invention":  # invention = name: set in the history, else not yet
+            return is_(c.values.get(low, "0") not in ("0", "", "no"), f"{value}: not invented")
         if key in self.technologies or key in self.inventions:
             return is_(c.values.get(key, "0") not in ("0", "", "no"), f"{key}: not researched")
         if key in self.issues:
@@ -568,6 +590,15 @@ class World:
         pop_verdict = self._pop_trigger(key, value, self.pops_of(tag), tag)
         if pop_verdict is not None and key != "culture" and key != "religion":
             return pop_verdict
+        if key in ("neighbour", "is_coastal"):
+            if self.neighbours is None:
+                return Verdict(None, [f"{key}: no map/provinces.bmp"])
+            if key == "neighbour":
+                near = self.neighbour_countries(tag) or set()
+                other = self._ref(value, scope)
+                return is_(other in near, f"{other} is not a neighbour of {tag}")
+            coast = any(self.coastal(p.id) for p in self.owned(tag))
+            return is_(coast == yes, f"{tag} {'has' if coast else 'has no'} coast")
         if key in ("is_greater_power", "is_secondary_power"):
             ranks = self.great if key == "is_greater_power" else self.secondary
             if ranks is None:
@@ -608,6 +639,11 @@ class World:
             return is_(p.values.get(key, "") == low)
         if key == "life_rating":
             return is_(float(p.values.get(key, 0) or 0) >= float(value))
+        if key == "is_coastal":
+            coast = self.coastal(p.id)
+            if coast is None:
+                return Verdict(None, ["is_coastal: no map/provinces.bmp"])
+            return is_(coast == (low == "yes"))
         if key == "is_capital":
             owner = self.countries.get(p.owner)
             return is_(
@@ -635,6 +671,22 @@ class World:
             if not pops:
                 return Verdict(False, ["any_pop: no pops"])
             return _any([self._pop_check(block.items, pop) for pop in pops])
+        if key in ("any_neighbor_province", "any_neighbor_country"):
+            if self.neighbours is None:
+                return Verdict(None, [f"{key}: no map/provinces.bmp"])
+            if key == "any_neighbor_province":
+                if scope.kind == "province":
+                    near = self.neighbours.get(scope.province, set())
+                else:
+                    own = {p.id for p in self.owned(scope.tag)}
+                    near = {n for p in own for n in self.neighbours.get(p, ())} - own
+                ps = sorted(n for n in near if n in self.provinces)  # land, not sea
+                verdicts = [self.check(block, Scope("province", root, "", n)) for n in ps]
+                return _any(verdicts) if verdicts else Verdict(False, [f"{key}: none"])
+            tag = scope.tag if scope.kind == "country" else self.provinces[scope.province].owner
+            near_c = sorted(self.neighbour_countries(tag) or set())
+            verdicts = [self.check(block, Scope("country", root, t, 0)) for t in near_c]
+            return _any(verdicts) if verdicts else Verdict(False, [f"{key}: {tag} has none"])
         if scope.kind == "province":
             p = self.provinces.get(scope.province)
             if key in ("owner", "controller"):
@@ -652,10 +704,10 @@ class World:
             return self.check(block, Scope("province", root, "", int(cap)))
         if key in ("any_owned_province", "all_core", "any_core"):
             if key == "any_owned_province":
-                ps = self.owned(tag)
+                provs = self.owned(tag)
             else:
-                ps = [p for p in self.provinces.values() if tag in p.cores]
-            verdicts = [self.check(block, Scope("province", root, "", p.id)) for p in ps]
+                provs = [p for p in self.provinces.values() if tag in p.cores]
+            verdicts = [self.check(block, Scope("province", root, "", p.id)) for p in provs]
             if key == "all_core":
                 return _all(verdicts) if verdicts else Verdict(True)
             return _any(verdicts) if verdicts else Verdict(False, [f"{key}: {tag} has none"])

@@ -115,6 +115,8 @@ def test_triggers(tmp_path):
     for t in yes:
         assert check(w, t).value is True, t
     assert check(w, "breech_loaded_rifles = 1").value is False
+    assert check(w, "invention = flintlock_rifles").value is True
+    assert check(w, "invention = machine_guns").value is False
     v = check(w, "tag = PRU money = 1000")
     assert v.value is None and "money: not known from history" in v.reasons
     assert check(w, "tag = SAX money = 1000").value is False  # decided without the unknown part
@@ -208,3 +210,28 @@ def test_pops_and_powers(tmp_path):
     assert check(w, "any_greater_power = { tag = PRU }").value is True
     assert w.guess_powers() == (["PRU"], [])  # SAX is not civilised in this history
     assert World.read(ws, "1870.1.1").pops_folder == "1861.1.1"
+
+
+def test_neighbours(tmp_path):
+    """K97 B: provinces that touch on the map; neighbour triggers."""
+    import struct
+
+    from vic2toolmod.analysis.provmap import adjacency
+
+    ws = make(tmp_path)
+    rows = [bytes((3, 2, 1, 3, 2, 1)) + b"\0\0", bytes((6, 5, 4, 6, 5, 4)) + b"\0\0"]
+    header = b"BM" + struct.pack("<IHHI", 54 + 16, 0, 0, 54)
+    header += struct.pack("<IiiHHIIiiII", 40, 2, 2, 1, 24, 0, 16, 0, 0, 0, 0)
+    (tmp_path / "game/map/provinces.bmp").write_bytes(header + b"".join(rows))
+    assert adjacency(ws) == {549: {550}, 550: {549}}
+    w = World.read(ws)
+    assert check(w, "neighbour = SAX").value is None  # no map given yet
+    w.neighbours = adjacency(ws)
+    assert check(w, "neighbour = SAX").value is True
+    assert check(w, "any_neighbor_country = { tag = SAX }").value is True
+    assert check(w, "549 = { any_neighbor_province = { province_id = 550 } }").value is True
+    assert check(w, "any_neighbor_province = { owned_by = SAX }").value is True
+    assert check(w, "is_coastal = no").value is True
+    write(tmp_path / "game/map/adjacencies.csv", "From;To;Type\n549;550;impassable\n")
+    ws.project._files = None  # a new file: scan the folders again
+    assert adjacency(ws) == {549: set(), 550: set()}

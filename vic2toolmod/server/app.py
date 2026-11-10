@@ -190,6 +190,7 @@ class Engine:
         self._groups: dict[str, Any] = {}  # modifier_groups.GroupCache
         self._worlds: dict[str, Any] = {}  # the world at a date (K75 B), see _world
         self._map: dict[str, Any] = {}  # the province picture (map_image)
+        self._adj: dict[str, Any] = {}  # provinces that touch (_adjacency)
         self._vanilla: tuple[dict[str, tuple[int, int]], list[dict[str, Any]]] | None = None
         self.lock = threading.Lock()
         self._sprites: dict[tuple[str, int, int, int, int], bytes] = {}
@@ -775,10 +776,30 @@ class Engine:
         key = (date, stamp, self.ws.names_version)
         if self._worlds.get("key") != key:
             try:
-                self._worlds = {"key": key, "world": World.read(self.ws, date)}
+                world = World.read(self.ws, date)
             except ValueError as exc:
                 raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+            world.neighbours = self._adjacency()
+            self._worlds = {"key": key, "world": world}
         return self._worlds["world"]
+
+    def _adjacency(self) -> dict[int, set[int]] | None:
+        """Provinces that touch (from the map), kept until the map files change."""
+        from vic2toolmod.analysis.provmap import adjacency
+        from vic2toolmod.images import ImageError
+
+        stamp = []
+        for rel in ("map/provinces.bmp", "map/adjacencies.csv", "map/definition.csv"):
+            f = self.ws.file(rel)
+            stamp.append((rel, f.path.stat().st_mtime_ns) if f is not None else (rel, 0))
+        if self._adj.get("key") != stamp:
+            try:
+                found: dict[int, set[int]] | None = adjacency(self.ws) or None
+            except ImageError:
+                found = None
+            self._adj = {"key": stamp, "adj": found}
+        result: dict[int, set[int]] | None = self._adj["adj"]
+        return result
 
     def _world_for(self, body: dict[str, Any]) -> Any:
         """The world at the request's date with its player and great / secondary powers."""

@@ -11,6 +11,7 @@ the mouse by its colour.
 
 from __future__ import annotations
 
+import re
 import struct
 from dataclasses import dataclass
 from typing import Any
@@ -75,6 +76,84 @@ def id_image(ws: Workspace, scale: int = 2) -> IdImage:
         target[0::4], target[1::4], target[2::4] = line[0::3], line[1::3], line[2::3]
         out[base : base + w * 4] = target
     return IdImage(w, h, scale, png(w, h, bytes(out)))
+
+
+_RUN = re.compile(rb"(...)\1*", re.S)
+
+
+def province_colors(ws: Workspace) -> dict[bytes, int]:
+    """RGB bytes -> province id (``map/definition.csv``)."""
+    out: dict[bytes, int] = {}
+    f = ws.file("map/definition.csv")
+    if f is None:
+        return out
+    for line in f.path.read_bytes().decode("latin-1").splitlines():
+        parts = line.split(";")
+        if len(parts) >= 4 and parts[0].strip().isdigit():
+            try:
+                out[bytes((int(parts[1]), int(parts[2]), int(parts[3])))] = int(parts[0])
+            except ValueError:
+                continue
+    return out
+
+
+def adjacency(ws: Workspace) -> dict[int, set[int]]:
+    """Provinces that touch on the map, with the straits of ``map/adjacencies.csv``.
+
+    ``map/provinces.bmp`` wraps east-west; ``impassable`` adjacencies are taken away.
+    Rows are split into runs of one colour (a regular expression does it in C, RPM:
+    0.3 s); neighbouring runs of a row and overlapping runs of two rows touch.
+    """
+    f = ws.file("map/provinces.bmp")
+    if f is None:
+        return {}
+    width, height, rgb = read_bmp(f.path.read_bytes())
+    ids = province_colors(ws)
+    pairs: set[tuple[bytes, bytes]] = set()
+
+    def add(a: bytes, b: bytes) -> None:
+        if a != b:
+            pairs.add((a, b) if a < b else (b, a))
+
+    prev: list[tuple[int, int, bytes]] = []
+    row_len = width * 3
+    for y in range(height):
+        row = rgb[y * row_len : (y + 1) * row_len]
+        runs = [(m.start() // 3, m.end() // 3, m.group(1)) for m in _RUN.finditer(row)]
+        for left, right in zip(runs, runs[1:], strict=False):
+            add(left[2], right[2])
+        if runs:
+            add(runs[0][2], runs[-1][2])  # the map wraps around
+        i = j = 0
+        while i < len(prev) and j < len(runs):
+            pa, ra = prev[i], runs[j]
+            if pa[0] < ra[1] and ra[0] < pa[1]:
+                add(pa[2], ra[2])
+            if pa[1] < ra[1]:
+                i += 1
+            else:
+                j += 1
+        prev = runs
+    out: dict[int, set[int]] = {}
+    for ca, cb in pairs:
+        ia, ib = ids.get(ca), ids.get(cb)
+        if ia and ib:
+            out.setdefault(ia, set()).add(ib)
+            out.setdefault(ib, set()).add(ia)
+    adj = ws.file("map/adjacencies.csv")
+    if adj is not None:
+        for line in adj.path.read_bytes().decode("latin-1").splitlines():
+            parts = line.split(";")
+            if len(parts) < 3 or not parts[0].strip().isdigit() or not parts[1].strip().isdigit():
+                continue
+            a, b, kind = int(parts[0]), int(parts[1]), parts[2].strip().lower()
+            if kind == "impassable":
+                out.get(a, set()).discard(b)
+                out.get(b, set()).discard(a)
+            else:
+                out.setdefault(a, set()).add(b)
+                out.setdefault(b, set()).add(a)
+    return out
 
 
 def country_colors(ws: Workspace) -> dict[str, list[int]]:

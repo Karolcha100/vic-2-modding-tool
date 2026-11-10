@@ -49,7 +49,12 @@ Pops come from the latest `history/pops/<date>` folder not after the date
 (B2): `total_pops`, `has_pop_culture`, `has_pop_religion`,
 `average_militancy`, `average_consciousness` (size-weighted), a province's
 main `culture` / `religion`, and `any_pop = { culture religion type militancy
-consciousness }`. Great / secondary powers are ranked by the game itself, so
+consciousness }`. Neighbours (K97 B) come from the map: `provmap.adjacency` splits each row of
+`map/provinces.bmp` into runs of one colour (provinces touch where runs meet
+in a row or overlap between rows; the map wraps east-west; RPM 0.3 s) and adds
+the straits of `map/adjacencies.csv` (`impassable` ones are removed). They
+answer `neighbour`, `any_neighbor_country`, `any_neighbor_province` and
+`is_coastal` (a neighbour without a history file is sea). Great / secondary powers are ranked by the game itself, so
 `is_greater_power`, `is_secondary_power` and `any_greater_power` need
 `World.great` / `World.secondary`; `guess_powers()` takes the 8 + 8 civilised
 countries with the most prestige (RPM 1836: ENG FRA RUS AUS SPA PRU TUR USA).
