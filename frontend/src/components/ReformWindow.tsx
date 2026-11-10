@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Box, type GuiElement, type ReformLayout } from "../api";
 import { contentExtent, GuiNode, type DrawContext } from "./GuiDraw";
 import { useStored } from "./Layout";
+import { useZoom } from "./GuiDraw";
 import { useUndoable, useUndoTarget } from "../nav";
 
 /**
@@ -40,6 +41,8 @@ export function ReformWindow({ onOpen, onStatus }: Props) {
   const [cell, setCell] = useState<[number, number]>([150, 75]);
   const drag = useRef<{ name: string; dx: number; dy: number; moved?: boolean } | null>(null);
   const [real, setReal] = useStored("vic2.rw.real", false);
+  const [panel, setPanel] = useStored("vic2.rw.panel", true);
+  const zoom = useZoom();
   const svg = useRef<SVGSVGElement>(null);
 
   const load = async () => {
@@ -159,9 +162,12 @@ export function ReformWindow({ onOpen, onStatus }: Props) {
         <button onClick={save} disabled={!Object.keys(changed).length}>Save</button>
         <button onClick={load}>Reset</button>
         <label title="Draw the game's pictures instead of outlines"><input type="checkbox" checked={real} onChange={(e) => setReal(e.target.checked)} /> Real graphics</label>
+        {zoom.controls}
+        <button onClick={() => setPanel(!panel)}>{panel ? "Hide panel" : "Show panel"}</button>
       </div>
       <div className="rw-body">
-        <svg
+        <div className="rw-scroll" ref={zoom.box}>
+        <svg style={zoom.style}
           ref={svg}
           className="rw-canvas"
           preserveAspectRatio="xMinYMin meet"
@@ -213,7 +219,8 @@ export function ReformWindow({ onOpen, onStatus }: Props) {
             );
           })}
         </svg>
-        <div className="rw-side">
+        </div>
+        {panel && <div className="rw-side">
           <div className="panel-title">Not in the window</div>
           {Object.entries(layout.missing).flatMap(([c, names]) => names.map((n) => (
             <div key={n} className="row">
@@ -228,8 +235,8 @@ export function ReformWindow({ onOpen, onStatus }: Props) {
           ))}
           {layout.unknown.length > 0 && <div className="panel-title">Boxes that are no reform</div>}
           {layout.unknown.map((n) => <div key={n} className="row muted">{n}</div>)}
-          <div className="muted rw-help">Drag boxes; double-click opens the box in the code. Red border: (partly) outside the window. A box is as big as its elements and the rows of its options ({layout.option_row ? `rows from ${"reform_option_window"}` : "no option row template found"}). "Real graphics" draws the game's pictures (the panel behind the window too).</div>
-        </div>
+          <div className="muted rw-help">Drag boxes; double-click opens the box in the code. Red border: (partly) outside the window. A box is as big as its elements and the rows of its options ({layout.option_row ? `rows from ${"reform_option_window"}` : "no option row template found"}). "Real graphics" draws the game's pictures (the panel behind the window too). Ctrl + mouse wheel zooms.</div>
+        </div>}
       </div>
       {diff !== null && (
         <div className="rw-diff">

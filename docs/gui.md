@@ -112,6 +112,16 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   afterwards (tokens and comments are compared), or has unbalanced braces, or
   has unsaved text in the editor, is left out. Commit the mod before, and the
   formatting on its own.
+- **Window views** (T015): containers (`windowType` without a picture) are
+  outlined as big as what they hold, not their declared size; **Ctrl + mouse
+  wheel** (or − / + / Fit) zooms the Reform window and Interface drawings;
+  **Hide panel** hides the side panel; in Interface every element has a
+  "shown" tick (remembered per window) - tab panels of one window lie on top
+  of each other (the game shows one at a time) and the panel says which;
+  texts on real pictures get an outline so they stay readable.
+- **Syntax tree** (T016): **Syntax tree** above the code shows / hides it, and it
+  is hidden outside the code view; any branch can be folded, also the one with
+  the cursor.
 - **Undo and navigation** (T012): Ctrl+Z undoes and Ctrl+Shift+Z (or Ctrl+Y)
   redoes everywhere - in the code and blocks (one shared history) and in the
   Interface and Reform window views (moves and sizes, one step per drag);

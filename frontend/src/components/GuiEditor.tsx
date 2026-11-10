@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type GuiElement, type GuiWindow } from "../api";
-import { GuiNode, placeOf, sizeOf, type DrawContext } from "./GuiDraw";
+import { GuiNode, placeOf, sizeOf, useZoom, type DrawContext } from "./GuiDraw";
 import { useStored } from "./Layout";
 import { useNavStored, useUndoable, useUndoTarget } from "../nav";
 
@@ -51,6 +51,20 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
   const [rel, setRel] = useNavStored("vic2.gui.file", "interface/country_politics.gui");
   const [name, setName] = useNavStored("vic2.gui.window", "country_politics");
   const [real, setReal] = useStored("vic2.gui.real", false);
+  const [panel, setPanel] = useStored("vic2.gui.panel", true);
+  // Elements hidden from the drawing, per window (T015): e.g. tab panels that cover each other.
+  const [hiddenAll, setHiddenAll] = useStored<Record<string, number[]>>("vic2.gui.hidden", {});
+  const hiddenKey = `${rel}#${name}`;
+  const hidden = useMemo(() => new Set(hiddenAll[hiddenKey] ?? []), [hiddenAll, hiddenKey]);
+  const hiddenRef = useRef(hiddenAll); // the latest value, also for clicks in quick succession
+  hiddenRef.current = hiddenAll;
+  const toggleHidden = (line: number) => {
+    const next = new Set(hiddenRef.current[hiddenKey] ?? []);
+    if (next.has(line)) next.delete(line); else next.add(line);
+    hiddenRef.current = { ...hiddenRef.current, [hiddenKey]: [...next] };
+    setHiddenAll(hiddenRef.current);
+  };
+  const zoom = useZoom();
   const [windows, setWindows] = useState<{ name: string; line: number; depth: number }[]>([]);
   const [data, setData] = useState<GuiWindow | null>(null);
   // Moves and sizes not written yet; Ctrl+Z / Ctrl+Shift+Z step through them (T012).
@@ -81,7 +95,29 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
 
   const ctx: DrawContext | null = useMemo(() => (data ? { real, sprites: data.sprites, texts: data.texts } : null), [data, real]);
   const root = useMemo(() => (data ? applied(data.tree, changes) : null), [data, changes]);
-  const placed = useMemo(() => (root && ctx ? flatten(root, ctx) : []), [root, ctx]);
+  const allPlaced = useMemo(() => (root && ctx ? flatten(root, ctx) : []), [root, ctx]);
+  // an element is hidden with everything inside it
+  const hiddenLines = useMemo(() => {
+    const out = new Set<number>();
+    const walk = (e: GuiElement, under: boolean) => {
+      const h = under || hidden.has(e.line);
+      if (h) out.add(e.line);
+      e.children.forEach((c) => walk(c, h));
+    };
+    if (root) walk(root, false);
+    return out;
+  }, [root, hidden]);
+  const placed = useMemo(() => allPlaced.filter((p) => !hiddenLines.has(p.el.line)), [allPlaced, hiddenLines]);
+  // Sub-windows of the window that lie on top of each other (tab panels: the game shows one at a time).
+  const stacked = useMemo(() => {
+    const subs = allPlaced.filter((p) => p.depth === 1 && p.el.kind === "windowtype" && p.w > 0 && p.h > 0 && !hiddenLines.has(p.el.line));
+    const overlap = (a: (typeof subs)[0], b: (typeof subs)[0]) => {
+      const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+      const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+      return w > 0 && h > 0 && w * h > 0.5 * Math.min(a.w * a.h, b.w * b.h);
+    };
+    return subs.filter((a) => subs.some((b) => b !== a && overlap(a, b)));
+  }, [allPlaced, hiddenLines]);
   const selected = placed.find((p) => p.el.line === sel) ?? null;
   const original = useMemo(() => {
     const m = new Map<number, GuiElement>();
@@ -135,6 +171,8 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
         </select>
         <span className="spacer" />
         <label><input type="checkbox" checked={real} onChange={(e) => setReal(e.target.checked)} /> Real graphics</label>
+        {zoom.controls}
+        <button onClick={() => setPanel(!panel)} title="Show or hide the panel with the elements">{panel ? "Hide panel" : "Show panel"}</button>
         <button onClick={() => plan(false)} disabled={!pending}>Preview changes</button>
         <button onClick={() => plan(true)} disabled={!pending}>Save</button>
         <button onClick={load}>Reset</button>
@@ -142,7 +180,8 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
       {error && <div className="creator-error">{error}</div>}
       <div className="rw-body">
         {root && ctx && data ? (
-          <svg ref={svg} className="rw-canvas" preserveAspectRatio="xMinYMin meet"
+          <div className="rw-scroll" ref={zoom.box}>
+          <svg ref={svg} className="rw-canvas" preserveAspectRatio="xMinYMin meet" style={zoom.style}
             viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`}
             onPointerDown={(e) => {
               const [x, y] = toSvg(e);
@@ -170,7 +209,7 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
             onDoubleClick={() => sel && onOpen(data.file, sel)}
           >
             {real && data.backdrop.map((e, i) => <GuiNode key={`bg-${i}`} e={e} x={e.x} y={e.y} ctx={ctx} />)}
-            <GuiNode e={{ ...root, x: 0, y: 0 }} x={0} y={0} ctx={ctx} />
+            <GuiNode e={{ ...root, x: 0, y: 0 }} x={0} y={0} ctx={ctx} skip={(c) => hiddenLines.has(c.line)} />
             {placed.filter((p) => changes[p.el.line]).map((p) => (
               <rect key={`c-${p.el.line}`} x={p.x} y={p.y} width={Math.max(p.w, 4)} height={Math.max(p.h, 4)} className="gui-changed" />
             ))}
@@ -189,10 +228,11 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
               </g>
             )}
           </svg>
+          </div>
         ) : (
           <div className="muted pad">{name ? "Loading…" : "Choose a window."}</div>
         )}
-        <div className="rw-side">
+        {panel && <div className="rw-side">
           {selected && (
             <>
               <div className="panel-title">{selected.el.name || "(no name)"} <span className="muted">{selected.el.kind}</span></div>
@@ -216,14 +256,19 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
             </>
           )}
           <div className="panel-title">Elements {pending ? <span className="muted">· {pending} changed</span> : null}</div>
-          {placed.map((p) => (
-            <div key={p.el.line} className={"row small" + (p.el.line === sel ? " active" : "")} style={{ paddingLeft: 8 + p.depth * 12 }}
-              onClick={() => setSel(p.el.line)}>
+          {stacked.length > 1 && (
+            <div className="muted small pad">These panels lie on top of each other (tabs: the game shows one at a time): {stacked.map((p) => p.el.name).join(", ")}. Untick the ones you do not want to see.</div>
+          )}
+          {allPlaced.map((p) => (
+            <div key={p.el.line} className={"row small" + (p.el.line === sel ? " active" : "") + (hiddenLines.has(p.el.line) ? " hidden-el" : "")}
+              style={{ paddingLeft: 8 + p.depth * 12 }} onClick={() => setSel(p.el.line)}>
+              {p.depth > 0 && <input type="checkbox" checked={!hidden.has(p.el.line)} title="Show it in the drawing (hidden elements stay in the file)"
+                onClick={(e) => e.stopPropagation()} onChange={() => toggleHidden(p.el.line)} />}
               {p.el.name || "(no name)"} <span className="muted">{p.el.kind.replace(/type$/, "")}</span>{changes[p.el.line] ? " •" : ""}
             </div>
           ))}
-          <div className="muted rw-help">Click an element to select it, drag to move, drag the corner square to resize; numbers change it too. Positions are relative to the parent (and its corner / centre given by orientation). Double click opens the element in the code.</div>
-        </div>
+          <div className="muted rw-help">Click an element to select it, drag to move, drag the corner square to resize; numbers change it too. Positions are relative to the parent (and its corner / centre given by orientation). Double click opens the element in the code. Untick an element to hide it in the drawing (e.g. tab panels of one window that cover each other; the game shows one at a time). Ctrl + mouse wheel zooms.</div>
+        </div>}
       </div>
       {diff !== null && (
         <div className="rw-diff">

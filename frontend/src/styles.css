@@ -256,3 +256,12 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .meta-pops { border-collapse: collapse; }
 .meta-pops th, .meta-pops td { padding: 1px 10px 1px 0; text-align: left; }
 .meta-pops td:not(:first-child), .meta-pops th:not(:first-child) { text-align: center; }
+/* zoom and hiding in the window views (T015) */
+.rw-scroll { flex: 1; min-width: 0; overflow: auto; background: var(--panel); }
+.rw-scroll > .rw-canvas { height: 100%; width: 100%; }
+.zoom-controls { display: inline-flex; gap: 4px; align-items: center; }
+.zoom-controls button { padding: 0 8px; }
+.rw-side .row input[type="checkbox"] { margin: 0 4px 0 0; vertical-align: middle; }
+.rw-side .row.hidden-el { opacity: 0.5; }
+.link-like { cursor: pointer; padding: 0 6px; color: var(--muted); }
+.link-like:hover { color: var(--text); }

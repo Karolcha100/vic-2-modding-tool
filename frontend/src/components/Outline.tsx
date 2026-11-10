@@ -20,8 +20,10 @@ export function Outline({ items, cursor, onSelect }: Props) {
 
 function OutlineItem({ node, depth, cursor, onSelect }: { node: OutlineNode; depth: number } & Omit<Props, "items">) {
   const inside = node.start <= cursor && cursor <= node.end;
-  const [open, setOpen] = useState(depth < 1);
-  const expanded = open || (inside && depth < 6);
+  // null: automatic (the top level and the branch with the cursor are open); a click decides
+  // for good, also for the branch with the cursor (T016)
+  const [open, setOpen] = useState<boolean | null>(null);
+  const expanded = open ?? (depth < 1 || (inside && depth < 6));
   const label =
     node.kind === "assignment" ? node.key : node.kind === "block" ? "{ }" : node.kind === "error" ? `⚠ ${node.value}` : node.value;
   return (

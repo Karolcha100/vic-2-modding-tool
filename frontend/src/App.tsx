@@ -85,6 +85,9 @@ export function App() {
   const [bottomH, setBottomH] = useStored("vic2.bottom", 180);
   const [blocksW, setBlocksW] = useStored("vic2.blocks", 0); // 0 = half of the editor row
   const [minimap, setMinimap] = useStored("vic2.minimap", true);
+  // The syntax tree: hidden on request, and always outside the code view (T016).
+  const [treeOn, setTreeOn] = useStored("vic2.tree", true);
+  const treeShown = treeOn && view === "code";
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const files_ = useRef(new Map<string, OpenFile>());
@@ -486,7 +489,7 @@ export function App() {
   closeRef.current = closeTab;
 
   return (
-    <div className="app" style={{ gridTemplateColumns: `${leftW}px minmax(0, 1fr) ${rightW}px`, gridTemplateRows: `36px minmax(0, 1fr) ${bottomH}px 24px` }}>
+    <div className="app" style={{ gridTemplateColumns: `${leftW}px minmax(0, 1fr) ${treeShown ? rightW : 0}px`, gridTemplateRows: `36px minmax(0, 1fr) ${bottomH}px 24px` }}>
       {server !== "ok" && (
         <div className={`server-bar ${server}`}>
           {server === "stale" && <>The tool was updated: this window still runs the old version. <button onClick={restartServer}>Restart now</button></>}
@@ -538,6 +541,7 @@ export function App() {
               <button key={m} className={mode === m ? "on" : ""} onClick={() => setMode(m)}>{m === "code" ? "Code" : m === "blocks" ? "Blocks" : "Split"}</button>
             ))}
             <button className={minimap ? "on" : ""} title="Code overview next to the scroll bar" onClick={() => setMinimap(!minimap)}>Minimap</button>
+            <button className={treeOn ? "on" : ""} title="The syntax tree on the right" onClick={() => setTreeOn(!treeOn)}>Syntax tree</button>
           </div>
           {open.map((f) => (
             <div key={f.rel} className={"tab" + (f.rel === current ? " active" : "")} onClick={() => openFile(f.rel)}
@@ -574,9 +578,9 @@ export function App() {
         </div>
         {!current && view === "code" && <div className="empty">Open a file from the tree on the left.</div>}
       </main>
-      <aside className="right">
+      <aside className="right" style={treeShown ? undefined : { display: "none" }}>
         <Splitter edge="left" size={rightW} setSize={setRightW} min={40} max={800} reset={300} />
-        <div className="panel-title">Syntax tree</div>
+        <div className="panel-title">Syntax tree <span className="spacer" /><span className="link-like" title="Hide (the Syntax tree button above the code shows it again)" onClick={() => setTreeOn(false)}>×</span></div>
         <Outline items={outline} cursor={cursor} onSelect={selectNode} />
       </aside>
       <section className="bottom">
