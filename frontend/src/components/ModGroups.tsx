@@ -9,28 +9,36 @@ import { SidePanel } from "./Layout";
  * builds new steps from a function (same factor each step, a straight line, or any formula).
  */
 
-type Row = [string, string];
+/** A step: value, factor, written `NOT = { key = N }` (T023: a group may mix both spellings). */
+type Row = [string, string, boolean];
 
 /** Does the condition of a step hold at x? */
-function active(g: ModGroup, threshold: number, x: number): boolean {
-  if (g.compare === "gte") return g.negated ? x < threshold : x >= threshold; // NOT = { key = N }: below N
-  return g.negated ? x > threshold : x <= threshold;
+function active(g: ModGroup, threshold: number, negated: boolean, x: number): boolean {
+  if (g.compare === "gte") return negated ? x < threshold : x >= threshold; // NOT = { key = N }: below N
+  return negated ? x > threshold : x <= threshold;
 }
+
+/** The comparison a step's condition makes: "≥", "<" (NOT), "≤" or ">" (NOT). */
+export function sign(g: ModGroup, negated: boolean): string {
+  return g.compare === "gte" ? (negated ? "<" : "≥") : (negated ? ">" : "≤");
+}
+
+const rowsOf = (g: ModGroup): Row[] => g.steps.map((s) => [s.value, s.factor, s.negated]);
 
 /** The group's combined factor at x (product, or sum for additive blocks). */
 export function total(g: ModGroup, rows: Row[], combine: string, x: number): number {
   let t = combine === "add" ? 0 : 1;
-  for (const [v, f] of rows) {
+  for (const [v, f, neg] of rows) {
     const value = Number(v), factor = Number(f);
-    if (Number.isNaN(value) || Number.isNaN(factor) || !active(g, value, x)) continue;
+    if (Number.isNaN(value) || Number.isNaN(factor) || !active(g, value, neg, x)) continue;
     t = combine === "add" ? t + factor : t * factor;
   }
   return t;
 }
 
-/** Steps take effect one after another as x goes up (at least N) or down (below / at most N). */
-function upward(g: ModGroup): boolean {
-  return (g.compare === "gte") !== g.negated;
+/** A step takes effect as x goes up (at least N) or down (below / at most N). */
+function upward(g: ModGroup, negated: boolean): boolean {
+  return (g.compare === "gte") !== negated;
 }
 
 const IDENT = /[a-z_]+/gi;
@@ -86,7 +94,7 @@ function Chart({ g, oldRows, rows, combine }: { g: ModGroup; oldRows: Row[]; row
       <text x={P - 4} y={sy(yhi) + 4} textAnchor="end" className="mg-tick">{fmt(yhi, 2)}</text>
       <text x={P - 4} y={sy(ylo) + 4} textAnchor="end" className="mg-tick">{fmt(ylo, 2)}</text>
       {Array.from(new Set(values)).map((v) => <text key={v} x={sx(v)} y={H - P + 14} textAnchor="middle" className="mg-tick">{fmt(v, 3)}</text>)}
-      <text x={W - P} y={H - 4} textAnchor="end" className="mg-tick">{g.negated ? `NOT ${g.key}` : g.key}</text>
+      <text x={W - P} y={H - 4} textAnchor="end" className="mg-tick">{g.key}</text>
       <path d={path(a)} className="mg-old" />
       <path d={path(b)} className="mg-new" />
     </svg>
@@ -95,7 +103,7 @@ function Chart({ g, oldRows, rows, combine }: { g: ModGroup; oldRows: Row[]; row
 
 /** A small chart of the group's combined factor (for the card in the Blocks view). */
 export function Sparkline({ g }: { g: ModGroup }) {
-  const rows: Row[] = g.steps.map((s) => [s.value, s.factor]);
+  const rows = rowsOf(g);
   const values = rows.map(([v]) => Number(v));
   const lo = Math.min(...values), hi = Math.max(...values), pad = (hi - lo) * 0.15 || 1;
   const marks = [lo - pad, ...Array.from(new Set(values)).sort((a, b) => a - b), hi + pad];
@@ -113,13 +121,17 @@ export function Sparkline({ g }: { g: ModGroup }) {
   </svg>;
 }
 
-/** "num_of_cities 20 → 75 · all: ×1.464" */
+/** "num_of_cities ≥ 20 → 75 · all steps: ×1.464"; with NOT steps (T023) "… ≥ 5 → 9, < 3 → 5 …". */
 export function groupSummary(g: ModGroup): string {
-  const values = g.steps.map((s) => Number(s.value));
-  const rows: Row[] = g.steps.map((s) => [s.value, s.factor]);
+  const rows = rowsOf(g);
   const all = g.combine === "add" ? rows.reduce((a, [, f]) => a + Number(f), 0) : rows.reduce((a, [, f]) => a * Number(f), 1);
-  const span = `${Math.min(...values)} → ${Math.max(...values)}`;
-  return `${g.negated ? `NOT ${g.key}` : g.key} ${span} · all steps: ${g.combine === "add" ? (all >= 0 ? "+" : "") : "×"}${fmt(all, 3)}`;
+  const spans = [false, true].flatMap((neg) => {
+    const values = rows.filter((r) => r[2] === neg).map(([v]) => Number(v));
+    if (!values.length) return [];
+    const lo = Math.min(...values), hi = Math.max(...values);
+    return [`${sign(g, neg)} ${lo === hi ? lo : `${lo} → ${hi}`}${neg ? " (NOT)" : ""}`];
+  });
+  return `${g.key} ${spans.join(", ")} · all steps: ${g.combine === "add" ? (all >= 0 ? "+" : "") : "×"}${fmt(all, 3)}`;
 }
 
 interface EditorProps {
@@ -133,7 +145,7 @@ interface EditorProps {
 }
 
 export function GroupEditor({ group: g, copies = [], applyLabel, onApply, onPreview, onCancel }: EditorProps) {
-  const oldRows: Row[] = useMemo(() => g.steps.map((s) => [s.value, s.factor]), [g]);
+  const oldRows: Row[] = useMemo(() => rowsOf(g), [g]);
   const [rows, setRows] = useState<Row[]>(oldRows);
   const [combine, setCombine] = useState<string>(g.combine);
   const [mode, setMode] = useState<"each" | "line" | "formula">("each");
@@ -146,17 +158,18 @@ export function GroupEditor({ group: g, copies = [], applyLabel, onApply, onPrev
   const [end, setEnd] = useState(g.combine === "add" ? "1" : "2");
   const [expr, setExpr] = useState(g.combine === "add" ? "0.05 * x" : "1.1 ^ x");
   const [decimals, setDecimals] = useState("3");
+  const [genNeg, setGenNeg] = useState(g.negated); // generated steps: `key = N` or `NOT = { key = N }`
   const [withCopies, setWithCopies] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setRows(oldRows); setCombine(g.combine); setError(""); }, [g, oldRows]);
+  useEffect(() => { setRows(oldRows); setCombine(g.combine); setGenNeg(g.negated); setError(""); }, [g, oldRows]);
 
   const generate = () => {
     setError("");
     const a = Number(from), b = Number(to), n = Math.round(Number(count)), d = Number(decimals);
     if ([a, b].some(Number.isNaN) || !(n >= 1) || n > 200) { setError("thresholds: from / to are numbers, steps 1..200"); return; }
     const xs = Array.from({ length: n }, (_, i) => (n === 1 ? a : a + ((b - a) * i) / (n - 1)));
-    const order = [...xs].sort((p, q) => (upward(g) ? p - q : q - p)); // order in which the steps switch on
+    const order = [...xs].sort((p, q) => (upward(g, genNeg) ? p - q : q - p)); // order in which the steps switch on
     let target: (x: number, i: number) => number;
     if (mode === "each") {
       const f = Number(each);
@@ -176,7 +189,7 @@ export function GroupEditor({ group: g, copies = [], applyLabel, onApply, onPrev
     for (let i = 0; i < order.length; i++) {
       const t = target(order[i], i);
       if (!Number.isFinite(t) || (combine !== "add" && (t === 0 || prev === 0))) { setError(`the function gives ${t} at ${order[i]}: a multiplier cannot pass 0`); return; }
-      out.push([fmt(order[i], d), fmt(combine === "add" ? t - prev : t / prev, d)]);
+      out.push([fmt(order[i], d), fmt(combine === "add" ? t - prev : t / prev, d), genNeg]);
       prev = t;
     }
     setRows(out);
@@ -191,10 +204,13 @@ export function GroupEditor({ group: g, copies = [], applyLabel, onApply, onPrev
     setBusy(false);
   };
 
-  const setRow = (i: number, j: 0 | 1, v: string) => setRows(rows.map((r, k) => (k === i ? (j ? [r[0], v] : [v, r[1]]) : r)));
+  const setRow = (i: number, j: 0 | 1 | 2, v: string | boolean) =>
+    setRows(rows.map((r, k) => (k === i ? (r.map((x, n) => (n === j ? v : x)) as Row) : r)));
   const files = new Set(copies.map((c) => c.rel));
-  const when = g.compare === "gte" ? (g.negated ? "below N" : "N or more") : (g.negated ? "above N" : "N or less");
-  const cond = `${g.negated ? `NOT = { ${g.key} = N }` : `${g.key} = N`} (true for ${when})`;
+  // How each spelling reads (T023): `key = N` holds from N up, `NOT = { key = N }` below N (for "at least" triggers).
+  const spelling = (neg: boolean) => `${neg ? `NOT = { ${g.key} = N }` : `${g.key} = N`} → ${g.key} ${sign(g, neg)} N`;
+  const spellings = [...new Set(rows.map((r) => r[2]))].sort();
+  const cond = (spellings.length ? spellings : [g.negated]).map(spelling).join("; ");
 
   return (
     <div className="mg-editor">
@@ -206,21 +222,24 @@ export function GroupEditor({ group: g, copies = [], applyLabel, onApply, onPrev
       <div className="mg-body">
         <div className="mg-table">
           <table>
-            <thead><tr><th>{g.key} (N)</th><th>factor</th><th>combined</th><th /></tr></thead>
+            <thead><tr><th title="the condition: key = N, or NOT = { key = N } (the other side of N)">when</th><th>{g.key} (N)</th><th>factor</th><th>combined</th><th /></tr></thead>
             <tbody>
-              {rows.map(([v, f], i) => (
-                <tr key={i}>
+              {rows.map(([v, f, neg], i) => (
+                <tr key={i} className={neg ? "mg-not" : ""}>
+                  <td><select value={neg ? "not" : "plain"} onChange={(e) => setRow(i, 2, e.target.value === "not")}
+                    title={neg ? `NOT = { ${g.key} = ${v} }` : `${g.key} = ${v}`}>
+                    <option value="plain">{sign(g, false)}</option><option value="not">{sign(g, true)} (NOT)</option></select></td>
                   <td><input value={v} onChange={(e) => setRow(i, 0, e.target.value)} /></td>
                   <td><input value={f} onChange={(e) => setRow(i, 1, e.target.value)} /></td>
-                  <td className="muted">{fmt(total(g, rows, combine, Number(v) + (upward(g) ? 1e-9 : -1e-9)), 3)}</td>
+                  <td className="muted">{fmt(total(g, rows, combine, Number(v) + (upward(g, neg) ? 1e-9 : -1e-9)), 3)}</td>
                   <td><button title="remove" onClick={() => setRows(rows.filter((_, k) => k !== i))}>×</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="creator-buttons">
-            <button onClick={() => setRows([...rows, rows.length ? [...rows[rows.length - 1]] as Row : ["1", "1"]])}>+ row</button>
-            <button onClick={() => setRows([...rows].sort((a, b) => Number(a[0]) - Number(b[0])))}>Sort</button>
+            <button onClick={() => setRows([...rows, rows.length ? [...rows[rows.length - 1]] as Row : ["1", "1", g.negated]])}>+ row</button>
+            <button onClick={() => setRows([...rows].sort((a, b) => Number(a[2]) - Number(b[2]) || Number(a[0]) - Number(b[0])))}>Sort</button>
             <button onClick={() => setRows(oldRows)}>Reset</button>
           </div>
         </div>
@@ -233,6 +252,8 @@ export function GroupEditor({ group: g, copies = [], applyLabel, onApply, onPrev
           <fieldset className="mg-gen">
             <legend>Make the steps from a function</legend>
             <label>Thresholds from <input value={from} onChange={(e) => setFrom(e.target.value)} /> to <input value={to} onChange={(e) => setTo(e.target.value)} />, steps <input value={count} onChange={(e) => setCount(e.target.value)} /></label>
+            <label>written as <select value={genNeg ? "not" : "plain"} onChange={(e) => setGenNeg(e.target.value === "not")}>
+              <option value="plain">{g.key} = N ({sign(g, false)} N)</option><option value="not">NOT = {"{"} {g.key} = N {"}"} ({sign(g, true)} N)</option></select></label>
             <label><input type="radio" checked={mode === "each"} onChange={() => setMode("each")} /> same factor at each step <input value={each} onChange={(e) => setEach(e.target.value)} /></label>
             <label><input type="radio" checked={mode === "line"} onChange={() => setMode("line")} /> combined factor in a straight line from <input value={start} onChange={(e) => setStart(e.target.value)} /> to <input value={end} onChange={(e) => setEnd(e.target.value)} /></label>
             <label><input type="radio" checked={mode === "formula"} onChange={() => setMode("formula")} /> combined factor = f(x) = <input className="mg-expr" value={expr} onChange={(e) => setExpr(e.target.value)} placeholder="1.1 ^ ((x - 20) / 10)" /></label>

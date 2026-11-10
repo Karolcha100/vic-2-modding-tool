@@ -218,6 +218,7 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .mg-table th { text-align: left; font-weight: 600; padding: 2px 6px; }
 .mg-table td { padding: 1px 4px; }
 .mg-table input { width: 80px; }
+.mg-table tr.mg-not td:first-child select { color: var(--warning); font-weight: 600; }
 .mg-side { flex: 1; min-width: 360px; display: flex; flex-direction: column; gap: 6px; }
 .mg-chart { width: 100%; max-width: 560px; border: 1px solid var(--border); border-radius: 4px; }
 .mg-axis { stroke: var(--muted); stroke-dasharray: 3 3; }
@@ -269,3 +270,4 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .link-like { cursor: pointer; padding: 0 6px; color: var(--muted); }
 .link-like:hover { color: var(--text); }
 .stretch-preview { max-width: 100%; border: 1px solid var(--border); background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+.stretch-frame input { width: 52px; margin: 0 8px 0 2px; }

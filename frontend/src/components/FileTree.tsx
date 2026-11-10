@@ -5,7 +5,9 @@ import type { FileEntry } from "../api";
 const GROUPS: [string, (rel: string) => boolean][] = [
   ["Events", (r) => r.startsWith("events/")],
   ["Decisions", (r) => r.startsWith("decisions/")],
-  ["Reforms & parties", (r) => ["common/issues.txt", "common/ideologies.txt", "common/governments.txt"].includes(r) || r.startsWith("common/countries/")],
+  // T022: the political rules (issues = reforms, ideologies, governments) apart from the countries (their parties)
+  ["Governments, ideologies & issues", (r) => ["common/issues.txt", "common/ideologies.txt", "common/governments.txt"].includes(r)],
+  ["Countries & parties", (r) => r.startsWith("common/countries/") || r === "common/countries.txt"],
   ["Modifiers", (r) => /^common\/(event|static|triggered)_modifiers\.txt$|^common\/(nationalvalues|crime|national_focus)\.txt$/.test(r)],
   ["Technologies & inventions", (r) => r.startsWith("technologies/") || r.startsWith("inventions/") || r === "common/technology.txt"],
   ["Pop types", (r) => r.startsWith("poptypes/") || r === "common/pop_types.txt"],

@@ -74,3 +74,21 @@ def test_stretch_keeps_the_frame_and_writes_dds_and_tga():
     assert stretch(w, h, px, w, h, 1) == px  # same size: unchanged
     assert dds_to_rgba(dds(10, 7, out)) == (10, 7, out)
     assert tga_to_rgba(tga(10, 7, out)) == (10, 7, out)
+
+
+def test_stretch_with_one_frame_per_edge():
+    """T017: (left, top, right, bottom) keeps a large left part as it is."""
+    from vic2toolmod.images import stretch
+
+    w, h = 8, 3
+    px = bytes(v for i in range(w * h) for v in (i, 0, 0, 255))
+    out = stretch(w, h, px, 12, 3, (5, 0, 1, 0))
+
+    def at(data, width, x, y):
+        return data[(y * width + x) * 4 : (y * width + x) * 4 + 4]
+
+    for y in range(h):
+        # the first 5 columns and the last one are copies; only columns 5..6 are stretched
+        assert [at(out, 12, x, y) for x in range(5)] == [at(px, w, x, y) for x in range(5)]
+        assert at(out, 12, 11, y) == at(px, w, 7, y)
+    assert stretch(w, h, px, w, h, (5, 1, 1, 1)) == px

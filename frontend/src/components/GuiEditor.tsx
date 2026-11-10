@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type GuiElement, type GuiWindow } from "../api";
 import { GuiNode, placeOf, sizeOf, useZoom, type DrawContext } from "./GuiDraw";
 import { SidePanel, useStored } from "./Layout";
+import { isBackground, placeInside, stretchFrame, type Placement } from "./guiResize";
 import { useNavStored, useUndoable, useUndoTarget } from "../nav";
 
 /**
@@ -66,8 +67,9 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
   };
   const zoom = useZoom();
   // K94: a bigger window - its new size (keeping its centre) and pictures stretched to fit
-  const [resize, setResize] = useState<null | { w: string; h: string; centre: boolean }>(null);
-  const [stretchOf, setStretchOf] = useState<null | { sprite: string; line: number; w: string; h: string; border: string; preview?: string; note?: string }>(null);
+  const [resize, setResize] = useState<null | { w: string; h: string; centre: boolean; place: Placement }>(null);
+  // border: px kept as they are at the left, top, right and bottom edge
+  const [stretchOf, setStretchOf] = useState<null | { sprite: string; line: number; w: string; h: string; border: string[]; preview?: string; note?: string }>(null);
   const [windows, setWindows] = useState<{ name: string; line: number; depth: number }[]>([]);
   const [data, setData] = useState<GuiWindow | null>(null);
   // Moves and sizes not written yet; Ctrl+Z / Ctrl+Shift+Z step through them (T012).
@@ -175,7 +177,7 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
         <span className="spacer" />
         <label><input type="checkbox" checked={real} onChange={(e) => setReal(e.target.checked)} /> Real graphics</label>
         {zoom.controls}
-        <button disabled={!data} onClick={() => root && setResize({ w: String(Math.max(root.w, 1600)), h: String(Math.max(root.h, 900)), centre: true })}
+        <button disabled={!data} onClick={() => root && setResize({ w: String(Math.max(root.w, 1600)), h: String(Math.max(root.h, 900)), centre: true, place: "edges" })}
           title="Give the window a new size (K94); its backgrounds can then be stretched to fit">Resize window…</button>
         <button onClick={() => setPanel(!panel)} title="Show or hide the panel with the elements">{panel ? "Hide panel" : "Show panel"}</button>
         <button onClick={() => plan(false)} disabled={!pending}>Preview changes</button>
@@ -250,7 +252,7 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
                   {selected.el.orientation !== "upper_left" && <>orientation {selected.el.orientation}<br /></>}
                   {selected.el.sprite && <>sprite {selected.el.sprite}{" "}
                     <a href="#" onClick={(e) => { e.preventDefault(); const sp = data?.sprites[selected.el.sprite];
-                      setStretchOf({ sprite: selected.el.sprite, line: selected.el.line, w: String(sp?.w || selected.w), h: String(sp?.h || selected.h), border: "40" }); }}>stretch picture…</a><br /></>}
+                      setStretchOf({ sprite: selected.el.sprite, line: selected.el.line, w: String(sp?.w || selected.w), h: String(sp?.h || selected.h), border: ["40", "40", "40", "40"] }); }}>stretch picture…</a><br /></>}
                   {selected.el.text && <>text {selected.el.text}{data?.texts[selected.el.text] ? ` = “${data.texts[selected.el.text]}”` : ""}<br /></>}
                   {selected.el.font && <>font {selected.el.font}<br /></>}
                   {original.get(selected.el.line) && changes[selected.el.line] && (
@@ -282,21 +284,36 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
         const w = Number(resize.w) || root.w, h = Number(resize.h) || root.h;
         const dw = w - was.w, dh = h - was.h;
         // backgrounds: pictures of the window's own elements nearly as big as the window
-        const backs = root.children.filter((c) => c.sprite && data.sprites[c.sprite]?.found
-          && (data.sprites[c.sprite]?.w ?? 0) >= was.w * 0.7 && (data.sprites[c.sprite]?.h ?? 0) >= was.h * 0.7);
+        const backs = root.children.filter((c) => isBackground(c, was.w, was.h, ctx!));
+        const { split } = placeInside(data.tree, dw, dh, ctx!, resize.place);
         return (
           <div className="preview-backdrop" onClick={() => setResize(null)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
               <div className="creator-form">
                 <b>Resize the window {root.name}</b>
-                <div className="muted">In the file {was.w}×{was.h} at {was.x}, {was.y} ({root.orientation}). Elements placed from the right or bottom edge move with it; the rest stay. The game does not scale: players with a smaller screen do not see the edges.</div>
+                <div className="muted">In the file {was.w}×{was.h} at {was.x}, {was.y} ({root.orientation}). The game does not scale: players with a smaller screen do not see the edges.</div>
                 <label>Width <input value={resize.w} onChange={(e) => setResize({ ...resize, w: e.target.value })} /></label>
                 <label>Height <input value={resize.h} onChange={(e) => setResize({ ...resize, h: e.target.value })} /></label>
                 <label><input type="checkbox" checked={resize.centre} onChange={(e) => setResize({ ...resize, centre: e.target.checked })} /> keep the centre where it is (moves the window by {-Math.round(dw / 2)}, {-Math.round(dh / 2)})</label>
+                <label>Elements inside <select value={resize.place} onChange={(e) => setResize({ ...resize, place: e.target.value as Placement })}>
+                  <option value="edges">move to the nearest edge (columns and rows move as one piece)</option>
+                  <option value="middle">keep them in the middle</option>
+                  <option value="none">leave them (only the window changes)</option>
+                </select></label>
+                <div className="muted">{resize.place === "edges"
+                  ? "Elements that overlap from left to right form a column (e.g. the tabs, the panels and the reform boxes under them), and those that overlap from top to bottom a row. A column near the left edge stays, near the right edge moves with it, in the middle moves by half; rows the same with the top and bottom. Panels as big as the window grow with it. Elements the game already ties to an edge (close button) and the backgrounds are not moved. Ctrl+Z undoes."
+                  : resize.place === "middle" ? "Every element moves by half the growth: on the screen it stays where it was." : "Only elements tied to the right / bottom edge or the centre move (the game does that); the rest stay at the top-left corner."}</div>
                 <div className="creator-buttons">
                   <button onClick={() => {
-                    set(root.line, { w, h, ...(resize.centre ? { x: was.x - Math.round(dw / 2), y: was.y - Math.round(dh / 2) } : {}) });
-                    onStatus(`Window ${root.name}: ${w}×${h} - not saved yet (Preview changes / Save)`);
+                    // one step of Ctrl+Z: the window and its elements (placed from the file's positions)
+                    const inside = placeInside(data.tree, dw, dh, ctx!, resize.place).changes;
+                    history.set((all) => {
+                      const next = { ...all };
+                      for (const [line, c] of Object.entries(inside)) next[Number(line)] = { ...next[Number(line)], ...c };
+                      next[root.line] = { ...next[root.line], w, h, ...(resize.centre ? { x: was.x - Math.round(dw / 2), y: was.y - Math.round(dh / 2) } : {}) };
+                      return next;
+                    });
+                    onStatus(`Window ${root.name}: ${w}×${h}, ${Object.keys(inside).length} elements placed - not saved yet (Preview changes / Save)`);
                   }}>Apply the size</button>
                   <button onClick={() => setResize(null)}>Close</button>
                 </div>
@@ -305,7 +322,8 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
                   const sp = data.sprites[c.sprite]!;
                   return (
                     <div key={c.line} className="row">{c.name} <span className="muted">{c.sprite} {sp.w}×{sp.h}</span>{" "}
-                      <button className="mini" onClick={() => setStretchOf({ sprite: c.sprite, line: c.line, w: String(sp.w + dw), h: String(sp.h + dh), border: "40" })}>
+                      <button className="mini" onClick={() => setStretchOf({ sprite: c.sprite, line: c.line, w: String(sp.w + dw), h: String(sp.h + dh),
+                        border: stretchFrame({ x: c.x, y: c.y, w: sp.w, h: sp.h }, split, resize.place === "middle").map(String) })}>
                         stretch to {sp.w + dw}×{sp.h + dh}…</button>
                     </div>
                   );
@@ -320,21 +338,23 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="creator-form">
               <b>Stretch the picture of {stretchOf.sprite}</b>
-              <div className="muted">The frame stays sharp: the corners ({stretchOf.border} px) are kept as they are, the edges and the middle are stretched. The picture becomes a new file and a new sprite (in interface/vic2toolmod_stretched.gfx), and only this element is pointed at it: the original picture is often shared by many windows and stays as it is.</div>
+              <div className="muted">The frame stays sharp: the edges below (px from the left, top, right and bottom) are kept as they are, only the part between them is stretched. For a background with panels drawn into it, a large left / top value keeps the panels under the elements that do not move (the Resize window dialog proposes it). The picture becomes a new file and a new sprite (in interface/vic2toolmod_stretched.gfx), and only this element is pointed at it: the original picture is often shared by many windows and stays as it is.</div>
               <label>Width <input value={stretchOf.w} onChange={(e) => setStretchOf({ ...stretchOf, w: e.target.value, preview: undefined })} /></label>
               <label>Height <input value={stretchOf.h} onChange={(e) => setStretchOf({ ...stretchOf, h: e.target.value, preview: undefined })} /></label>
-              <label>Frame (px kept at each edge) <input value={stretchOf.border} onChange={(e) => setStretchOf({ ...stretchOf, border: e.target.value, preview: undefined })} /></label>
+              <label className="stretch-frame">Kept as it is (px): {["left", "top", "right", "bottom"].map((side, i) => (
+                <span key={side}>{side} <input value={stretchOf.border[i]} onChange={(e) => setStretchOf({ ...stretchOf, border: stretchOf.border.map((b, k) => (k === i ? e.target.value : b)), preview: undefined })} /></span>
+              ))}</label>
               <div className="creator-buttons">
                 <button onClick={async () => {
                   try {
-                    const r = await api.stretchPicture({ sprite: stretchOf.sprite, width: Number(stretchOf.w), height: Number(stretchOf.h), border: Number(stretchOf.border), write: false });
+                    const r = await api.stretchPicture({ sprite: stretchOf.sprite, width: Number(stretchOf.w), height: Number(stretchOf.h), border: stretchOf.border.map(Number), write: false });
                     setStretchOf({ ...stretchOf, preview: r.preview, note: `${r.file}: ${r.from.join("×")} → ${r.to.join("×")}` });
                   } catch (e) { setStretchOf({ ...stretchOf, note: (e as Error).message }); }
                 }}>Preview</button>
                 <button disabled={!stretchOf.preview} onClick={async () => {
                   if (!window.confirm(`Write the stretched picture into the mod? A backup is made first.`)) return;
                   try {
-                    const r = await api.stretchPicture({ sprite: stretchOf.sprite, width: Number(stretchOf.w), height: Number(stretchOf.h), border: Number(stretchOf.border), write: true, rel: data?.file ?? rel, line: stretchOf.line });
+                    const r = await api.stretchPicture({ sprite: stretchOf.sprite, width: Number(stretchOf.w), height: Number(stretchOf.h), border: stretchOf.border.map(Number), write: true, rel: data?.file ?? rel, line: stretchOf.line });
                     onStatus(`New picture ${r.texture} (${r.to.join("×")}), sprite ${r.sprite}${r.backup ? `; backup: ${r.backup}` : ""}`);
                     setStretchOf(null);
                     if (data) setData(await api.guiWindow(rel, name));

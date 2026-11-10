@@ -197,3 +197,53 @@ def test_scan_cache_follows_the_text(tmp_path):
     assert [g is h for g, h in zip(first, again, strict=True)] == [True] * 4  # not searched again
     ws.set_text("events/a.txt", "x = 1\n")
     assert len(scan(ws, cache=cache)) == 2
+
+
+MIXED = (
+    "e = { mean_time_to_happen = { months = 120\n"
+    "\tmodifier = {\n\t\tfactor = 0.9\n\t\taverage_consciousness = 5\n\t}\n"
+    "\tmodifier = {\n\t\tfactor = 0.9\n\t\taverage_consciousness = 7\n\t}\n"
+    "\tmodifier = {\n\t\tfactor = 1.1\n\t\tNOT = { average_consciousness = 3 }\n\t}\n"
+    "} }\n"
+)
+
+
+def test_plain_and_not_steps_are_one_group():
+    """T023: ``key = N`` and ``NOT = { key = N }`` of one variable make one group."""
+    (g,) = groups(MIXED)
+    assert (g.key, g.negated) == ("average_consciousness", False)
+    assert [(s.value, s.factor, s.negated) for s in g.steps] == [
+        ("5", "0.9", False),
+        ("7", "0.9", False),
+        ("3", "1.1", True),
+    ]
+    only_not = MIXED.replace(
+        "\t\taverage_consciousness = 5", "\t\tNOT = { average_consciousness = 5 }"
+    )
+    only_not = only_not.replace(
+        "\t\taverage_consciousness = 7", "\t\tNOT = { average_consciousness = 7 }"
+    )
+    assert groups(only_not)[0].negated is True
+
+
+def test_rewrite_keeps_or_flips_not():
+    doc = parse_text(MIXED)
+    (g,) = find_groups(doc, "events/a.txt", default_schema())
+    steps = [("4", "0.8", False), ("2", "1.2", True), ("1", "1.5", True), ("9", "0.5")]
+    new = apply_edits(doc.text, rewrite_edits(doc, g, steps))
+    (again,) = groups(new)
+    assert [(s.value, s.factor, s.negated) for s in again.steps] == [
+        ("4", "0.8", False),
+        ("2", "1.2", True),
+        ("1", "1.5", True),
+        ("9", "0.5", False),  # no flag: written like the first modifier
+    ]
+    assert "NOT = { average_consciousness = 2 }" in new
+    # a spelling the group did not have: the condition is written the other way
+    plain = "a = { modifier = { factor = 2 literacy = 0.2 }\n"
+    plain += "modifier = { factor = 3 literacy = 0.4 } }\n"
+    doc = parse_text(plain)
+    (g,) = find_groups(doc, "events/a.txt", default_schema())
+    new = apply_edits(doc.text, rewrite_edits(doc, g, [("0.2", "2", False), ("0.1", "0.5", True)]))
+    assert "modifier = { factor = 0.5 NOT = { literacy = 0.1 } }" in new
+    assert [s.negated for s in groups(new)[0].steps] == [False, True]

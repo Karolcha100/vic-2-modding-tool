@@ -66,8 +66,11 @@ modifier = { factor = 1.1  num_of_cities = 50 }
 `find_groups` finds such groups in any file: the modifiers of one block
 (`mean_time_to_happen`, `ai_chance`, pop weights, `group`, …) with one
 `factor` each, the same other conditions and one number that changes
-(`key = N`, or `NOT = { key = N }`, true below N). At least two modifiers
-with two different numbers make a group. `scan` lists the groups of every
+(`key = N`, or `NOT = { key = N }`, true below N). Both spellings of one
+variable in one block are one group (T023): every step has its own
+`negated`, and the GUI shows each step's comparison (`≥ N`, or `< N` for
+`NOT`) and lets it be switched. At least two modifiers with two different
+steps make a group. `scan` lists the groups of every
 mod file (RPM: about 3 700 groups in 126 files, ~4 s).
 
 How the factors of a block join (`combine`, with its reason in

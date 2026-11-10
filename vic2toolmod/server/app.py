@@ -49,7 +49,8 @@ API (all under ``/api/``, JSON in and out):
 ``modgroups/text``  POST    ``{text, block, target?}`` -> groups in a rule's modifiers
 ``modgroups/text-edit`` POST ``{text, id, steps}`` -> the modifiers' text with new steps
 ``picture/stretch`` POST    ``{sprite, width, height, border, write?}`` -> a sprite's picture at a
-                            new size, frame kept (K94): preview; ``write`` into the mod
+                            new size, frame kept (K94; border: n or [left, top, right,
+                            bottom], T017): preview; ``write`` into the mod
 ``format/text``     POST    ``{text}`` -> the text formatted (T011)
 ``format/plan``     POST    format the mod's files: files that change, lines, skipped
 ``format/diff``     GET     ``rel`` -> diff of one file of the last plan
@@ -79,7 +80,7 @@ from dataclasses import asdict
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlparse
 
 from vic2toolmod.changes import FileChange, diff, write_changes
@@ -88,6 +89,9 @@ from vic2toolmod.script.diagnostics import Diagnostic
 from vic2toolmod.server.lifecycle import Lifetime, code_stamp
 from vic2toolmod.services import LanguageService
 from vic2toolmod.workspace import Workspace
+
+if TYPE_CHECKING:
+    from vic2toolmod.analysis.modifier_groups import StepRow
 
 STATIC = Path(__file__).parent / "static"
 BUILD = Path(__file__).parent / "static_build"
@@ -141,9 +145,14 @@ def memory_mb() -> int | None:
     return pages * os.sysconf("SC_PAGE_SIZE") // 2**20
 
 
-def _steps(body: dict[str, Any]) -> list[tuple[str, str]]:
-    """``steps: [[value, factor], ...]`` of a request."""
-    return [(str(v), str(f)) for v, f in body.get("steps") or []]
+def _steps(body: dict[str, Any]) -> list[StepRow]:
+    """``steps: [[value, factor(, negated)], ...]`` of a request (negated: ``NOT = {}``, T023)."""
+    out: list[StepRow] = []
+    for row in body.get("steps") or []:
+        out.append(
+            (str(row[0]), str(row[1]), bool(row[2])) if len(row) > 2 else (str(row[0]), str(row[1]))
+        )
+    return out
 
 
 class Engine:
@@ -1207,7 +1216,7 @@ class Engine:
             out["backup"] = str(backup) if backup else None
         return out
 
-    def modgroups_text(self, body: dict[str, Any], steps: list[tuple[str, str]] | None) -> Any:
+    def modgroups_text(self, body: dict[str, Any], steps: list[StepRow] | None) -> Any:
         """Groups in a piece of code (a rule's modifiers); with ``steps`` the code rewritten."""
         from vic2toolmod.analysis.modifier_groups import combine_of, find_groups, rewrite_edits
         from vic2toolmod.edit import apply_edits
@@ -1268,7 +1277,13 @@ class Engine:
             raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, "the size must be 1..8192")
         try:
             w, h, px = image_to_rgba(f.path.read_bytes())
-            out = stretch(w, h, px, width, height, int(body.get("border", 40)))
+            raw = body.get("border", 40)
+            border: int | tuple[int, int, int, int] = (
+                (int(raw[0]), int(raw[1]), int(raw[2]), int(raw[3]))
+                if isinstance(raw, list)
+                else int(raw)
+            )
+            out = stretch(w, h, px, width, height, border)
         except ImageError as exc:
             raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
         result: dict[str, Any] = {"file": f.rel, "from": [w, h], "to": [width, height]}

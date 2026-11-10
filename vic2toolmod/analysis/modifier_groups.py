@@ -9,7 +9,10 @@ Victoria 2 scripts often build a curve out of many modifiers::
 Such a *group* is a set of ``modifier`` blocks of one parent block
 (``mean_time_to_happen``, ``ai_chance``, a pop weight, ``group`` …) with one
 ``factor`` each and the same conditions except one number - the *variable*
-(``num_of_cities``), written ``key = N`` or ``NOT = { key = N }``.
+(``num_of_cities``), written ``key = N`` or ``NOT = { key = N }``. Both
+spellings may meet in one group (T023): ``average_consciousness = 7`` holds
+from 7 up, ``NOT = { average_consciousness = 3 }`` below 3, so each step keeps
+its own ``negated``.
 
 Together the modifiers are a step function of the variable: every modifier
 whose condition holds applies its factor. How the factors join (`combine`,
@@ -29,9 +32,10 @@ factors only where factors add, ``factor = 0`` only where they multiply):
   (``spawn_chance``, ``movement_evaluation``, ``will_rise``).
 
 `find_groups` lists the groups of a file, `scan` of the whole mod, and
-`rewrite` replaces the steps of groups by new ``(value, factor)`` pairs: the
-first modifier is the pattern for the new ones (its layout, comments and other
-conditions stay), the others are removed.
+`rewrite` replaces the steps of groups by new ``(value, factor[, negated])``:
+the first modifier (written the same way, with or without ``NOT``) is the
+pattern for the new ones (its layout, comments and other conditions stay), the
+others are removed.
 """
 
 from __future__ import annotations
@@ -85,6 +89,7 @@ class Step:
         line: Line of the ``modifier`` (from 1).
         start: Offset where the modifier starts.
         end: Offset where it ends.
+        negated: Written ``NOT = { key = N }`` (holds on the other side of N, T023).
     """
 
     value: str
@@ -92,6 +97,7 @@ class Step:
     line: int
     start: int
     end: int
+    negated: bool = False
 
 
 @dataclass
@@ -107,7 +113,8 @@ class Group:
             event / decision when there is one (``["country_event 1234",
             "mean_time_to_happen"]``).
         key: The variable (``num_of_cities``).
-        negated: Written ``NOT = { key = N }`` (the condition holds below N).
+        negated: Every step is written ``NOT = { key = N }`` (the condition holds
+            below N); a group may also mix both spellings (`Step.negated`, T023).
         compare: How the trigger compares (``gte``: at least N; ``lte``: at most N).
         context: The other conditions of the modifiers (the same in all of them).
         combine: ``multiply`` or ``add`` (how factors work in this block).
@@ -145,9 +152,8 @@ class Group:
         parts = [
             "/".join(p.split(" ")[0] for p in self.path),
             self.key,
-            str(self.negated),
             *self.context,
-            *(f"{s.value}:{s.factor}" for s in self.steps),
+            *(f"{'not ' if s.negated else ''}{s.value}:{s.factor}" for s in self.steps),
         ]
         return "|".join(parts).lower()
 
@@ -155,6 +161,7 @@ class Group:
 @dataclass
 class _Candidate:
     node: Assignment
+    item: Assignment  # the condition: ``key = N`` or ``NOT = { key = N }``
     var: Assignment
     var_value: Scalar
     factor: Scalar
@@ -194,7 +201,7 @@ def _candidates(modifier: Assignment) -> list[_Candidate]:
         if value is None or var.key_text.lower() in _BASE_KEYS:
             continue
         context = sorted(_flat(i.to_text()) for i in rest if i is not item)
-        out.append(_Candidate(modifier, var, value, factor, negated, context))
+        out.append(_Candidate(modifier, item, var, value, factor, negated, context))
     return out
 
 
@@ -237,18 +244,20 @@ def find_groups(doc: Document, rel: str, schema: Schema | None = None) -> list[G
         ]
         if len(modifiers) < 2:
             continue
-        buckets: dict[tuple[str, bool, tuple[str, ...]], list[_Candidate]] = defaultdict(list)
+        # ``key = N`` and ``NOT = { key = N }`` steps of one variable are one group (T023)
+        buckets: dict[tuple[str, tuple[str, ...]], list[_Candidate]] = defaultdict(list)
         for m in modifiers:
             for c in _candidates(m):
-                buckets[(c.var.key_text.lower(), c.negated, tuple(c.context))].append(c)
+                buckets[(c.var.key_text.lower(), tuple(c.context))].append(c)
         # a modifier belongs to its largest group only
         used: set[int] = set()
-        for (key, negated, context), members in sorted(
+        for (key, context), members in sorted(
             buckets.items(), key=lambda kv: (-len(kv[1]), kv[1][0].node.start)
         ):
             members = [c for c in members if id(c.node) not in used]
-            if len(members) < 2 or len({c.var_value.value for c in members}) < 2:
+            if len(members) < 2 or len({(c.var_value.value, c.negated) for c in members}) < 2:
                 continue
+            negated = all(c.negated for c in members)
             used.update(id(c.node) for c in members)
             base_key, base = _base(parent)
             compare = "gte"
@@ -260,7 +269,7 @@ def find_groups(doc: Document, rel: str, schema: Schema | None = None) -> list[G
             combine, note = combine_of(rel, path)
             groups.append(
                 Group(
-                    id=f"{parent.start}:{key}:{'n' if negated else ''}{digest}",
+                    id=f"{parent.start}:{key}:{digest}",
                     rel=rel,
                     line=doc.position(parent.start)[0],
                     path=path,
@@ -279,6 +288,7 @@ def find_groups(doc: Document, rel: str, schema: Schema | None = None) -> list[G
                             doc.position(c.node.start)[0],
                             c.node.start,
                             c.node.end,
+                            c.negated,
                         )
                         for c in sorted(members, key=lambda c: c.node.start)
                     ],
@@ -329,43 +339,78 @@ def _check_number(text: str, what: str) -> str:
     return t
 
 
-def rewrite_edits(doc: Document, group: Group, steps: list[tuple[str, str]]) -> list[TextEdit]:
-    """Text edits that give a group new steps (``(value, factor)`` in the wanted order).
+StepRow = tuple[str, str] | tuple[str, str, bool]
+"""A new step: ``(value, factor)`` or ``(value, factor, negated)``."""
 
-    The first modifier of the group is the pattern of the new ones; an empty
-    ``steps`` removes the whole group.
+
+def rewrite_edits(doc: Document, group: Group, steps: list[StepRow]) -> list[TextEdit]:
+    """Text edits that give a group new steps (``(value, factor[, negated])`` in order).
+
+    The first modifier of the group written the same way (with or without
+    ``NOT``) is the pattern of a new one; when there is none, the first
+    modifier is used with its condition written the other way. A step without
+    ``negated`` is written like the group's first modifier. An empty ``steps``
+    removes the whole group.
     """
     text = doc.text
-    clean = [(_check_number(v, "value"), _check_number(f, "factor")) for v, f in steps]
     nodes = [_node_at(doc, s.start) for s in group.steps]
+    first_negated = group.steps[0].negated
+    clean = [
+        (
+            _check_number(row[0], "value"),
+            _check_number(row[1], "factor"),
+            bool(row[2]) if len(row) > 2 else first_negated,
+        )
+        for row in steps
+    ]
     edits = [delete(doc, n) for n in nodes[1:]]
     if not clean:
         return [delete(doc, nodes[0]), *edits]
     first = nodes[0]
-    cand = next(
+    key = group.key.lower()
+    base = next(
         c
         for c in _candidates(first)
-        if c.var.key_text.lower() == group.key.lower() and c.negated == group.negated
+        if c.var.key_text.lower() == key and c.negated == first_negated
     )
-    pattern = text[first.start : first.end]
-    places = sorted(
-        [
-            (cand.var_value.start - first.start, cand.var_value.end - first.start, 0),
-            (cand.factor.start - first.start, cand.factor.end - first.start, 1),
-        ],
-        reverse=True,
-    )
+    # the condition of each spelling: from the group's first modifier written that way
+    conditions: dict[bool, tuple[str, int]] = {}
+    for node, step in zip(nodes, group.steps, strict=True):
+        if step.negated not in conditions:
+            c = next(
+                c
+                for c in _candidates(node)
+                if c.var.key_text.lower() == key and c.negated == step.negated
+            )
+            cond = text[c.item.start : c.item.end]
+            conditions[step.negated] = (cond, c.var_value.start - c.item.start)
+    for negated in (False, True):  # a spelling the group does not have yet
+        if negated not in conditions:
+            head = f"NOT = {{ {base.var.key_text} = " if negated else f"{base.var.key_text} = "
+            conditions[negated] = (head + "0" + (" }" if negated else ""), len(head))
     line_start = max(text.rfind("\n", 0, first.start), text.rfind("\r", 0, first.start)) + 1
     indent = text[line_start : first.start]
     sep = newline_of(text) + indent if not indent.strip() else " "
+    pattern = text[first.start : first.end]
+    a, b = base.item.start - first.start, base.item.end - first.start
     pieces = []
-    for value, factor in clean:
-        piece = pattern
-        for a, b, which in places:
-            piece = piece[:a] + (factor if which else value) + piece[b:]
-        pieces.append(piece)
+    for value, factor, negated in clean:
+        cond, at = conditions[negated]
+        cond = cond[:at] + value + cond[at + len(_value_text(cond, at)) :]
+        piece = pattern[:a] + cond + pattern[b:]
+        fa, fb = base.factor.start - first.start, base.factor.end - first.start
+        if fa > a:
+            fa, fb = fa + len(cond) - (b - a), fb + len(cond) - (b - a)
+        pieces.append(piece[:fa] + factor + piece[fb:])
     edits.insert(0, TextEdit(first.start, first.end, sep.join(pieces)))
     return edits
+
+
+def _value_text(cond: str, at: int) -> str:
+    """The number written at ``at`` of a condition's text."""
+    m = _NUM.match(cond, at)
+    assert m is not None
+    return m.group(0)
 
 
 def _node_at(doc: Document, start: int) -> Assignment:
@@ -375,7 +420,7 @@ def _node_at(doc: Document, start: int) -> Assignment:
     raise ValueError("the file changed: reload the groups")
 
 
-def rewrite(ws: Workspace, plans: list[tuple[str, str, list[tuple[str, str]]]]) -> list[FileChange]:
+def rewrite(ws: Workspace, plans: list[tuple[str, str, list[StepRow]]]) -> list[FileChange]:
     """File changes for ``(rel, group id, new steps)``; several groups per file are fine.
 
     Raises:
@@ -385,7 +430,7 @@ def rewrite(ws: Workspace, plans: list[tuple[str, str, list[tuple[str, str]]]]) 
     mod = ws.project.mod_dir
     if mod is None:
         raise ValueError("the game's own files are read-only: open a mod to change files")
-    by_file: dict[str, list[tuple[str, list[tuple[str, str]]]]] = defaultdict(list)
+    by_file: dict[str, list[tuple[str, list[StepRow]]]] = defaultdict(list)
     for rel, gid, steps in plans:
         by_file[rel].append((gid, steps))
     changes = []

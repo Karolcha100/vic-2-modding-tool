@@ -3,8 +3,9 @@
 A browser app (TypeScript + React + Monaco, built with Vite) served by the
 engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
 
-- **file tree** of the mod, by content (Events, Decisions, Reforms & parties,
-  Modifiers, …) or by folder; mod files only or vanilla too;
+- **file tree** of the mod, by content (Events, Decisions, Governments,
+  ideologies & issues, Countries & parties, Modifiers, …) or by folder; mod
+  files only or vanilla too;
 - **code editor** (Monaco) with Paradox syntax colours, errors / warnings /
   notes underlined as you type, completion from the schema and the mod's names,
   hover with descriptions and localised names: over a trigger or effect it
@@ -128,6 +129,15 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   (`gfx/interface/vic2toolmod/<name>_<w>x<h>.dds`) and a new sprite
   (`interface/vic2toolmod_stretched.gfx`), and only that element points at
   it: textures such as `main_bg.dds` are shared by many windows.
+  **Elements inside** (T017) chooses where the window's elements go:
+  *nearest edge* (default) - elements whose spans overlap along an axis form a
+  band (the left column; the tabs with the panels and reform boxes under
+  them) and a band moves as one piece to its nearest edge (left / top stays,
+  right / bottom moves by the growth, the middle by half); panels as big as
+  the window grow with it and their elements join the window's bands;
+  elements the game ties to an edge (close button) and backgrounds stay;
+  *middle* - everything moves by half the growth; *leave them*. One Ctrl+Z
+  undoes the size and the moves together.
 - **Panels** (T019): side lists (Modifier groups, Meta relations, Pop promotion,
   Event chains, Vs vanilla, Git, Interface / Reform window panels, Format)
   are widened by dragging their inner border; the width is remembered.

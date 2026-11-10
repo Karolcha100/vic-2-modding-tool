@@ -259,41 +259,55 @@ def tga(width: int, height: int, rgba: bytes) -> bytes:
     return header + bytes(body)
 
 
-def _axis(size: int, new: int, border: int) -> list[tuple[int, int, float]]:
+def _axis(size: int, new: int, before: int, after: int) -> list[tuple[int, int, float]]:
     """For each new pixel: two source pixels and the weight of the second.
 
-    The first and last ``border`` pixels are copied as they are; the part between
-    them is stretched (linear interpolation).
+    The first ``before`` and last ``after`` pixels are copied as they are; the
+    part between them is stretched (linear interpolation).
     """
-    b = max(0, min(border, size // 2, new // 2))
+    b0 = max(0, min(before, size - 1, new))
+    b1 = max(0, min(after, size - b0 - 1, new - b0))
     out: list[tuple[int, int, float]] = []
-    inner, new_inner = size - 2 * b, new - 2 * b
+    inner, new_inner = size - b0 - b1, new - b0 - b1
     for i in range(new):
-        if i < b:
+        if i < b0:
             out.append((i, i, 0.0))
-        elif i >= new - b:
+        elif i >= new - b1:
             j = size - (new - i)
             out.append((j, j, 0.0))
         else:
             # the centre of new pixel i, mapped into the source's inner part
-            f = (i - b + 0.5) * inner / max(new_inner, 1) - 0.5
+            f = (i - b0 + 0.5) * inner / max(new_inner, 1) - 0.5
             f = min(max(f, 0.0), inner - 1.0)
             j0 = int(f)
             j1 = min(j0 + 1, inner - 1)
-            out.append((b + j0, b + j1, f - j0))
+            out.append((b0 + j0, b0 + j1, f - j0))
     return out
 
 
-def stretch(width: int, height: int, rgba: bytes, new_w: int, new_h: int, border: int) -> bytes:
+Border = int | tuple[int, int, int, int]
+"""Pixels kept as they are: the same at every edge, or ``(left, top, right, bottom)``."""
+
+
+def stretch(width: int, height: int, rgba: bytes, new_w: int, new_h: int, border: Border) -> bytes:
     """Resize a picture with its frame kept ("nine-slice").
 
-    The corners (``border`` pixels) stay as they are, the edges stretch along
-    their length and the middle in both directions.
+    The corners stay as they are, the edges stretch along their length and the
+    middle in both directions. ``border`` is the frame: one number for every
+    edge (at most half the picture), or ``(left, top, right, bottom)`` - e.g. a
+    large left edge keeps the left part of a background (a panel drawn into it)
+    and stretches only the rest (T017).
     """
     if new_w < 1 or new_h < 1:
         raise ImageError("the new size must be at least 1×1")
-    cols = _axis(width, new_w, border)
-    rows = _axis(height, new_h, border)
+    if isinstance(border, int):
+        bx = max(0, min(border, width // 2, new_w // 2))
+        by = max(0, min(border, height // 2, new_h // 2))
+        left, top, right, bottom = bx, by, bx, by
+    else:
+        left, top, right, bottom = border
+    cols = _axis(width, new_w, left, right)
+    rows = _axis(height, new_h, top, bottom)
     row = width * 4
     # horizontal pass: every source row at the new width
     wide: list[bytes] = []

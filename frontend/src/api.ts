@@ -94,7 +94,7 @@ export interface TemplateInfo {
   id: string; name: string; description: string; folder: string; builtin: boolean;
   body: string; loc: string[]; fields: TemplateField[];
 }
-export interface ModStep { value: string; factor: string; line: number; start: number; end: number }
+export interface ModStep { value: string; factor: string; line: number; start: number; end: number; negated: boolean }
 export interface ModGroup {
   id: string; rel: string; line: number; path: string[]; key: string; negated: boolean; compare: "gte" | "lte";
   context: string[]; combine: "multiply" | "add"; combine_note: string; base: string | null; base_key: string | null; steps: ModStep[]; signature: string;
@@ -185,17 +185,17 @@ export const api = {
     call<{ id: string }>("template/save", body),
   templateDelete: (id: string) => call<{ deleted: string }>("template/delete", { id }),
   modGroups: (rel = "") => call<{ groups: ModGroup[] }>(`modgroups?${q({ rel })}`),
-  modGroupEdits: (rel: string, id: string, steps: [string, string][]) =>
+  modGroupEdits: (rel: string, id: string, steps: [string, string, boolean][]) =>
     call<{ edits: { start: number; end: number; text: string }[] }>("modgroups/edits", { rel, id, steps }),
-  modGroupPlan: (plans: { rel: string; id: string; steps: [string, string][] }[], write: boolean) =>
+  modGroupPlan: (plans: { rel: string; id: string; steps: [string, string, boolean][] }[], write: boolean) =>
     call<{ diff: string; files: string[]; backup?: string | null; written?: boolean }>("modgroups/plan", { plans, write }),
   meta: () => call<MetaInfo>("meta"),
   metaPlan: (body: { rule?: MetaRule; old_name?: string; delete?: boolean; name?: string; force?: boolean; write?: boolean }) =>
     call<MetaPlan>("meta/plan", body),
   codeGroups: (text: string, block: string, target: string) => call<{ groups: ModGroup[] }>("modgroups/text", { text, block, target }),
-  codeGroupEdit: (text: string, block: string, target: string, id: string, steps: [string, string][]) =>
+  codeGroupEdit: (text: string, block: string, target: string, id: string, steps: [string, string, boolean][]) =>
     call<{ text: string }>("modgroups/text-edit", { text, block, target, id, steps }),
-  stretchPicture: (body: { sprite: string; width: number; height: number; border: number; write: boolean; rel?: string; line?: number }) =>
+  stretchPicture: (body: { sprite: string; width: number; height: number; border: number | number[]; write: boolean; rel?: string; line?: number }) =>
     call<{ file: string; from: [number, number]; to: [number, number]; preview?: string; written?: boolean; texture?: string; sprite?: string; backup?: string | null }>("picture/stretch", body),
   formatText: (text: string) => call<{ text: string }>("format/text", { text }),
   formatPlan: () => call<FormatPlan>("format/plan", {}),
