@@ -44,6 +44,10 @@ API (all under ``/api/``, JSON in and out):
 ``ping``            GET     ``{stamp, stale, pid}``: is the server there, is its code current
 ``bye``             POST    ``client`` (query): a browser tab was closed (`lifecycle`)
 ``quit``            POST    stop the server; ``restart``: stop and start again (same address)
+``meta``            GET     meta relations of pops (T010): rules, pop types, names to offer
+``meta/plan``       POST    ``{rule?, old_name?, delete?, force?, write?}`` -> diff of all files
+``modgroups/text``  POST    ``{text, block, target?}`` -> groups in a rule's modifiers
+``modgroups/text-edit`` POST ``{text, id, steps}`` -> the modifiers' text with new steps
 ``format/text``     POST    ``{text}`` -> the text formatted (T011)
 ``format/plan``     POST    format the mod's files: files that change, lines, skipped
 ``format/diff``     GET     ``rel`` -> diff of one file of the last plan
@@ -1111,6 +1115,115 @@ class Engine:
             out["written"] = True
         return out
 
+    # -- meta relations (T010) -----------------------------------------------------------
+    def meta(self) -> dict[str, Any]:
+        """Rules with the pop types they go into, pop types by strata, names to offer."""
+        from vic2toolmod.generators import meta
+
+        pops = meta.pop_types(self.ws)
+        names = self.ws.registries().names
+        return {
+            "rules": [
+                {**asdict(r), "pops": meta.matches(r, pops)} for r in meta.rules(self.ws)
+            ],
+            "pops": pops,
+            "blocks": {"pop": list(meta.POP_BLOCKS), "chance": list(meta.CHANCE_BLOCKS)},
+            "names": {
+                k: sorted(names.get(k, {})) for k in ("pop_type", "issue_option", "ideology")
+            },
+            "folder": meta.META_DIR,
+        }
+
+    def meta_plan(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Save / delete one rule and bring every file in line; ``write`` makes it so."""
+        from vic2toolmod.generators import meta
+
+        mod = self.ws.project.mod_dir
+        if mod is None:
+            raise ApiError(HTTPStatus.CONFLICT, "open a mod to keep meta relations in it")
+        try:
+            current = {r.name: r for r in meta.rules(self.ws)}
+            changes: list[FileChange] = []
+            gone: list[Path] = []
+            old_name = str(body.get("old_name") or "")
+            if body.get("delete"):
+                name = str(body.get("name") or old_name)
+                current.pop(name, None)
+                gone.append(mod / meta.META_DIR / f"{name}.txt")
+            elif body.get("rule"):
+                raw = body["rule"]
+                rule = meta.Rule(
+                    name=str(raw.get("name", "")).strip(),
+                    block=str(raw.get("block", "")),
+                    target=str(raw.get("target", "")).strip(),
+                    description=str(raw.get("description", "")).strip(),
+                    strata=[str(s) for s in raw.get("strata") or []],
+                    pop_types=[str(p) for p in raw.get("pop_types") or []],
+                    group=bool(raw.get("group")),
+                    modifiers=str(raw.get("modifiers", "")),
+                )
+                rule.check()
+                if old_name and old_name != rule.name:
+                    current.pop(old_name, None)
+                    gone.append(mod / meta.META_DIR / f"{old_name}.txt")
+                elif not old_name and rule.name in current:
+                    raise meta.MetaError(f"a rule named {rule.name!r} already exists")
+                current[rule.name] = rule
+                changes.append(meta.save_rule(self.ws, rule))
+            result = meta.plan(self.ws, list(current.values()), force=bool(body.get("force")))
+        except meta.MetaError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        changes += result.changes
+        out: dict[str, Any] = {
+            "diff": diff(changes) + "".join(f"(deleted) {p.name}\n" for p in gone if p.exists()),
+            "files": [c.rel for c in changes],
+            "added": result.added,
+            "updated": result.updated,
+            "removed": result.removed,
+            "edited": result.edited,
+            "missing": result.missing,
+        }
+        if body.get("write"):
+            backup = self._write(changes) if changes else None
+            for path in gone:
+                if path.exists():
+                    if backup is not None:
+                        (backup / meta.META_DIR).mkdir(parents=True, exist_ok=True)
+                        (backup / meta.META_DIR / path.name).write_bytes(path.read_bytes())
+                    path.unlink()
+            for c in changes:
+                self.ws.revert(c.rel)
+            self.ws.refresh()
+            out["written"] = True
+            out["backup"] = str(backup) if backup else None
+        return out
+
+    def modgroups_text(self, body: dict[str, Any], steps: list[tuple[str, str]] | None) -> Any:
+        """Groups in a piece of code (a rule's modifiers); with ``steps`` the code rewritten."""
+        from vic2toolmod.analysis.modifier_groups import combine_of, find_groups, rewrite_edits
+        from vic2toolmod.edit import apply_edits
+        from vic2toolmod.script.parser import parse_text
+
+        head = "rule = {\n"
+        text = head + str(body.get("text", "")) + "\n}\n"
+        doc = parse_text(text)
+        groups = find_groups(doc, "meta", self.ws.schema)
+        block = str(body.get("block", ""))
+        rel = "common/pop_types.txt" if block.endswith("_chance") else "poptypes/x.txt"
+        combine, note = combine_of(rel, [block, str(body.get("target", ""))])
+        for g in groups:
+            g.combine, g.combine_note, g.path = combine, note, [block or "modifiers"]
+        if steps is None:
+            return {"groups": [{**asdict(g), "signature": g.signature} for g in groups]}
+        group = next((g for g in groups if g.id == body.get("id")), None)
+        if group is None:
+            raise ApiError(HTTPStatus.CONFLICT, "the group is gone (the code changed?)")
+        try:
+            new = apply_edits(text, rewrite_edits(doc, group, steps))
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        return {"text": new[len(head) : -len("\n}\n")]}
+
     # -- formatting (T011) ---------------------------------------------------------------
     def format_text(self, text: str) -> dict[str, Any]:
         """One text formatted (the editor applies it as one undo step)."""
@@ -1562,6 +1675,14 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.modgroup_edits(body)
                 case ("POST", "modgroups/plan"):
                     return e.modgroup_plan(body)
+                case ("GET", "meta"):
+                    return e.meta()
+                case ("POST", "meta/plan"):
+                    return e.meta_plan(body)
+                case ("POST", "modgroups/text"):
+                    return e.modgroups_text(body, None)
+                case ("POST", "modgroups/text-edit"):
+                    return e.modgroups_text(body, _steps(body))
                 case ("POST", "format/text"):
                     return e.format_text(str(body["text"]))
                 case ("POST", "format/plan"):

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 /** A small interactive graph: force layout (no libraries, K47), draggable nodes. */
 
 export interface GNode { id: string; label: string; color?: string; title?: string }
-export interface GEdge { source: string; target: string; width?: number; label?: string; key: string }
+export interface GEdge { source: string; target: string; width?: number; label?: string; key: string; dashed?: boolean }
 
 interface Props {
   nodes: GNode[];
@@ -106,7 +106,7 @@ export function Graph({ nodes, edges, selected, onNode, onEdge, onBackground, sh
         seen.set(pair, n + 1);
         // Selected node: outgoing edges red, incoming blue, the rest faded.
         const dir = !selected ? "" : e.source === selected ? "out" : e.target === selected ? "in" : "dim";
-        const cls = "graph-edge" + (dir ? ` ${dir}` : "");
+        const cls = "graph-edge" + (dir ? ` ${dir}` : "") + (e.dashed ? " meta" : "");
         if (e.source === e.target) {
           return <path key={e.key} d={`M ${a[0]} ${a[1] - 14} c 30 -40 60 0 18 16`} className={cls}
             strokeWidth={e.width ?? 1.5} fill="none" onClick={() => onEdge?.(e.key)}><title>{e.label}</title></path>;

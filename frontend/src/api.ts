@@ -99,6 +99,18 @@ export interface ModGroup {
   id: string; rel: string; line: number; path: string[]; key: string; negated: boolean; compare: "gte" | "lte";
   context: string[]; combine: "multiply" | "add"; combine_note: string; base: string | null; base_key: string | null; steps: ModStep[]; signature: string;
 }
+export interface MetaRule {
+  name: string; block: string; target: string; description: string; strata: string[]; pop_types: string[];
+  group: boolean; modifiers: string; pops?: string[];
+}
+export interface MetaInfo {
+  rules: MetaRule[]; pops: Record<string, string>; blocks: { pop: string[]; chance: string[] };
+  names: Record<string, string[]>; folder: string;
+}
+export interface MetaPlan {
+  diff: string; files: string[]; added: [string, string][]; updated: [string, string][]; removed: [string, string][];
+  edited: [string, string][]; missing: [string, string, string][]; written?: boolean; backup?: string | null;
+}
 export interface FormatPlan {
   files: { rel: string; lines: number }[];
   skipped: { rel: string; reason: string }[];
@@ -177,6 +189,12 @@ export const api = {
     call<{ edits: { start: number; end: number; text: string }[] }>("modgroups/edits", { rel, id, steps }),
   modGroupPlan: (plans: { rel: string; id: string; steps: [string, string][] }[], write: boolean) =>
     call<{ diff: string; files: string[]; backup?: string | null; written?: boolean }>("modgroups/plan", { plans, write }),
+  meta: () => call<MetaInfo>("meta"),
+  metaPlan: (body: { rule?: MetaRule; old_name?: string; delete?: boolean; name?: string; force?: boolean; write?: boolean }) =>
+    call<MetaPlan>("meta/plan", body),
+  codeGroups: (text: string, block: string, target: string) => call<{ groups: ModGroup[] }>("modgroups/text", { text, block, target }),
+  codeGroupEdit: (text: string, block: string, target: string, id: string, steps: [string, string][]) =>
+    call<{ text: string }>("modgroups/text-edit", { text, block, target, id, steps }),
   formatText: (text: string) => call<{ text: string }>("format/text", { text }),
   formatPlan: () => call<FormatPlan>("format/plan", {}),
   formatDiff: (rel: string) => call<{ diff: string }>(`format/diff?${q({ rel })}`),

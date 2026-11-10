@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../api";
+import { api, type MetaRule } from "../api";
 import { Graph, type GEdge, type GNode } from "./Graph";
+import { MetaRelations } from "./MetaRelations";
 import { ModGroupsTab } from "./ModGroups";
 import { useNav } from "../nav";
 
 /** Analyses of the mod: pop promotion graph (K59), event chains (K6 C), vs vanilla (K6 H),
  *  statistics (K6 I), localisation editor (K6 E), git changes (K37 = B). */
 
-type Tab = "promotion" | "events" | "groups" | "vanilla" | "stats" | "localisation" | "git";
+type Tab = "promotion" | "meta" | "events" | "groups" | "vanilla" | "stats" | "localisation" | "git";
 
 interface Props {
   onOpen: (rel: string, line?: number) => void;
@@ -16,8 +17,9 @@ interface Props {
 
 export function Analyses({ onOpen, onStatus }: Props) {
   const [tab, setTab] = useNav<Tab>("analyses.tab", "promotion");
+  const [rule, setRule] = useState<string | null>(null); // a rule clicked in the promotion graph
   const tabs: [Tab, string][] = [
-    ["promotion", "Pop promotion"], ["events", "Event chains"], ["groups", "Modifier groups"], ["vanilla", "Vs vanilla"],
+    ["promotion", "Pop promotion"], ["meta", "Meta relations"], ["events", "Event chains"], ["groups", "Modifier groups"], ["vanilla", "Vs vanilla"],
     ["stats", "Statistics"], ["localisation", "Localisation"], ["git", "Git changes"],
   ];
   return (
@@ -27,7 +29,8 @@ export function Analyses({ onOpen, onStatus }: Props) {
         {tabs.map(([t, label]) => <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{label}</button>)}
       </div>
       <div className="analyses-body">
-        {tab === "promotion" && <Promotion onOpen={onOpen} />}
+        {tab === "promotion" && <Promotion onOpen={onOpen} onRule={(name) => { setRule(name); setTab("meta"); }} />}
+        {tab === "meta" && <MetaRelations onStatus={onStatus} focus={rule} />}
         {tab === "events" && <Events onOpen={onOpen} />}
         {tab === "groups" && <ModGroupsTab onOpen={onOpen} onStatus={onStatus} />}
         {tab === "vanilla" && <Vanilla />}
@@ -43,8 +46,11 @@ export function Analyses({ onOpen, onStatus }: Props) {
 interface PromoEdge { source: string; target: string; base: number | null; file: string; line: number;
   modifiers: { factor: number | null; conditions: string; refs: [string, string][]; line: number }[] }
 
-function Promotion({ onOpen }: { onOpen: Props["onOpen"] }) {
+function Promotion({ onOpen, onRule }: { onOpen: Props["onOpen"]; onRule: (name: string) => void }) {
   const [data, setData] = useState<{ nodes: { id: string }[]; edges: PromoEdge[] } | null>(null);
+  // Meta relations (T010) of promote_to: dashed edges from every pop type they go into.
+  const [rules, setRules] = useState<MetaRule[]>([]);
+  useEffect(() => { api.meta().then((m) => setRules(m.rules)).catch(() => undefined); }, []);
   const [sel, setSel] = useState<string | null>(null);
   const [edgeKey, setEdgeKey] = useState<string | null>(null);
   useEffect(() => { api.poptypesGraph().then(setData).catch(() => undefined); }, []);
@@ -53,17 +59,21 @@ function Promotion({ onOpen }: { onOpen: Props["onOpen"] }) {
     key: String(i), source: e.source, target: e.target,
     width: 1 + Math.min(4, (e.modifiers.length || 1) / 4),
     label: `${e.source} → ${e.target}: base ${e.base ?? "?"}, ${e.modifiers.length} modifiers`,
-  })), [data]);
+  })).concat(rules.filter((r) => r.block === "promote_to").flatMap((r) => (r.pops ?? []).map((p) => ({
+    key: `meta:${r.name}:${p}`, source: p, target: r.target, width: 2, dashed: true,
+    label: `meta relation ${r.name}: ${p} → ${r.target} (click to edit)`,
+  })))), [data, rules]);
   if (!data) return <div className="muted pad">Loading the pop types…</div>;
   const edge = edgeKey !== null ? data.edges[Number(edgeKey)] : null;
   const list = edge ? [edge] : data.edges.filter((e) => sel && (e.source === sel || e.target === sel));
   return (
     <div className="split-view">
-      <Graph shape="circle" nodes={nodes} edges={edges} selected={sel} onNode={(id) => { setSel(id); setEdgeKey(null); }} onEdge={setEdgeKey}
+      <Graph shape="circle" nodes={nodes} edges={edges} selected={sel} onNode={(id) => { setSel(id); setEdgeKey(null); }}
+        onEdge={(k) => { if (k.startsWith("meta:")) onRule(k.split(":")[1]); else setEdgeKey(k); }}
         onBackground={() => { setSel(null); setEdgeKey(null); }} />
       <div className="side-list">
         <div className="panel-title">{edge ? `${edge.source} → ${edge.target}` : sel ? `Promotions of ${sel}` : "Click a pop type or an arrow"}</div>
-        {sel && !edge && <div className="muted small pad"><span style={{ color: "#e53935" }}>■</span> becomes another type (out) · <span style={{ color: "#1e88e5" }}>■</span> comes from another type (in) · click the background to clear</div>}
+        {sel && !edge && <div className="muted small pad"><span style={{ color: "#e53935" }}>■</span> becomes another type (out) · <span style={{ color: "#1e88e5" }}>■</span> comes from another type (in) · <span style={{ color: "#8e44ad" }}>┅</span> meta relation (click to edit) · click the background to clear</div>}
         {list.map((e) => (
           <div key={`${e.source}-${e.target}-${e.line}`} className="weight">
             <div className="row" onClick={() => onOpen(e.file, e.line)}><b>{e.source} → {e.target}</b> base {e.base ?? "?"} <span className="muted">{e.file}:{e.line}</span></div>

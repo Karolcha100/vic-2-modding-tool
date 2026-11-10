@@ -248,3 +248,8 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .format-files .row.on { background: var(--hover); }
 .format-diff { flex: 1; overflow: auto; margin: 0; font-size: 12px; border: 1px solid var(--border); padding: 4px; }
 .hidden-notes { margin-left: 12px; font-weight: normal; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; }
+.graph-edge.meta { stroke-dasharray: 7 5; stroke: #8e44ad; }
+.meta-form .pops-list { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.meta-form textarea.code { min-height: 160px; }
+.meta-code { display: flex; flex-direction: column; gap: 4px; }
+.meta-code textarea { width: 100%; box-sizing: border-box; }

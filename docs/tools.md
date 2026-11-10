@@ -111,3 +111,35 @@ each step, a straight line between two values, or a formula of `x`
 (`1.1 ^ ((x - 20) / 10)`, `1 + 0.02 * x`, `sqrt(x)`; `+ - * / ^`, `ln log exp
 sqrt pow min max abs`); the tool computes each step's factor so that the
 product (or sum) reaches it.
+
+## Meta relations of pops (`generators.meta`, T010)
+
+A rule written once - "with conscription, every pop with `strata = poor`
+promotes more to soldiers" - that the tool copies into every matching pop
+file. The game has no rules or includes, so the copies are ordinary
+`modifier = { … }` blocks between marker comments:
+
+```
+		# vic2toolmod meta: conscription_poor 1a2b3c4d
+		modifier = { factor = 2 country = { military_service = two_year_draft } }
+		# vic2toolmod meta end: conscription_poor
+```
+
+- **Rules** are kept in the mod, one file each: `vic2toolmod/meta/<name>.txt`
+  (a folder the game does not read; K89 = B), in script syntax: `name`,
+  `description`, `block`, `target`, `strata = { poor }`, `pop_types = { }`,
+  `group = yes/no` (the modifiers inside one `group = { }`), `modifiers = { … }`.
+- **Blocks** (K90 = C): `promote_to`, `issues`, `ideologies` (with a target: the
+  pop type, issue option or ideology; a missing target block is created with
+  `factor = 0` for promotions, `1` otherwise), `migration_target`,
+  `country_migration_target` in `poptypes/<pop>.txt`, and the chances of
+  `common/pop_types.txt` (`promotion_chance` …). A pop never promotes to itself.
+- **`plan`** brings every file in line with all rules: adds copies, updates them
+  when a rule changed, removes copies of rules that no longer match or were
+  deleted. The checksum after the start marker tells a copy the tool wrote
+  from one changed by hand: such copies are kept and reported (`edited`)
+  unless `force`. Nothing is written without a preview; writing makes a backup.
+- **GUI:** Analyses → **Meta relations** (list, form, the modifiers' code in one
+  place, groups of them edited as a function with the chart, preview, apply,
+  delete) and dashed purple edges in **Pop promotion** (click one to edit its
+  rule).

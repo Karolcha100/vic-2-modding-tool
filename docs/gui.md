@@ -96,6 +96,11 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   text in many files, set a value everywhere, find lines, your own ones);
   fields, an editable code box, **Preview** (output + diff, nothing written)
   and **Apply** (write with a backup). See [`scripts.md`](scripts.md).
+- **Meta relations** (T010): Analyses → Meta relations - a rule written once
+  (block, target, pop types by strata / name, modifiers in one code box,
+  groups edited as a function) copied into every matching pop file between
+  marker comments; dashed edges in Pop promotion. See
+  [`tools.md`](tools.md#meta-relations-of-pops-generatorsmeta-t010).
 - **Formatting** (T011, `vic2toolmod/format.py`): light - indentation (a tab
   per open `{`), one space around `=`, no spaces at line ends, at most one
   empty line in a row; line breaks, comments and strings stay, so one-line
