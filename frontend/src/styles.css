@@ -253,3 +253,6 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .meta-form textarea.code { min-height: 160px; }
 .meta-code { display: flex; flex-direction: column; gap: 4px; }
 .meta-code textarea { width: 100%; box-sizing: border-box; }
+.meta-pops { border-collapse: collapse; }
+.meta-pops th, .meta-pops td { padding: 1px 10px 1px 0; text-align: left; }
+.meta-pops td:not(:first-child), .meta-pops th:not(:first-child) { text-align: center; }

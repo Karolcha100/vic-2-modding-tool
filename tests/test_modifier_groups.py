@@ -166,3 +166,17 @@ def test_combine_rule():
     path = ["conservative_group", "conservative", "add_political_reform", "group"]
     assert combine_of("common/ideologies.txt", path)[0] == "add"
     assert combine_of("events/a.txt", ["country_event 7", "mean_time_to_happen"])[0] == "multiply"
+
+
+def test_copies_are_the_same_place_not_the_same_parent_key():
+    """T014: migration and emigration groups of one file are not copies of each other."""
+    block = "group = {\n" + "".join(
+        f"modifier = {{ factor = -0.1 not = {{ literacy = {v} }} }}\n" for v in (0.4, 0.3)
+    ) + "}\n"
+    text = f"migration_chance = {{\n{block}}}\nemigration_chance = {{\n{block}}}\n"
+    a, b = groups(text, "common/pop_types.txt")
+    assert a.signature != b.signature
+    # the same place of an event in two files: the event id does not count
+    one = groups(EVENT, "events/a.txt")[0]
+    two = groups(EVENT.replace("id = 7", "id = 9"), "events/b.txt")[0]
+    assert one.signature == two.signature

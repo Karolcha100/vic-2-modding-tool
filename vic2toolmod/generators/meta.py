@@ -21,8 +21,8 @@ Rules live in the mod, one file each, in ``vic2toolmod/meta/<name>.txt``
     description = "Draft makes poor pops soldiers"
     block = promote_to           # see BLOCKS
     target = soldiers            # promote_to: pop type; issues: issue option; ideologies: ideology
-    strata = { poor }            # which pop types: by strata ...
-    pop_types = { }              # ... and / or by name (empty both = all)
+    strata = { }                 # (still read; the GUI chooses pop types by name, T010)
+    pop_types = { farmers labourers }   # which pop types (none = all)
     group = no                   # yes: the modifiers inside one group = { } (K90 note)
     modifiers = {
         modifier = { factor = 2 country = { military_service = two_year_draft } }

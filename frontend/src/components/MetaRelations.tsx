@@ -29,7 +29,10 @@ export function MetaRelations({ onStatus, focus }: { onStatus: (t: string) => vo
   useEffect(() => {
     if (!info) return;
     const r = info.rules.find((x) => x.name === selName);
-    setRule(r ? { ...r } : { ...EMPTY }); setIsNew(!r); setResult(null); setError(""); setEditing(null);
+    // The "by strata" choice is gone (T010, 07:02): a rule that has one gets its pop types by name.
+    const fromStrata = r ? Object.entries(info.pops).filter(([, st]) => r.strata.includes(st)).map(([p]) => p) : [];
+    const pops = r ? [...new Set([...r.pop_types, ...fromStrata])].filter((p) => !(r.block === "promote_to" && p === r.target)) : [];
+    setRule(r ? { ...r, strata: [], pop_types: pops } : { ...EMPTY }); setIsNew(!r); setResult(null); setError(""); setEditing(null);
   }, [info, selName]);
   // Groups in the code box (e.g. num_of_cities = 20 / 30 / 50): edited as a function.
   useEffect(() => {
@@ -50,6 +53,9 @@ export function MetaRelations({ onStatus, focus }: { onStatus: (t: string) => vo
       && !(rule.block === "promote_to" && p.toLowerCase() === rule.target.toLowerCase())).map(([p]) => p);
   }, [pops, rule, isChance]);
 
+  // From the highest class down: rich, middle, poor (then by name).
+  const RANK: Record<string, number> = { rich: 0, middle: 1, poor: 2 };
+  const sortedPops = Object.entries(pops).sort(([a, sa], [b, sb]) => (RANK[sa] ?? 3) - (RANK[sb] ?? 3) || a.localeCompare(b));
   const set = (patch: Partial<MetaRule>) => { setRule({ ...rule, ...patch }); setResult(null); };
   const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
@@ -92,22 +98,32 @@ export function MetaRelations({ onStatus, focus }: { onStatus: (t: string) => vo
             <optgroup label="poptypes/<pop>.txt">{info.blocks.pop.map((b) => <option key={b}>{b}</option>)}</optgroup>
             <optgroup label="common/pop_types.txt">{info.blocks.chance.map((b) => <option key={b}>{b}</option>)}</optgroup>
           </select></label>
-          {needsTarget && (
+          {needsTarget && rule.block !== "promote_to" && (
             <label>Target <input list="meta-targets" value={rule.target} onChange={(e) => set({ target: e.target.value })}
               placeholder={rule.block === "promote_to" ? "soldiers" : rule.block === "issues" ? "an issue option" : "an ideology"} />
               <datalist id="meta-targets">{(targetNames ?? []).map((n) => <option key={n} value={n} />)}</datalist></label>
           )}
           {!isChance && (
             <>
-              <div>Pop types: by strata {["poor", "middle", "rich"].map((s) => (
-                <label key={s} style={{ display: "inline-flex", marginLeft: 8 }}><input type="checkbox" checked={rule.strata.includes(s)} onChange={() => set({ strata: toggle(rule.strata, s) })} /> {s}</label>
-              ))}</div>
-              <div className="pops-list">and / or by name: {Object.keys(pops).map((p) => (
-                <label key={p}><input type="checkbox" checked={rule.pop_types.includes(p)} onChange={() => set({ pop_types: toggle(rule.pop_types, p) })} /> {p} <span className="muted">({pops[p]})</span></label>
-              ))}</div>
+              <table className="meta-pops">
+                <thead><tr><th>pop type</th><th title="the rule goes into these pop files">source</th>{rule.block === "promote_to" && <th title="they promote to this pop type">target</th>}</tr></thead>
+                <tbody>
+                  {sortedPops.map(([p, st]) => (
+                    <tr key={p} className={`strata-${st}`}>
+                      <td>{p} <span className="muted">({st})</span></td>
+                      <td><input type="checkbox" checked={rule.pop_types.includes(p)} disabled={rule.block === "promote_to" && rule.target === p}
+                        onChange={() => set({ pop_types: toggle(rule.pop_types, p) })} /></td>
+                      {rule.block === "promote_to" && (
+                        <td><input type="radio" name="meta-target" checked={rule.target === p}
+                          onChange={() => set({ target: p, pop_types: rule.pop_types.filter((x) => x !== p) })} /></td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </>
           )}
-          <div className="muted">Goes into: {goesInto.length ? goesInto.join(", ") : "nothing yet"}{!rule.strata.length && !rule.pop_types.length && !isChance ? " (no choice = all pop types)" : ""}</div>
+          <div className="muted">Goes into: {goesInto.length ? goesInto.join(", ") : "nothing yet"}{!rule.pop_types.length && !isChance ? " (no source ticked = all pop types)" : ""}</div>
           <label><input type="checkbox" checked={rule.group} onChange={(e) => set({ group: e.target.checked })} /> put the modifiers inside one <code>group = {"{ }"}</code></label>
           <div className="meta-code">Modifiers (the code, written once; goes into every pop above)
             <textarea className="code" spellCheck={false} value={rule.modifiers} onChange={(e) => set({ modifiers: e.target.value })} rows={10} /></div>

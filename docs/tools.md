@@ -97,8 +97,10 @@ migration targets.
 
 `rewrite` / `rewrite_edits` give a group new `(value, factor)` steps: the
 first modifier is the pattern of the new ones (its layout, comments and other
-conditions stay), the others are removed. Identical groups in other blocks or
-files have the same `signature` and can be changed together.
+conditions stay), the others are removed. Identical groups in the same place of
+other files (the keys from the top of the file, without event ids:
+`promote_to/soldiers`, `emigration_chance/group`) have the same `signature`
+and can be changed together; two groups of one file are never copies (T014).
 
 GUI: in the **Blocks** view a group is one card (`modifier × 4`, the range,
 the combined factor, a small chart, **Edit as function**; open it for the
@@ -127,7 +129,8 @@ file. The game has no rules or includes, so the copies are ordinary
 
 - **Rules** are kept in the mod, one file each: `vic2toolmod/meta/<name>.txt`
   (a folder the game does not read; K89 = B), in script syntax: `name`,
-  `description`, `block`, `target`, `strata = { poor }`, `pop_types = { }`,
+  `description`, `block`, `target`, `pop_types = { farmers labourers }` (none =
+  all; an older `strata = { poor }` is still read),
   `group = yes/no` (the modifiers inside one `group = { }`), `modifiers = { … }`.
 - **Blocks** (K90 = C): `promote_to`, `issues`, `ideologies` (with a target: the
   pop type, issue option or ideology; a missing target block is created with
@@ -139,7 +142,8 @@ file. The game has no rules or includes, so the copies are ordinary
   deleted. The checksum after the start marker tells a copy the tool wrote
   from one changed by hand: such copies are kept and reported (`edited`)
   unless `force`. Nothing is written without a preview; writing makes a backup.
-- **GUI:** Analyses → **Meta relations** (list, form, the modifiers' code in one
+- **GUI:** Analyses → **Meta relations** (list, form with the pop types from the
+  highest class down - a "source" tick and, for promotions, the "target" -, the modifiers' code in one
   place, groups of them edited as a function with the chart, preview, apply,
   delete) and dashed purple edges in **Pop promotion** (click one to edit its
   rule).

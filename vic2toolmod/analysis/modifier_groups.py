@@ -133,9 +133,16 @@ class Group:
 
     @property
     def signature(self) -> str:
-        """Same parent key, variable, conditions and steps: groups that are copies."""
+        """Groups with the same signature in *different files* are copies (T014).
+
+        The same place (the keys from the top of the file, without event ids:
+        ``promote_to/soldiers``, ``emigration_chance/group``), the same variable,
+        conditions and steps. Copies are only looked for between files: two
+        groups in one file are two different things (e.g. migration and
+        emigration of ``common/pop_types.txt``).
+        """
         parts = [
-            self.path[-1] if self.path else "",
+            "/".join(p.split(" ")[0] for p in self.path),
             self.key,
             str(self.negated),
             *self.context,

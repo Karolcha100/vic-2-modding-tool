@@ -278,7 +278,9 @@ export function ModGroupsTab({ onOpen, onStatus }: { onOpen: (rel: string, line?
 
   if (error && !groups) return <div className="creator-error pad">{error}</div>;
   if (!groups) return <div className="muted pad">Looking for modifier groups in every mod file…</div>;
-  const copies = sel ? (bySig.get(sel.signature) ?? []).filter((c) => c !== sel) : [];
+  // Copies: the same group in the same place of other files (T014).
+  const copiesOf = (g: ModGroup) => (bySig.get(g.signature) ?? []).filter((c) => c.rel !== g.rel);
+  const copies = sel ? copiesOf(sel) : [];
   const plans = (rows: Row[], withCopies: boolean) =>
     [sel!, ...(withCopies ? copies : [])].map((g) => ({ rel: g.rel, id: g.id, steps: rows }));
 
@@ -290,7 +292,7 @@ export function ModGroupsTab({ onOpen, onStatus }: { onOpen: (rel: string, line?
           {shown.slice(0, 500).map((g) => (
             <div key={`${g.rel}:${g.id}`} className={`row${sel === g ? " on" : ""}`} onClick={() => { setSel(g); setResult(null); }} title={g.path.join(" › ")}>
               <b>{g.key}</b> × {g.steps.length} <span className="muted">{g.path[g.path.length - 1]} · {g.rel}:{g.line}</span>
-              {(bySig.get(g.signature)?.length ?? 1) > 1 && <span className="chip">{bySig.get(g.signature)!.length} copies</span>}
+              {copiesOf(g).length > 0 && <span className="chip" title="the same group in the same place of other files">{copiesOf(g).length} copies</span>}
             </div>
           ))}
           {shown.length > 500 && <div className="muted">… {shown.length - 500} more: narrow the filter</div>}
