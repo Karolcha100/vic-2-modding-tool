@@ -278,8 +278,11 @@ export function ModGroupsTab({ onOpen, onStatus }: { onOpen: (rel: string, line?
 
   if (error && !groups) return <div className="creator-error pad">{error}</div>;
   if (!groups) return <div className="muted pad">Looking for modifier groups in every mod file…</div>;
-  // Copies: the same group in the same place of other files (T014).
-  const copiesOf = (g: ModGroup) => (bySig.get(g.signature) ?? []).filter((c) => c.rel !== g.rel);
+  // Copies: the same group in the same place of other files - only pop files and common/ (T014;
+  // in events the same MTTH steps in two files are not the same thing).
+  const copyable = (g: ModGroup) => /^(poptypes|common)\//i.test(g.rel);
+  const copiesOf = (g: ModGroup) =>
+    copyable(g) ? (bySig.get(g.signature) ?? []).filter((c) => c.rel !== g.rel && copyable(c)) : [];
   const copies = sel ? copiesOf(sel) : [];
   const plans = (rows: Row[], withCopies: boolean) =>
     [sel!, ...(withCopies ? copies : [])].map((g) => ({ rel: g.rel, id: g.id, steps: rows }));

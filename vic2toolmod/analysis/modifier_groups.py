@@ -139,7 +139,8 @@ class Group:
         ``promote_to/soldiers``, ``emigration_chance/group``), the same variable,
         conditions and steps. Copies are only looked for between files: two
         groups in one file are two different things (e.g. migration and
-        emigration of ``common/pop_types.txt``).
+        emigration of ``common/pop_types.txt``). The GUI offers copies only in
+        ``poptypes/`` and ``common/`` (in events the same steps are a coincidence).
         """
         parts = [
             "/".join(p.split(" ")[0] for p in self.path),

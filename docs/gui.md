@@ -103,8 +103,8 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   [`tools.md`](tools.md#meta-relations-of-pops-generatorsmeta-t010).
 - **Formatting** (T011, `vic2toolmod/format.py`): light - indentation (a tab
   per open `{`), one space around `=`, no spaces at line ends, at most one
-  empty line in a row; line breaks, comments and strings stay, so one-line
-  blocks stay one-line. **Shift+Alt+F** (or "Format Document" in the editor's
+  empty line in a row, a `{` alone after `key =` joins it (`key = {`); other
+  line breaks, comments and strings stay, so one-line blocks stay one-line. **Shift+Alt+F** (or "Format Document" in the editor's
   menu) formats the open file as one undo step, not saved. **Format…** in the
   header formats every `.txt` / `.gui` / `.gfx` file of the mod: files and
   changed lines per folder (folders can be left out), the diff of any file,

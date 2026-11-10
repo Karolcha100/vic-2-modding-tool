@@ -5,9 +5,11 @@ What changes, and nothing else:
 - indentation: one tab per open ``{`` (a line starting with ``}`` one less);
 - one space on each side of ``=`` (and of ``<``, ``>``, ``<=``, ``>=``);
 - no spaces or tabs at the end of a line;
-- at most one empty line in a row; none at the start or the end of the file.
+- at most one empty line in a row; none at the start or the end of the file;
+- a ``{`` alone on the line after ``key =`` joins it: ``key = {`` (T011; not
+  when a comment stands between them).
 
-Line breaks stay where they are, so ``color = { 1 2 3 }`` and short one-line
+Other line breaks stay where they are, so ``color = { 1 2 3 }`` and short one-line
 ``modifier = { … }`` blocks stay on one line. Comments, strings and every
 other space between tokens on a line stay as written; line breaks keep their
 own kind (``\\r\\n`` or ``\\n``).
@@ -21,6 +23,7 @@ A file with unbalanced braces or an unclosed string is not formatted
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -95,8 +98,17 @@ def format_text(text: str) -> str:
         pending = ""
         prev = None
 
+    last: Token | None = None  # the previous token, also across lines
     for tok in tokens:
-        for p in _pieces(tok.leading):
+        pieces = _pieces(tok.leading)
+        if (
+            tok.kind is TokenKind.LBRACE
+            and last is not None
+            and last.kind is TokenKind.OPERATOR
+            and all(p.kind != "comment" for p in pieces)
+        ):
+            pieces = []  # "key =\n{" -> "key = {" (T011)
+        for p in pieces:
             if p.kind == "nl":
                 end_line(p.text)
             elif p.kind == "comment":
@@ -113,6 +125,7 @@ def format_text(text: str) -> str:
         elif tok.kind is TokenKind.RBRACE:
             depth = max(depth - 1, 0)
         prev = tok
+        last = tok
     if content:
         end_line("")
     # empty lines: none at the start or the end of the file, at most one in a row
@@ -187,14 +200,10 @@ class ModPlan:
 
 
 def changed_lines(old: str, new: str) -> int:
-    """How many lines formatting changed (it keeps line breaks, so lines pair up in order)."""
-    a = _BREAK.split(old)
-    b = _BREAK.split(new)
-    removed = max(sum(1 for x in a if not x.strip()) - sum(1 for y in b if not y.strip()), 0)
-    # lines of only spaces / tabs that stay become empty: changed too
-    blanked = max(sum(1 for x in a if x and not x.strip()) - removed, 0)
-    pairs = zip([x for x in a if x.strip()], [y for y in b if y.strip()], strict=False)
-    return removed + blanked + sum(1 for x, y in pairs if x != y)
+    """How many lines of the old text are gone or changed (lines compared as a multiset)."""
+    gone = Counter(_BREAK.split(old))
+    gone.subtract(_BREAK.split(new))
+    return sum(n for n in gone.values() if n > 0)
 
 
 def _format_path(path: str) -> tuple[str, str | None, Encoding, str]:

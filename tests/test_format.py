@@ -105,3 +105,13 @@ def test_api(tmp_path):
     (tmp_path / "mod/interface/w.gui").write_text("guiTypes={ }\n")  # changed after the plan
     with pytest.raises(ApiError, match="changed since the plan"):
         engine.format_write(["interface/w.gui"])
+
+
+def test_brace_joins_its_key():
+    """T011: "promotion_chance =\n{" becomes "promotion_chance = {"."""
+    assert format_text("promotion_chance =\n{\n\tfactor = 1\n}\n") == (
+        "promotion_chance = {\n\tfactor = 1\n}\n"
+    )
+    assert format_text("a =\r\n\r\n   {\r\nb = c }\r\n") == "a = {\r\n\tb = c }\r\n"
+    # a comment between them keeps the line break
+    assert format_text("a = # note\n{\nb = c\n}\n") == "a = # note\n{\n\tb = c\n}\n"
