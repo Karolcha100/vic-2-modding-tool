@@ -255,6 +255,8 @@ class LanguageService:
             entry = loc.get(name) if loc else None
             if entry is not None and entry.text():
                 lines.append(f"“{entry.text()}”")
+            if registry == "province":  # K98 C: the province's name and owner
+                lines[1:] = self._province_lines(name)
             lines.append(f"defined in `{d.file}:{d.line}`" if d else "**not defined anywhere**")
             return Hover("\n\n".join(lines), tok.start, tok.end)
         if place.part == "value" and place.assignment is not None:
@@ -270,8 +272,11 @@ class LanguageService:
                 assert value is not None
                 return Hover(f"`{picture}`", value.start, value.end, picture=picture)
         if place.part == "key" and place.assignment is not None:
-            info = v.value_info.get(id(place.assignment))
             key = place.assignment.key
+            if key.text.isdigit() and self.ws.registries().has("province", key.text):
+                text = "\n\n".join([f"**{key.text}** (province)", *self._province_lines(key.text)])
+                return Hover(text, key.start, key.end)
+            info = v.value_info.get(id(place.assignment))
             if info is None:
                 flagged = any(d.start == key.start for d in v.diagnostics_found)
                 text = (
@@ -298,6 +303,45 @@ class LanguageService:
                 parts.append(info.doc)
             return Hover("\n\n".join(parts), key.start, key.end, self._icon(v, place.assignment))
         return None
+
+    def _province_lines(self, pid: str) -> list[str]:
+        """Name (``PROV<id>``) and owner / controller / cores of a province's history file."""
+        lines: list[str] = []
+        loc = self.ws.registries().localisation
+        entry = loc.get(f"PROV{pid}") if loc else None
+        if entry is not None and entry.text():
+            lines.append(f"“{entry.text()}”")
+        prefix = "history/provinces/"
+        for low, f in self.ws.project.files().items():
+            rest = low[len(prefix) :].split("/", 1)
+            if (
+                low.startswith(prefix)
+                and len(rest) == 2
+                and rest[1].split(" ")[0].split(".")[0] == pid
+            ):
+                doc = self.ws.document(f.rel)
+                facts = {}
+                cores = []
+                for a in doc.assignments():
+                    k = a.key_text.lower()
+                    if k == "add_core" and a.value is not None:
+                        cores.append(a.value.to_text().strip())
+                    elif k in ("owner", "controller") and a.value is not None:
+                        facts[k] = a.value.to_text().strip()
+                if facts.get("owner"):
+                    lines.append(
+                        f"owner {facts['owner']}"
+                        + (
+                            f", controller {facts['controller']}"
+                            if facts.get("controller", facts["owner"]) != facts["owner"]
+                            else ""
+                        )
+                        + (f"; cores {' '.join(cores)}" if cores else "")
+                        + " (history, at the start)"
+                    )
+                lines.append(f"history: `{f.rel}`")
+                break
+        return lines
 
     def _icon(self, v: Validator, a: Assignment) -> tuple[str, int] | None:
         """``(sprite, frame from 1)`` when the assignment is a valid icon number."""

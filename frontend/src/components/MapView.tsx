@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type MapInfo, type MapProvince, type ProvinceDetail, type RGB } from "../api";
 import { SidePanel, useStored } from "./Layout";
+import { useNav } from "../nav";
 import { ProvinceMap } from "./ProvinceMap";
 import { WorldSource } from "./WorldSource";
 
@@ -10,10 +11,11 @@ import { WorldSource } from "./WorldSource";
  * a click shows the province (history, cores, pops, neighbours) and opens its file.
  */
 
-type Mode = "owner" | "culture" | "religion" | "trade_goods" | "terrain" | "continent" | "pops" | "trigger";
+type Mode = "owner" | "culture" | "religion" | "trade_goods" | "terrain" | "continent" | "pops" | "prestige" | "government" | "civilized" | "trigger";
 const MODES: [Mode, string][] = [
   ["owner", "owner"], ["culture", "culture (most pops)"], ["religion", "religion (most pops)"], ["trade_goods", "trade goods"],
-  ["terrain", "terrain"], ["continent", "continent"], ["pops", "pop count"], ["trigger", "where a trigger holds"],
+  ["terrain", "terrain"], ["continent", "continent"], ["pops", "pop count"], ["prestige", "owner's prestige"],
+  ["government", "owner's government"], ["civilized", "owner civilised or not"], ["trigger", "where a trigger holds"],
 ];
 const NONE: RGB = [196, 192, 176];
 const YES: RGB = [46, 160, 67], NO: RGB = [200, 70, 60], UNKNOWN: RGB = [150, 150, 150];
@@ -36,7 +38,8 @@ export function MapView({ onOpen }: { onOpen: (rel: string, line?: number) => vo
   const [scope, setScope] = useStored<"province" | "owner">("vic2.map.scope", "province");
   const [info, setInfo] = useState<MapInfo | null>(null);
   const [results, setResults] = useState<{ results: Record<string, boolean | null>; true: number; false: number; unknown: number } | null>(null);
-  const [sel, setSel] = useState<number | null>(null);
+  // the chosen province is a navigation step; "Show on the map" in the editor sets it (K98 C)
+  const [sel, setSel] = useNav<number | null>("map.sel", null);
   const [detail, setDetail] = useState<ProvinceDetail | null>(null);
   const [error, setError] = useState("");
 
@@ -53,12 +56,21 @@ export function MapView({ onOpen }: { onOpen: (rel: string, line?: number) => vo
 
   const maxPops = useMemo(() => Math.max(1, ...Object.values(info?.provinces ?? {}).map((p) => p.pops)), [info]);
   const keyOf = useCallback((p: MapProvince): string => (mode === "owner" ? p.owner : mode === "culture" ? p.culture : mode === "religion" ? p.religion
-    : mode === "trade_goods" ? p.trade_goods : mode === "terrain" ? p.terrain : mode === "continent" ? p.continent : ""), [mode]);
+    : mode === "trade_goods" ? p.trade_goods : mode === "terrain" ? p.terrain : mode === "continent" ? p.continent
+    : mode === "government" ? (p.owner ? info?.countries[p.owner]?.government ?? "" : "")
+    : mode === "civilized" ? (p.owner ? (info?.countries[p.owner]?.civilized ? "civilised" : "uncivilised") : "") : ""), [mode, info]);
+  const maxPrestige = useMemo(() => Math.max(1, ...Object.values(info?.countries ?? {}).map((c) => c.prestige)), [info]);
   const paint = useCallback((id: number, p: MapProvince): RGB => {
     if (!info) return NONE;
     if (mode === "trigger") {
       const r = results?.results[id];
       return r === true ? YES : r === false ? NO : r === null ? UNKNOWN : NONE;
+    }
+    if (mode === "prestige") {
+      const v = p.owner ? info.countries[p.owner]?.prestige ?? 0 : -1;
+      if (v < 0) return NONE;
+      const t = Math.sqrt(Math.max(0, v) / maxPrestige);
+      return [Math.round(235 - 40 * t), Math.round(225 - 150 * t), Math.round(150 - 130 * t)];
     }
     if (mode === "pops") {
       const t = p.pops ? Math.log(1 + p.pops) / Math.log(1 + maxPops) : 0;
@@ -70,10 +82,10 @@ export function MapView({ onOpen }: { onOpen: (rel: string, line?: number) => vo
     if (mode === "culture") return info.culture_colors[k] ?? hashColor(k);
     if (mode === "religion") return info.religion_colors[k] ?? hashColor(k);
     return hashColor(k);
-  }, [info, mode, results, maxPops, keyOf]);
+  }, [info, mode, results, maxPops, maxPrestige, keyOf]);
   // the legend: the most common values of the mode
   const legend = useMemo(() => {
-    if (!info || mode === "pops" || mode === "trigger") return [];
+    if (!info || mode === "pops" || mode === "prestige" || mode === "trigger") return [];
     const count = new Map<string, number>();
     for (const p of Object.values(info.provinces)) if (p.land) { const k = keyOf(p); if (k) count.set(k, (count.get(k) ?? 0) + 1); }
     return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 24);

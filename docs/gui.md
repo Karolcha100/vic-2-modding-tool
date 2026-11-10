@@ -153,11 +153,15 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
 - **Map** (K97 A, Analyses → Map): the province map at a start date (or from
   a save game, K98 A: **from** lists the saves of every mod) coloured
   by owner, culture or religion (most pops; colours of `common/cultures.txt` /
-  `religion.txt`), trade goods, terrain, continent or pop count, with a legend;
+  `religion.txt`), trade goods, terrain, continent, pop count or the owner's
+  prestige, government or civilisation, with a legend;
   **Show where it holds** colours by a trigger checked in each province or in
   its owner (yes / no / not known from history). A click shows the province:
   owner, cores, history values, pops, neighbours (clickable) and **Open** its
-  history file.
+  history file. In the editor, the hover on a province number (`owns = 549`,
+  `549 = { }`) shows its name, owner and cores, and **Show on the map** (right
+  click) opens it there (K98 C). In Create → New country the chosen provinces
+  are drawn in the new country's colour when it exists from the start.
 - **Versions** (T025): the whole mod saved under a name (**Save version**),
   the list of versions (what each changed, **Compare with now**) and **Go to
   this version**, which makes the files on disk what they were then; the

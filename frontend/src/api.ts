@@ -248,6 +248,7 @@ export interface MapProvince {
 export interface MapInfo {
   provinces: Record<string, MapProvince>;
   colors: Record<string, RGB>; culture_colors: Record<string, RGB>; religion_colors: Record<string, RGB>;
+  countries: Record<string, { prestige: number; government: string; civilized: boolean }>;
 }
 export interface ProvinceDetail {
   id: number; file: string | null; owner: string; controller: string; cores: string[]; values: Record<string, string>;

@@ -278,6 +278,15 @@ export function App() {
       run: () => { const h = here(); if (h) testerAt(h.rel, h.offset); },
     });
     ed.addAction({
+      // K98 C: a province id under the cursor (owns = 549, 549 = { }, capital = 549) on the map
+      id: "vic2.map", label: "Show on the map", contextMenuGroupId: "navigation",
+      run: () => {
+        const word = ed.getModel()?.getWordAtPosition(ed.getPosition()!)?.word ?? "";
+        if (!/^\d+$/.test(word)) { setStatus("Show on the map: put the cursor on a province number"); return; }
+        navSet({ view: "analyses", "analyses.tab": "map", "map.sel": Number(word) });
+      },
+    });
+    ed.addAction({
       id: "vic2.close", label: "Close file", keybindings: [monaco.KeyMod.Alt | monaco.KeyCode.KeyW],
       run: () => { if (currentRef.current) closeRef.current(currentRef.current); },
     });

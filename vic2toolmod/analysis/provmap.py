@@ -253,6 +253,15 @@ def info(ws: Workspace, world: World) -> dict[str, Any]:
         "colors": country_colors(ws),
         "culture_colors": _second_level_colors(ws, "common/cultures.txt"),
         "religion_colors": _second_level_colors(ws, "common/religion.txt"),
+        # owners' facts for the map's colours (K98 C)
+        "countries": {
+            tag: {
+                "prestige": float(c.values.get("prestige", 0) or 0),
+                "government": c.values.get("government", ""),
+                "civilized": c.values.get("civilized", "no") == "yes",
+            }
+            for tag, c in world.countries.items()
+        },
     }
 
 

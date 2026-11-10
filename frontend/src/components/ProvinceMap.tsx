@@ -15,13 +15,15 @@ const GOLD: [number, number, number] = [255, 204, 0];
 
 interface Pixels { w: number; h: number; ids: Int32Array; border: Uint8Array }
 
-export function ProvinceMap({ date = "1836.1.1", selected, onToggle, info: given, paint, hint }: {
+export function ProvinceMap({ date = "1836.1.1", selected, onToggle, info: given, paint, hint, selectedColor }: {
   date?: string; selected: number[]; onToggle: (id: number) => void;
   /** The provinces' data when the caller has it already (the Map view). */
   info?: MapInfo | null;
   /** The colour of a land province (default: its owner's). */
   paint?: (id: number, p: MapProvince) => RGB;
   hint?: string;
+  /** The colour of the chosen provinces (default gold). */
+  selectedColor?: RGB;
 }) {
   const [own, setInfo] = useState<MapInfo | null>(null);
   const info = given ?? own;
@@ -74,7 +76,7 @@ export function ProvinceMap({ date = "1836.1.1", selected, onToggle, info: given
     const colorOf = new Map<number, [number, number, number]>();
     for (const [id, p] of Object.entries(info.provinces)) {
       const n = Number(id);
-      const c = chosen.has(n) ? GOLD : !p.land ? SEA : paint ? paint(n, p) : p.owner ? ((info.colors[p.owner] ?? EMPTY) as RGB) : EMPTY;
+      const c = chosen.has(n) ? (selectedColor ?? GOLD) : !p.land ? SEA : paint ? paint(n, p) : p.owner ? ((info.colors[p.owner] ?? EMPTY) as RGB) : EMPTY;
       colorOf.set(n, n === hover && p.land ? [Math.min(255, c[0] + 50), Math.min(255, c[1] + 50), Math.min(255, c[2] + 50)] : c);
     }
     for (let i = 0; i < w * h; i++) {
@@ -83,7 +85,7 @@ export function ProvinceMap({ date = "1836.1.1", selected, onToggle, info: given
       out.data[i * 4] = c[0] * dark; out.data[i * 4 + 1] = c[1] * dark; out.data[i * 4 + 2] = c[2] * dark; out.data[i * 4 + 3] = 255;
     }
     g.putImageData(out, 0, 0);
-  }, [info, pixels, selected, hover, paint]);
+  }, [info, pixels, selected, hover, paint, selectedColor]);
 
   const at = (e: React.MouseEvent<HTMLCanvasElement>): number => {
     if (!pixels) return 0;

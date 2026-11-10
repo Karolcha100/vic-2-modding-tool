@@ -376,3 +376,27 @@ def test_save_game(tmp_path):
         assert check(w, t).value is True, t
     assert check(w, "money = 20000").value is False
     assert check(w, "truce_with = SAX").value is None  # not read from saves yet
+
+
+def test_province_hover_and_map_countries(tmp_path):
+    """K98 C: a province number shows its name and owner; the map knows the owners' facts."""
+    from vic2toolmod.analysis.provmap import info
+    from vic2toolmod.services import LanguageService
+
+    ws = make(tmp_path)
+    write(tmp_path / "game/localisation/prov.csv", "PROV549;Berlin;;;;;;;;;;;;;x\n")
+    write(
+        tmp_path / "mod/decisions/d.txt",
+        "political_decisions = { d = { potential = { owns = 549 } } }\n",
+    )
+    ws.project._files = None
+    ws.invalidate()
+    text = ws.document("decisions/d.txt").text
+    h = LanguageService(ws).hover("decisions/d.txt", text.index("549") + 1)
+    assert h is not None and "Berlin" in h.text and "owner PRU" in h.text
+    d = info(ws, World.read(ws))
+    assert d["countries"]["PRU"] == {
+        "prestige": 30.0,
+        "government": "absolute_monarchy",
+        "civilized": True,
+    }

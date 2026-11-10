@@ -271,7 +271,9 @@ export function Creators({ onStatus, files, onOpen }: Props) {
             <label>Provinces (cores) <input value={cProvinces} onChange={(e) => setCProvinces(e.target.value)} placeholder="ids, e.g. 2156 2157 2160"
               title="These provinces get add_core = TAG in history/provinces, so the country can be released there" />
               {" "}<button type="button" className="mini" onClick={() => setCMap(!cMap)}>{cMap ? "Hide the map" : "Choose on the map…"}</button></label>
-            {cMap && <ProvinceMap selected={cChosen} onToggle={toggleProvince} />}
+            {cMap && <ProvinceMap selected={cChosen} onToggle={toggleProvince}
+              selectedColor={cExists ? ([1, 3, 5].map((i) => parseInt(cColor.slice(i, i + 2), 16)) as [number, number, number]) : undefined}
+              hint={cExists ? "The chosen provinces in the new country's colour (it owns them from the start); click to choose / drop." : undefined} />}
             <label><input type="checkbox" checked={cExists} onChange={(e) => setCExists(e.target.checked)} /> the country exists from the start: it also owns and controls these provinces (taken from their owner)</label>
             <datalist id="c-tags">{(names.country ?? []).map((t) => <option key={t} value={t.toUpperCase()} />)}</datalist>
             <datalist id="c-cultures">{(names.culture ?? []).map((t) => <option key={t} value={t} />)}</datalist>
