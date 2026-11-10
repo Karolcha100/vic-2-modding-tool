@@ -148,7 +148,9 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   this version**, which makes the files on disk what they were then; the
   state now is saved first as an automatic version, so nothing is lost. Kept
   as commits of the mod's git repository when it has one (nothing is
-  pushed), else as zip copies (`vic2toolmod.versions`, see `docs/tools.md`).
+  pushed; the view says whether the repository is connected to GitHub),
+  else as copies of the changed files (`vic2toolmod.versions`, see
+  `docs/tools.md`).
   Refused while the editor has unsaved files.
 - **Panels** (T019): side lists (Modifier groups, Meta relations, Pop promotion,
   Event chains, Vs vanilla, Git, Interface / Reform window panels, Format)

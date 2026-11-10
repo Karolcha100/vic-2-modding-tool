@@ -142,7 +142,16 @@ class GitVersions:
         changed = len(self._changed())
         if versions and not changed:
             versions[0].current = True
-        return Info("git", f"git repository of the mod (branch {branch or '?'})", versions, changed)
+        remote = _git(self.folder, "remote", "get-url", "origin", check=False).strip()
+        note = (
+            f"Versions are commits of the mod's own git repository; it is connected to {remote}, "
+            "but nothing is pushed: send the versions to GitHub yourself (git push)."
+            if remote
+            else "The mod's git repository is not connected to GitHub (no remote): versions stay "
+            "only on this computer."
+        )
+        where = f"git repository of the mod (branch {branch or '?'})"
+        return Info("git", where, versions, changed, note)
 
     def save(self, name: str, description: str = "") -> Version:
         """Save every change of the mod as a new version (a commit)."""
@@ -212,7 +221,14 @@ def versions_root() -> Path:
 
 
 class CopyVersions:
-    """Versions as zip copies of the mod folder (for mods without git)."""
+    """Versions as copies of the changed files (for mods without git; K95 = C).
+
+    Each version has a list of all files of the mod (``<id>.json``: path ->
+    checksum, size and the version whose zip holds that content) and a zip of
+    only the files that changed since the version before (``<id>.zip``): the
+    first version holds every file, later ones only what changed. A version
+    made by going to another one has no zip of its own.
+    """
 
     kind = "copies"
 
@@ -232,59 +248,88 @@ class CopyVersions:
         self.dir.mkdir(parents=True, exist_ok=True)
         (self.dir / "index.json").write_text(json.dumps(items, indent=1), encoding="utf-8")
 
-    def _zip(self, vid: str) -> Path:
-        """The zip of a version (a "went to" version shares the zip it went to)."""
-        for i in self._index():
-            if i["id"] == vid:
-                return self.dir / f"{i.get('zip') or vid}.zip"
-        raise VersionError(f"no version {vid}")
+    def _manifest(self, vid: str) -> dict[str, list[Any]]:
+        """The version's files: path -> [crc, size, id of the version whose zip holds it]."""
+        p = self.dir / f"{vid}.json"
+        if not any(i["id"] == vid for i in self._index()) or not p.exists():
+            raise VersionError(f"no version {vid}")
+        data: dict[str, list[Any]] = json.loads(p.read_text(encoding="utf-8"))
+        return data
 
-    def _differs(self, vid: str) -> list[tuple[str, str]]:
-        with zipfile.ZipFile(self._zip(vid)) as z:
-            saved = {i.filename: (i.CRC, i.file_size) for i in z.infolist() if not i.is_dir()}
-        now = _mod_files(self.folder)
+    def _now(self) -> dict[str, tuple[int, int]]:
+        """The files now: path -> (crc, size)."""
+        return {rel: (_crc(p), p.stat().st_size) for rel, p in _mod_files(self.folder).items()}
+
+    @staticmethod
+    def _diff(old: dict[str, list[Any]], new: dict[str, tuple[int, int]]) -> list[tuple[str, str]]:
         out: list[tuple[str, str]] = []
-        for rel, p in sorted(now.items()):
-            if rel not in saved:
+        for rel in sorted(new):
+            if rel not in old:
                 out.append(("A", rel))
-            elif p.stat().st_size != saved[rel][1] or _crc(p) != saved[rel][0]:
+            elif (old[rel][0], old[rel][1]) != new[rel]:
                 out.append(("M", rel))
-        out += [("D", rel) for rel in sorted(saved) if rel not in now]
-        return out
+        return out + [("D", rel) for rel in sorted(old) if rel not in new]
+
+    def size(self) -> int:
+        """Bytes the versions of this mod take."""
+        return (
+            sum(p.stat().st_size for p in self.dir.glob("*") if p.is_file())
+            if self.dir.exists()
+            else 0
+        )
 
     def info(self, limit: int = 200) -> Info:
         """The list of versions (newest first) and how many files changed since the newest."""
         items = list(reversed(self._index()))[:limit]
         versions = [
-            Version(**{k: v for k, v in i.items() if k not in ("current", "zip")}) for i in items
+            Version(**{k: v for k, v in i.items() if k in Version.__dataclass_fields__})
+            for i in items
         ]
-        changed = len(self._differs(versions[0].id)) if versions else len(_mod_files(self.folder))
+        if versions:
+            changed = len(self._diff(self._manifest(versions[0].id), self._now()))
+        else:
+            changed = len(_mod_files(self.folder))
         if versions and not changed:
             versions[0].current = True
-        note = "" if versions else "no version yet"
+        mb = self.size() / 1e6
+        note = (
+            "The mod has no git repository, so it is not connected to GitHub: versions stay "
+            f"only on this computer, in {self.dir}. Each version keeps a copy of the files "
+            "changed since the one before; the first keeps the whole mod"
+            + (f" (now {mb:.0f} MB in all)." if versions else ".")
+        )
         return Info("copies", str(self.dir), versions, changed, note)
 
     def save(self, name: str, description: str = "", auto: bool = False) -> Version:
-        """Save the whole mod folder as a new version (a zip)."""
+        """Save a new version: the list of all files and a zip of the changed ones."""
         items = self._index()
-        if items and not self._differs(items[-1]["id"]):
+        now = self._now()
+        before: dict[str, list[Any]] = self._manifest(items[-1]["id"]) if items else {}
+        changes = self._diff(before, now)
+        if items and not changes:
             raise VersionError("nothing changed since the last version")
         self.dir.mkdir(parents=True, exist_ok=True)
         vid = time.strftime("%Y%m%d-%H%M%S")
-        while (self.dir / f"{vid}.zip").exists():
+        while any(i["id"] == vid for i in items):
             vid += "a"
-        files = _mod_files(self.folder)
-        tmp = self.dir / f"{vid}.zip.part"
-        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            for rel, p in sorted(files.items()):
-                z.write(p, rel)
-        tmp.rename(self.dir / f"{vid}.zip")
+        changed = {rel for st, rel in changes if st != "D"}
+        if changed:
+            tmp = self.dir / f"{vid}.zip.part"
+            with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
+                for rel in sorted(changed):
+                    z.write(self.folder / rel, rel)
+            tmp.rename(self.dir / f"{vid}.zip")
+        manifest = {
+            rel: [crc, size, vid if rel in changed else before[rel][2]]
+            for rel, (crc, size) in now.items()
+        }
+        (self.dir / f"{vid}.json").write_text(json.dumps(manifest), encoding="utf-8")
         v = Version(
             vid,
             name.strip(),
             description.strip(),
             time.strftime("%Y-%m-%dT%H:%M:%S"),
-            len(files),
+            len(changes),
             auto=auto,
         )
         self._write_index([*items, asdict(v)])
@@ -292,50 +337,50 @@ class CopyVersions:
 
     def files(self, vid: str) -> list[tuple[str, str]]:
         """Files of a version that differ from the version before it."""
-        items = self._index()
-        ids = [i["id"] for i in items]
-        if vid not in ids:
-            raise VersionError(f"no version {vid}")
-        with zipfile.ZipFile(self._zip(vid)) as z:
-            new = {i.filename: i.CRC for i in z.infolist() if not i.is_dir()}
+        ids = [i["id"] for i in self._index()]
+        new = self._manifest(vid)
         k = ids.index(vid)
-        if k == 0:
-            return [("A", rel) for rel in sorted(new)]
-        with zipfile.ZipFile(self._zip(ids[k - 1])) as z:
-            old = {i.filename: i.CRC for i in z.infolist() if not i.is_dir()}
-        out = [("A" if r not in old else "M", r) for r in sorted(new) if old.get(r) != new[r]]
-        return out + [("D", r) for r in sorted(old) if r not in new]
+        old = self._manifest(ids[k - 1]) if k else {}
+        return self._diff(old, {rel: (v[0], v[1]) for rel, v in new.items()})
 
     def compare(self, vid: str) -> list[tuple[str, str]]:
         """``(status, path)`` that differ between a version and the files now."""
-        return self._differs(vid)
+        return self._diff(self._manifest(vid), self._now())
 
     def restore(self, vid: str, name: str) -> Version | None:
         """Make the files what they were in version ``vid`` (current state saved first).
 
         Returns the new version that records it, or None when nothing changed.
         """
-        source = self._zip(vid)
+        target = self._manifest(vid)
         items = self._index()
-        if not items or self._differs(items[-1]["id"]):
+        now = self._now()
+        if not items or self._diff(self._manifest(items[-1]["id"]), now):
             self.save(f"{_AUTO} {name}", auto=True)
-        if not self._differs(vid):
+        changes = self._diff(target, now)
+        if not changes:
             return None
-        with zipfile.ZipFile(source) as z:
-            keep = {i.filename for i in z.infolist() if not i.is_dir()}
-            for rel, p in _mod_files(self.folder).items():
-                if rel not in keep:
-                    p.unlink()
-            z.extractall(self.folder)
-        # the state now is that version: record it, so the list shows where the files are
+        for st, rel in changes:
+            if st == "A":  # not in that version
+                (self.folder / rel).unlink()
+        by_zip: dict[str, list[str]] = {}
+        for st, rel in changes:
+            if st != "A":
+                by_zip.setdefault(target[rel][2], []).append(rel)
+        for zid, rels in by_zip.items():
+            with zipfile.ZipFile(self.dir / f"{zid}.zip") as z:
+                for rel in rels:
+                    z.extract(rel, self.folder)
+        # the state now is that version: record it (same list of files, no zip of its own)
         v = Version(
             time.strftime("%Y%m%d-%H%M%S") + "r",
             f"Went to the version: {name}",
             "",
             time.strftime("%Y-%m-%dT%H:%M:%S"),
-            len(keep),
+            len(changes),
         )
-        self._write_index([*self._index(), {**asdict(v), "zip": source.stem}])
+        (self.dir / f"{v.id}.json").write_text(json.dumps(target), encoding="utf-8")
+        self._write_index([*self._index(), asdict(v)])
         return v
 
 

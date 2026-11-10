@@ -5,7 +5,7 @@ import { SidePanel } from "./Layout";
 /**
  * Versions of the mod (T025): the whole mod saved under a name, the list of saved versions,
  * what each changed, and going back to one. Kept as git commits when the mod is a git
- * repository, else as zip copies (K95 = C). Going to a version makes the files what they
+ * repository, else as copies of the changed files (K95 = C). Going to a version makes the files what they
  * were then, after saving the state now (K96 = A), so nothing is lost.
  */
 
@@ -70,7 +70,9 @@ export function Versions({ readOnly, unsaved, onStatus, onOpen }: {
         <div className="creator-form versions-save">
           <b>Save the mod as a version</b>
           <div className="muted">{info.changed ? `${info.changed} file(s) changed since the last version.` : info.versions.length ? "Nothing changed since the last version." : "No version yet."}
-            {" "}Kept {info.kind === "git" ? "as commits of the mod's git repository (nothing is pushed)" : `as zip copies in ${info.where}`}.</div>
+</div>
+          {/* K95: where the versions are and whether they reach GitHub; copies can be big */}
+          <div className={info.kind === "copies" || info.note.includes("not connected") ? "problem" : "muted"}>{info.note}</div>
           <label>Name <input value={name} onChange={(e) => setName(e.target.value)} placeholder="before the new reforms" /></label>
           <label>Description <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="(optional)" /></label>
           <button disabled={readOnly || !!busy || !name.trim() || !!blocked} onClick={save} title={blocked}>Save version</button>

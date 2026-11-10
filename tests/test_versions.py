@@ -62,6 +62,7 @@ def test_git_versions(tmp_path):
     for args in (["init", "-q"], ["config", "user.email", "t@t"], ["config", "user.name", "T"]):
         subprocess.run(["git", "-C", str(mod), *args], check=True)
     assert uses_git(mod) and isinstance(store(mod), GitVersions)
+    assert "not connected to GitHub" in GitVersions(mod).info().note
     run_story(GitVersions(mod), mod)
     log = subprocess.run(
         ["git", "-C", str(mod), "log", "--format=%s"], capture_output=True, text=True
@@ -74,10 +75,16 @@ def test_copy_versions(tmp_path):
     make_mod(mod)
     assert not uses_git(mod)
     v = store(mod, tmp_path / "versions")
-    assert isinstance(v, CopyVersions) and v.info().note == "no version yet"
+    assert isinstance(v, CopyVersions) and "not connected to GitHub" in v.info().note
     run_story(v, mod)
-    # a "went to" version shares the zip it went to (no second copy)
-    assert len(list(v.dir.glob("*.zip"))) < len(v.info().versions)
+    # the first zip holds the whole mod, later ones only the changed files; a "went to"
+    # version has no zip of its own
+    import zipfile
+
+    zips = sorted(v.dir.glob("*.zip"))
+    assert len(zips) < len(v.info().versions)
+    assert sorted(zipfile.ZipFile(zips[0]).namelist()) == ["common/b.txt", "events/a.txt"]
+    assert sorted(zipfile.ZipFile(zips[1]).namelist()) == ["common/c.txt", "events/a.txt"]
 
 
 def test_api(tmp_path, monkeypatch):

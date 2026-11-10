@@ -161,15 +161,21 @@ A version is the state of every file of the mod folder at one moment.
   `Saved-with: vic2toolmod`); the list is the branch's history, so commits
   made elsewhere are versions too. Git runs with `core.autocrlf=false`, so
   files go in and out byte for byte. Nothing is pushed.
-- `CopyVersions` otherwise: a zip of the folder (without `.git`) in
-  `~/.local/share/vic2toolmod/versions/<mod>-<hash>/` and an `index.json`.
+- `CopyVersions` otherwise, in `~/.local/share/vic2toolmod/versions/<mod>-<hash>/`:
+  per version a list of all files (`<id>.json`: path -> checksum, size and the
+  version whose zip holds the content) and a zip of only the files changed
+  since the version before (the first one holds the whole mod), plus an
+  `index.json` of names and dates. A version made by going to another one
+  has only the list. `Info.note` tells the GUI whether the versions reach
+  GitHub (git remote) and, for copies, how much space they take (K95).
 
 `restore(id, name)` (K96 = A) first saves the state now as an automatic
 version when it differs from the newest one, then makes the files what they
 were in that version (`git restore --source=<id> --staged --worktree -- :/`,
 which also removes files the version did not have; with copies the zip is
-unpacked and other files removed) and records that as a new version. History
-only grows: going "forward" again is going to another version of the list.
-`files(id)` lists what a version changed, `compare(id)` what differs now.
+unpacked from the zips the list points at and other files removed) and
+records that as a new version. History only grows: going "forward" again is
+going to another version of the list. `files(id)` lists what a version
+changed, `compare(id)` what differs now.
 API: `versions`, `versions/files`, `versions/save`, `versions/restore`.
 
