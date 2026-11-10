@@ -119,6 +119,16 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   "shown" tick (remembered per window) - tab panels of one window lie on top
   of each other (the game shows one at a time) and the panel says which;
   texts on real pictures get an outline so they stay readable.
+- **Panels** (T019): side lists (Modifier groups, Meta relations, Pop promotion,
+  Event chains, Vs vanilla, Git, Interface / Reform window panels, Format)
+  are widened by dragging their inner border; the width is remembered.
+  Modifier groups can be narrowed to one folder (file type) or one file.
+- **Graphs** (T018): Ctrl + mouse wheel zooms around the pointer, dragging the
+  background moves the view, a double click on the background shows all;
+  dragging a node moves it without selecting it.
+- **Blocks** (T020): value fields are as wide as their text; long values and
+  localisation texts (event titles, descriptions) get a field over the whole
+  width of the card, on several lines (Enter still commits; values stay one line).
 - **Syntax tree** (T016): **Syntax tree** above the code shows / hides it, and it
   is hidden outside the code view; any branch can be folded, also the one with
   the cursor.

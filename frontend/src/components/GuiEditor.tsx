@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type GuiElement, type GuiWindow } from "../api";
 import { GuiNode, placeOf, sizeOf, useZoom, type DrawContext } from "./GuiDraw";
-import { useStored } from "./Layout";
+import { SidePanel, useStored } from "./Layout";
 import { useNavStored, useUndoable, useUndoTarget } from "../nav";
 
 /**
@@ -232,7 +232,7 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
         ) : (
           <div className="muted pad">{name ? "Loading…" : "Choose a window."}</div>
         )}
-        {panel && <div className="rw-side">
+        {panel && <SidePanel id="interface" side="right" initial={260} className="rw-side">
           {selected && (
             <>
               <div className="panel-title">{selected.el.name || "(no name)"} <span className="muted">{selected.el.kind}</span></div>
@@ -268,7 +268,7 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
             </div>
           ))}
           <div className="muted rw-help">Click an element to select it, drag to move, drag the corner square to resize; numbers change it too. Positions are relative to the parent (and its corner / centre given by orientation). Double click opens the element in the code. Untick an element to hide it in the drawing (e.g. tab panels of one window that cover each other; the game shows one at a time). Ctrl + mouse wheel zooms.</div>
-        </div>}
+        </SidePanel>}
       </div>
       {diff !== null && (
         <div className="rw-diff">

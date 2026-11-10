@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type FormatPlan } from "../api";
+import { SidePanel } from "./Layout";
 
 /**
  * Format the whole mod (T011, K91 = A, K92 = A): every .txt / .gui / .gfx file of the mod,
@@ -63,12 +64,12 @@ export function FormatMod({ onStatus, onClose }: { onStatus: (t: string) => void
             </details>
           )}
           <div className="format-body">
-            <div className="format-files">
+            <SidePanel id="format" side="left" initial={340} className="format-files">
               {chosen.slice(0, 1000).map((f) => (
                 <div key={f.rel} className={`row${shown === f.rel ? " on" : ""}`} onClick={() => show(f.rel)}>{f.rel} <span className="muted">{f.lines}</span></div>
               ))}
               {chosen.length > 1000 && <div className="muted">… {chosen.length - 1000} more</div>}
-            </div>
+            </SidePanel>
             <pre className="format-diff">{shown ? diff : "Click a file to see its changes."}</pre>
           </div>
         </>

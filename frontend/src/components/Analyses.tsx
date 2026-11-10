@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type MetaRule } from "../api";
 import { Graph, type GEdge, type GNode } from "./Graph";
+import { SidePanel } from "./Layout";
 import { MetaRelations } from "./MetaRelations";
 import { ModGroupsTab } from "./ModGroups";
 import { useNav } from "../nav";
@@ -71,7 +72,7 @@ function Promotion({ onOpen, onRule }: { onOpen: Props["onOpen"]; onRule: (name:
       <Graph shape="circle" nodes={nodes} edges={edges} selected={sel} onNode={(id) => { setSel(id); setEdgeKey(null); }}
         onEdge={(k) => { if (k.startsWith("meta:")) onRule(k.split(":")[1]); else setEdgeKey(k); }}
         onBackground={() => { setSel(null); setEdgeKey(null); }} />
-      <div className="side-list">
+      <SidePanel id="promotion" side="right" initial={340} className="side-list">
         <div className="panel-title">{edge ? `${edge.source} → ${edge.target}` : sel ? `Promotions of ${sel}` : "Click a pop type or an arrow"}</div>
         {sel && !edge && <div className="muted small pad"><span style={{ color: "#e53935" }}>■</span> becomes another type (out) · <span style={{ color: "#1e88e5" }}>■</span> comes from another type (in) · <span style={{ color: "#8e44ad" }}>┅</span> meta relation (click to edit) · click the background to clear</div>}
         {list.map((e) => (
@@ -84,7 +85,7 @@ function Promotion({ onOpen, onRule }: { onOpen: Props["onOpen"]; onRule: (name:
             ))}
           </div>
         ))}
-      </div>
+      </SidePanel>
     </div>
   );
 }
@@ -128,7 +129,7 @@ function Events({ onOpen }: { onOpen: Props["onOpen"] }) {
     <div className="split-view">
       {focus ? <Graph nodes={sub.nodes} edges={sub.edges} selected={focus} onNode={setFocus} />
         : <div className="muted pad">Search an event (id or title) on the right; the graph shows who fires it and what it fires (two steps).</div>}
-      <div className="side-list">
+      <SidePanel id="events" side="right" initial={340} className="side-list">
         <input placeholder="event id, title, decision…" value={query} onChange={(e) => setQuery(e.target.value)} />
         {matches.map((n) => <div key={n.id} className="row" onClick={() => setFocus(n.id)}>{n.id} <span className="muted">{n.title}</span></div>)}
         {f && <div className="panel-title">{f.id}</div>}
@@ -137,7 +138,7 @@ function Events({ onOpen }: { onOpen: Props["onOpen"] }) {
         {missing.map((n) => <div key={n.id} className="row" onClick={() => setFocus(n.id)}>{n.event_id}</div>)}
         <div className="panel-title">Triggered-only, never fired ({orphans.length})</div>
         {orphans.map((n) => <div key={n.id} className="row" onClick={() => setFocus(n.id)}>{n.event_id} <span className="muted">{n.file}</span></div>)}
-      </div>
+      </SidePanel>
     </div>
   );
 }
@@ -153,14 +154,14 @@ function Vanilla() {
   const shown = files.filter((f) => f.status === status).sort((a, b) => b.added + b.removed - a.added - a.removed);
   return (
     <div className="split-view">
-      <div className="side-list wide">
+      <SidePanel id="vanilla" side="left" initial={420} className="side-list wide">
         {Object.entries(counts).map(([s, n]) => <button key={s} className={s === status ? "on" : ""} onClick={() => setStatus(s)}>{s} ({n})</button>)}
         {shown.slice(0, 500).map((f) => (
           <div key={f.rel} className="row" onClick={async () => setDiff((await api.vanillaDiff(f.rel)).diff)}>
             {f.rel} {f.status === "changed" && <span className="muted">+{f.added} −{f.removed}</span>}
           </div>
         ))}
-      </div>
+      </SidePanel>
       <pre className="diff-pane">{diff ?? "Click a file to see what the mod changes."}</pre>
     </div>
   );
@@ -230,12 +231,12 @@ function Git() {
   if (!s.repo) return <div className="muted pad">The mod folder is not a git repository. {s.error}</div>;
   return (
     <div className="split-view">
-      <div className="side-list wide">
+      <SidePanel id="git" side="left" initial={420} className="side-list wide">
         <div className="panel-title">Branch {s.branch} · {s.changed?.length ?? 0} changed files</div>
         {s.changed?.map(([st, rel]) => (
           <div key={rel} className="row" onClick={async () => setDiff((await api.gitDiff(rel)).diff)}><b>{st}</b> {rel}</div>
         ))}
-      </div>
+      </SidePanel>
       <pre className="diff-pane">{diff ?? "Click a file to see its changes since the last commit."}</pre>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type MetaInfo, type MetaPlan, type MetaRule, type ModGroup } from "../api";
 import { useNav } from "../nav";
+import { SidePanel } from "./Layout";
 import { GroupEditor, groupSummary } from "./ModGroups";
 
 /**
@@ -78,7 +79,7 @@ export function MetaRelations({ onStatus, focus }: { onStatus: (t: string) => vo
   if (!info) return <div className="muted pad">{error || "Loading the meta relations…"}</div>;
   return (
     <div className="split-view mg-tab">
-      <div className="mg-list">
+      <SidePanel id="meta" side="left" initial={380} className="mg-list">
         <button onClick={() => setSelName(null)}>+ New rule</button>
         <div className="mg-items">
           {info.rules.map((r) => (
@@ -88,7 +89,7 @@ export function MetaRelations({ onStatus, focus }: { onStatus: (t: string) => vo
           ))}
           {!info.rules.length && <div className="muted pad">No rules yet. A rule is kept in {info.folder}/ in the mod (the game does not read that folder).</div>}
         </div>
-      </div>
+      </SidePanel>
       <div className="mg-detail">
         <div className="creator-form meta-form">
           <b>{isNew ? "New rule" : `Rule ${selName}`}</b>

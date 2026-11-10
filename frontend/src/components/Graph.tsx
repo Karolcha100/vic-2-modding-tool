@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-/** A small interactive graph: force layout (no libraries, K47), draggable nodes. */
+/** A small interactive graph: force layout (no libraries, K47), draggable nodes, zoom and move (T018). */
 
 export interface GNode { id: string; label: string; color?: string; title?: string }
 export interface GEdge { source: string; target: string; width?: number; label?: string; key: string; dashed?: boolean }
@@ -73,21 +73,62 @@ export function Graph({ nodes, edges, selected, onNode, onEdge, onBackground, sh
   const initial = useMemo(() => layout(nodes, edges, shape), [nodes, edges, shape]);
   const [pos, setPos] = useState(initial);
   useEffect(() => setPos(initial), [initial]);
-  const drag = useRef<string | null>(null);
+  // What part of the graph is shown (T018): Ctrl + wheel zooms, dragging the background moves it,
+  // a double click on the background shows all again.
+  const [view, setView] = useState({ x: 0, y: 0, w: W, h: H });
+  useEffect(() => setView({ x: 0, y: 0, w: W, h: H }), [initial]);
+  // a press on a node or the background: a drag when the pointer moved, else a click
+  const press = useRef<null | { node: string | null; sx: number; sy: number; moved: boolean; vx: number; vy: number }>(null);
   const svg = useRef<SVGSVGElement>(null);
 
-  const toSvg = (e: React.PointerEvent): [number, number] => {
+  const toSvg = (clientX: number, clientY: number): [number, number] => {
     const ctm = svg.current!.getScreenCTM();
     if (!ctm) return [0, 0];
-    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
     return [p.x, p.y];
   };
+  useEffect(() => {
+    const el = svg.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault(); // not the browser's page zoom
+      const [px, py] = toSvg(e.clientX, e.clientY);
+      const f = e.deltaY < 0 ? 1 / 1.15 : 1.15;
+      setView((v) => {
+        const w = Math.min(W * 4, Math.max(W / 20, v.w * f));
+        const k = w / v.w;
+        return { x: px - (px - v.x) * k, y: py - (py - v.y) * k, w, h: v.h * k };
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  });
   const seen = new Map<string, number>();
 
   return (
-    <svg ref={svg} className="graph" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet"
-      onPointerMove={(e) => { if (drag.current) { const p = toSvg(e); setPos((s) => ({ ...s, [drag.current!]: p })); } }}
-      onPointerUp={() => (drag.current = null)} onPointerLeave={() => (drag.current = null)}>
+    <svg ref={svg} className="graph" viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} preserveAspectRatio="xMidYMid meet"
+      onPointerMove={(e) => {
+        const p = press.current;
+        if (!p) return;
+        if (!p.moved && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 4) return;
+        p.moved = true;
+        if (p.node) {
+          const at = toSvg(e.clientX, e.clientY);
+          setPos((s) => ({ ...s, [p.node!]: at }));
+        } else {
+          const scale = view.w / (svg.current?.clientWidth || W);
+          setView((v) => ({ ...v, x: p.vx - (e.clientX - p.sx) * scale, y: p.vy - (e.clientY - p.sy) * scale }));
+        }
+      }}
+      onPointerUp={() => {
+        const p = press.current;
+        press.current = null;
+        if (!p || p.moved) return; // a drag is no click
+        if (p.node) onNode?.(p.node); else onBackground?.();
+      }}
+      onPointerLeave={() => (press.current = null)}
+      onDoubleClick={(e) => { if ((e.target as Element).classList.contains("graph-bg")) setView({ x: 0, y: 0, w: W, h: H }); }}>
       <defs>
         {(["", "out", "in"] as const).map((k) => (
           <marker key={k} id={`arrow${k}`} viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse"
@@ -96,7 +137,11 @@ export function Graph({ nodes, edges, selected, onNode, onEdge, onBackground, sh
           </marker>
         ))}
       </defs>
-      <rect className="graph-bg" x={0} y={0} width={W} height={H} onClick={() => onBackground?.()} />
+      <rect className="graph-bg" x={-W * 10} y={-H * 10} width={W * 21} height={H * 21}
+        onPointerDown={(e) => {
+          press.current = { node: null, sx: e.clientX, sy: e.clientY, moved: false, vx: view.x, vy: view.y };
+          (e.target as Element).setPointerCapture?.(e.pointerId);
+        }} />
       {edges.map((e) => {
         const a = pos[e.source];
         const b = pos[e.target];
@@ -127,8 +172,11 @@ export function Graph({ nodes, edges, selected, onNode, onEdge, onBackground, sh
         if (!p) return null;
         return (
           <g key={n.id} transform={`translate(${p[0]},${p[1]})`} className={"graph-node" + (n.id === selected ? " sel" : "")}
-            onPointerDown={(e) => { drag.current = n.id; (e.target as Element).setPointerCapture?.(e.pointerId); }}
-            onClick={() => onNode?.(n.id)}>
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              press.current = { node: n.id, sx: e.clientX, sy: e.clientY, moved: false, vx: view.x, vy: view.y };
+              (e.target as Element).setPointerCapture?.(e.pointerId);
+            }}>
             <circle r={R} fill={n.color ?? "#4f7cc9"} />
             <text y={28} textAnchor="middle">{n.label}</text>
             <title>{n.title ?? n.label}</title>

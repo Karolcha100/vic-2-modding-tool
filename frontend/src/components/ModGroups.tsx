@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type ModGroup } from "../api";
 import { useNav } from "../nav";
+import { SidePanel } from "./Layout";
 
 /**
  * Modifier groups (T008): many `modifier = { factor = F  key = N }` of one block that differ
@@ -257,6 +258,8 @@ export function GroupEditor({ group: g, copies = [], applyLabel, onApply, onPrev
 export function ModGroupsTab({ onOpen, onStatus }: { onOpen: (rel: string, line?: number) => void; onStatus: (t: string) => void }) {
   const [groups, setGroups] = useState<ModGroup[] | null>(null);
   const [filter, setFilter] = useState("");
+  const [folder, setFolder] = useState(""); // T019: groups of one folder ("file type") …
+  const [file, setFile] = useState(""); // … or of one file
   // The chosen group is a navigation step ("back" returns to the previous one, T012).
   const [selKey, setSelKey] = useNav<string | null>("groups.sel", null);
   const sel = useMemo(() => (groups ?? []).find((g) => `${g.rel}:${g.id}` === selKey) ?? null, [groups, selKey]);
@@ -273,8 +276,20 @@ export function ModGroupsTab({ onOpen, onStatus }: { onOpen: (rel: string, line?
   }, [groups]);
   const shown = useMemo(() => {
     const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
-    return (groups ?? []).filter((g) => words.every((w) => `${g.rel} ${g.path.join(" ")} ${g.key}`.toLowerCase().includes(w)));
-  }, [groups, filter]);
+    return (groups ?? []).filter((g) => (!folder || g.rel.split("/")[0] === folder) && (!file || g.rel === file)
+      && words.every((w) => `${g.rel} ${g.path.join(" ")} ${g.key}`.toLowerCase().includes(w)));
+  }, [groups, filter, folder, file]);
+  // how many groups each folder and file has (for the menus)
+  const folders = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of groups ?? []) { const top = g.rel.split("/")[0]; m.set(top, (m.get(top) ?? 0) + 1); }
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [groups]);
+  const filesIn = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of groups ?? []) if (!folder || g.rel.split("/")[0] === folder) m.set(g.rel, (m.get(g.rel) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [groups, folder]);
 
   if (error && !groups) return <div className="creator-error pad">{error}</div>;
   if (!groups) return <div className="muted pad">Looking for modifier groups in every mod file…</div>;
@@ -289,8 +304,16 @@ export function ModGroupsTab({ onOpen, onStatus }: { onOpen: (rel: string, line?
 
   return (
     <div className="split-view mg-tab">
-      <div className="mg-list">
-        <input placeholder={`filter ${groups.length} groups: file, block, key…`} value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <SidePanel id="modgroups" side="left" initial={380} className="mg-list">
+        <select value={folder} onChange={(e) => { setFolder(e.target.value); setFile(""); }} title="Groups of one folder (file type)">
+          <option value="">all folders ({groups.length} groups)</option>
+          {folders.map(([f, n]) => <option key={f} value={f}>{f}/ ({n})</option>)}
+        </select>
+        <select value={file} onChange={(e) => setFile(e.target.value)} title="Groups of one file">
+          <option value="">all files{folder ? ` in ${folder}/` : ""} ({filesIn.length})</option>
+          {filesIn.map(([f, n]) => <option key={f} value={f}>{f} ({n})</option>)}
+        </select>
+        <input placeholder={`filter ${shown.length} groups: file, block, key…`} value={filter} onChange={(e) => setFilter(e.target.value)} />
         <div className="mg-items">
           {shown.slice(0, 500).map((g) => (
             <div key={`${g.rel}:${g.id}`} className={`row${sel === g ? " on" : ""}`} onClick={() => { setSel(g); setResult(null); }} title={g.path.join(" › ")}>
@@ -300,7 +323,7 @@ export function ModGroupsTab({ onOpen, onStatus }: { onOpen: (rel: string, line?
           ))}
           {shown.length > 500 && <div className="muted">… {shown.length - 500} more: narrow the filter</div>}
         </div>
-      </div>
+      </SidePanel>
       <div className="mg-detail">
         {!sel && <div className="muted pad">Modifiers of one block that differ only in one number (e.g. <code>num_of_cities = 20 / 30 / 50</code>) are shown here as one group. Choose a group to see its curve and set new steps from a function.</div>}
         {sel && (

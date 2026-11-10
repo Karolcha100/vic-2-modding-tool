@@ -115,10 +115,11 @@ button.on { background: var(--accent); color: #fff; border-color: var(--accent);
 @media (prefers-color-scheme: dark) { .card-key.role-trigger { color: #75beff; } .card-key.role-effect { color: #d7a6ff; } .card-key.role-scope { color: #f0a868; } }
 .chip { font-size: 10px; padding: 0 5px; border-radius: 8px; border: 1px solid var(--border); color: var(--muted); }
 .chip.scope { border-color: var(--accent); color: var(--accent); }
-.card .value { background: var(--panel); color: var(--text); border: 1px solid var(--border); padding: 1px 4px; font: 12px ui-monospace, monospace; min-width: 60px; }
+.card .value { background: var(--panel); color: var(--text); border: 1px solid var(--border); padding: 1px 4px; font: 12px ui-monospace, monospace; min-width: 60px; max-width: 100%; box-sizing: border-box; }
+.card .value.long { flex: 1 1 100%; resize: vertical; white-space: pre-wrap; }
 .card .value.number { width: 80px; }
-.loc { display: inline-flex; gap: 4px; align-items: center; }
-.loc-text { min-width: 260px; background: var(--bg); color: var(--text); border: 1px dashed var(--border); padding: 1px 4px; }
+.loc { display: flex; gap: 4px; align-items: center; flex: 1 1 320px; min-width: 0; }
+.loc-text { flex: 1; min-width: 200px; background: var(--bg); color: var(--text); border: 1px dashed var(--border); padding: 1px 4px; font: inherit; resize: vertical; }
 .problem { color: var(--error); font-size: 11px; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 button.mini { padding: 0 6px; font-size: 11px; }
 button.add { margin: 4px 0; }
@@ -229,7 +230,9 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .mg-gen input.mg-expr { width: 220px; font-family: monospace; }
 .mg-tab { overflow: hidden; }
 .mg-list { width: 380px; display: flex; flex-direction: column; border-right: 1px solid var(--border); min-height: 0; }
-.mg-list > input { margin: 6px; }
+.mg-list > input, .mg-list > select { margin: 4px 6px; }
+.graph-bg { cursor: grab; }
+.graph-bg:active { cursor: grabbing; }
 .mg-items { overflow: auto; flex: 1; }
 .mg-items .row.on { background: var(--hover); }
 .mg-detail { flex: 1; overflow: auto; min-width: 0; }

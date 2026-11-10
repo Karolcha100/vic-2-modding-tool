@@ -236,10 +236,21 @@ function ValueEditor({ node, ctx }: { node: BlockNode; ctx: Ctx }) {
       </select>
     );
   }
+  // Fields as wide as their text (T020); long ones (event titles, descriptions) on lines of their own.
+  const oneLine = (v: string) => v.replace(/\s*\r?\n\s*/g, " ");
+  const rows = (v: string) => Math.min(10, Math.max(2, Math.ceil(v.length / 90)));
+  const long = value.length > 60 && node.value_kind !== "number";
   return (
     <>
+      {long ? (
+        <textarea className="value long" value={value} rows={rows(value)} spellCheck={false}
+          onChange={(e) => setValue(oneLine(e.target.value))}
+          onBlur={() => commit(value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(value); } }} />
+      ) : (
       <input
         className={"value" + (node.value_kind === "number" ? " number" : "")}
+        style={node.value_kind === "number" ? undefined : { width: `${Math.max(10, value.length + 2)}ch` }}
         value={value}
         list={node.registry ? listId : undefined}
         onFocus={() => { if (node.registry && !names.length) namesOf(node.registry).then(setNames); }}
@@ -247,10 +258,16 @@ function ValueEditor({ node, ctx }: { node: BlockNode; ctx: Ctx }) {
         onBlur={() => commit(value)}
         onKeyDown={(e) => { if (e.key === "Enter") commit(value); }}
       />
+      )}
       {node.registry && <datalist id={listId}>{names.slice(0, 2000).map((n) => <option key={n} value={n} />)}</datalist>}
       {node.value_kind === "loc" && looksLikeKey(node.value ?? "") && (
         <span className="loc">
-          <input className="loc-text" value={locText} placeholder="(no text for this key)" onChange={(e) => setLocText(e.target.value)} />
+          {locText.length > 60 ? (
+            <textarea className="loc-text" value={locText} rows={rows(locText)} placeholder="(no text for this key)"
+              onChange={(e) => setLocText(oneLine(e.target.value))} />
+          ) : (
+            <input className="loc-text" value={locText} placeholder="(no text for this key)" onChange={(e) => setLocText(e.target.value)} />
+          )}
           <button className="mini" disabled={locText === savedText}
             title="Save the English text into the localisation (K35)"
             onClick={async () => {

@@ -67,3 +67,20 @@ export function Splitter({ edge, size, setSize, min, max, reset, measure }: Spli
     />
   );
 }
+
+/**
+ * A side panel whose width is dragged at its inner border, the neighbour taking the rest (T019).
+ * `side`: where the panel is ("left": handle on its right edge; "right": on its left edge).
+ */
+export function SidePanel({ id, side, initial, min = 160, max = 1400, className, children }: {
+  id: string; side: "left" | "right"; initial: number; min?: number; max?: number; className?: string;
+  children: React.ReactNode;
+}) {
+  const [w, setW] = useStored(`vic2.pane.${id}`, initial);
+  return (
+    <div className={className} style={{ width: w, flex: `0 0 ${w}px`, position: "relative" }}>
+      {children}
+      <Splitter edge={side === "left" ? "right" : "left"} size={w} setSize={setW} min={min} max={max} reset={initial} />
+    </div>
+  );
+}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Box, type GuiElement, type ReformLayout } from "../api";
 import { contentExtent, GuiNode, type DrawContext } from "./GuiDraw";
-import { useStored } from "./Layout";
+import { SidePanel, useStored } from "./Layout";
 import { useZoom } from "./GuiDraw";
 import { useUndoable, useUndoTarget } from "../nav";
 
@@ -220,7 +220,7 @@ export function ReformWindow({ onOpen, onStatus }: Props) {
           })}
         </svg>
         </div>
-        {panel && <div className="rw-side">
+        {panel && <SidePanel id="reforms" side="right" initial={260} className="rw-side">
           <div className="panel-title">Not in the window</div>
           {Object.entries(layout.missing).flatMap(([c, names]) => names.map((n) => (
             <div key={n} className="row">
@@ -236,7 +236,7 @@ export function ReformWindow({ onOpen, onStatus }: Props) {
           {layout.unknown.length > 0 && <div className="panel-title">Boxes that are no reform</div>}
           {layout.unknown.map((n) => <div key={n} className="row muted">{n}</div>)}
           <div className="muted rw-help">Drag boxes; double-click opens the box in the code. Red border: (partly) outside the window. A box is as big as its elements and the rows of its options ({layout.option_row ? `rows from ${"reform_option_window"}` : "no option row template found"}). "Real graphics" draws the game's pictures (the panel behind the window too). Ctrl + mouse wheel zooms.</div>
-        </div>}
+        </SidePanel>}
       </div>
       {diff !== null && (
         <div className="rw-diff">
