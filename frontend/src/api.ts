@@ -152,6 +152,7 @@ export const api = {
   // K75 B: answers from the history at a date; which countries meet a trigger
   triggerWorld: (rel: string, offset: number, tag: string, date: string, player: string) =>
     call<{ answers: Record<string, boolean>; result: TriggerResult; value: boolean | null; reasons: string[] }>("trigger/world", { rel, offset, tag, date, player }),
+  mapInfo: (date: string) => call<MapInfo>(`map/info?${q({ date })}`),
   triggerCountries: (rel: string, offset: number, date: string, player: string) =>
     call<{ true: string[]; unknown: { tag: string; reasons: string[] }[]; false: number }>("trigger/countries", { rel, offset, date, player }),
   blocks: (rel: string) => call<{ items: BlockNode[]; root_rule: string | null }>(`blocks?${q({ rel })}`),
@@ -228,6 +229,12 @@ export const api = {
 export const pictureUrl = (name: string) => `/api/picture?${q({ name, token })}`;
 /** One frame (from 1) of a sprite of interface/*.gfx as PNG (T003). */
 export const spriteUrl = (name: string, frame: number) => `/api/sprite?${q({ name, frame, token })}`;
+/** map/provinces.bmp as PNG, every `scale`-th pixel (province colours, K75 A). */
+export const mapUrl = (scale: number) => `/api/map/image?${q({ scale, token })}`;
+export interface MapInfo {
+  provinces: Record<string, { rgb: [number, number, number]; name: string; owner: string; cores: string[]; land: boolean }>;
+  colors: Record<string, [number, number, number]>;
+}
 /** A picture file under gfx/ (.tga / .dds) as PNG (T006). */
 export const imageUrl = (rel: string) => `/api/image?${q({ rel, token })}`;
 

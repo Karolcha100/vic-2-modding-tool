@@ -45,6 +45,8 @@ API (all under ``/api/``, JSON in and out):
 ``picture``         GET     ``name`` -> event picture (``gfx/pictures/events``) as PNG
 ``image``           GET     ``rel`` -> a ``.tga`` / ``.dds`` file under ``gfx/`` as PNG (T006)
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
+``map/image``       GET     ``scale`` -> map/provinces.bmp as PNG (province colours)
+``map/info``        GET     ``date`` -> province colours, names, owners, cores; country colours
 ``trigger/world``   POST    ``{rel, offset, tag, date?, player?}`` -> answers from history (K75 B)
 ``trigger/countries`` POST  ``{rel, offset, date?, player?}`` -> countries that meet it
 ``ping``            GET     ``{stamp, stale, pid}``: is the server there, is its code current
@@ -185,6 +187,7 @@ class Engine:
         self._format_plan: Any = None  # format.ModPlan of the last "format the whole mod"
         self._groups: dict[str, Any] = {}  # modifier_groups.GroupCache
         self._worlds: dict[str, Any] = {}  # the world at a date (K75 B), see _world
+        self._map: dict[str, Any] = {}  # the province picture (map_image)
         self._vanilla: tuple[dict[str, tuple[int, int]], list[dict[str, Any]]] | None = None
         self.lock = threading.Lock()
         self._sprites: dict[tuple[str, int, int, int, int], bytes] = {}
@@ -713,6 +716,31 @@ class Engine:
             self._write([change])
             self.ws.refresh()
         return result
+
+    # -- province map (K75 A, country creator @A6) ---------------------------------------
+    def map_image(self, scale: int) -> bytes:
+        """``map/provinces.bmp`` as PNG (every ``scale``-th pixel), kept until the file changes."""
+        from vic2toolmod.analysis.provmap import id_image
+        from vic2toolmod.images import ImageError
+
+        f = self.ws.file("map/provinces.bmp")
+        if f is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, "map/provinces.bmp not found")
+        scale = max(1, min(8, scale))
+        key = (str(f.path), f.path.stat().st_mtime_ns, scale)
+        if self._map.get("key") != key:
+            try:
+                self._map = {"key": key, "image": id_image(self.ws, scale)}
+            except ImageError as exc:
+                raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        image: bytes = self._map["image"].png
+        return image
+
+    def map_info(self, date: str) -> dict[str, Any]:
+        """Province colours, names, owners and cores at a date; the countries' colours."""
+        from vic2toolmod.analysis.provmap import info
+
+        return info(self.ws, self._world(date or "1836.1.1"))
 
     def _trigger_block(self, rel: str, offset: int) -> tuple[Document, Block]:
         """The innermost trigger block around an offset of a file."""
@@ -1873,10 +1901,17 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
 
             if route == ("GET", "changed"):  # takes the lock itself, only briefly
                 return self._json(HTTPStatus.OK, engine.changed())
-            if route in (("GET", "picture"), ("GET", "sprite"), ("GET", "image")):
+            if route in (
+                ("GET", "picture"),
+                ("GET", "sprite"),
+                ("GET", "image"),
+                ("GET", "map/image"),
+            ):
                 try:
                     with engine.lock:
-                        if route[1] == "sprite":
+                        if route[1] == "map/image":
+                            image = engine.map_image(int(q("scale", "2")))
+                        elif route[1] == "sprite":
                             image = engine.sprite(q("name"), int(q("frame", "1")))
                         elif route[1] == "image":
                             image = engine.image(q("rel"))
@@ -2025,6 +2060,8 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.script_delete(str(body["id"]))
                 case ("POST", "trigger"):
                     return e.trigger(body["rel"], int(body["offset"]), body.get("answers") or {})
+                case ("GET", "map/info"):
+                    return e.map_info(q("date"))
                 case ("POST", "trigger/world"):
                     return e.trigger_world(body)
                 case ("POST", "trigger/countries"):

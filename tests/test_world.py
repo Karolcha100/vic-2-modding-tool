@@ -147,3 +147,34 @@ def test_api(tmp_path):
     assert r["value"] is None and r["answers"] == {}
     with pytest.raises(ApiError, match="no history"):
         engine.trigger_world({"rel": "decisions/d.txt", "offset": offset, "tag": "XXX"})
+
+
+def test_province_map(tmp_path):
+    """K75 A / @A6: the province picture (north in the first stored row) and its data."""
+    import struct
+
+    from vic2toolmod.analysis.provmap import id_image, info, read_bmp
+
+    ws = make(tmp_path)
+    # 2 x 2: top row Berlin (549: 1 2 3), bottom row Dresden (550: 4 5 6); BGR, rows padded to 4
+    rows = [bytes((3, 2, 1, 3, 2, 1)) + b"\0\0", bytes((6, 5, 4, 6, 5, 4)) + b"\0\0"]
+    header = b"BM" + struct.pack("<IHHI", 54 + 16, 0, 0, 54)
+    header += struct.pack("<IiiHHIIiiII", 40, 2, 2, 1, 24, 0, 16, 0, 0, 0, 0)
+    (tmp_path / "game/map/provinces.bmp").write_bytes(header + b"".join(rows))
+    assert read_bmp((tmp_path / "game/map/provinces.bmp").read_bytes()) == (
+        2,
+        2,
+        bytes((1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6)),
+    )
+    im = id_image(ws, 2)
+    assert (im.width, im.height) == (1, 1) and im.png.startswith(b"\x89PNG")
+    write(tmp_path / "game/common/countries/Prussia.txt", "color = { 10 20 30 }\n")
+    d = info(ws, World.read(ws))
+    assert d["provinces"][549] == {
+        "rgb": [1, 2, 3],
+        "name": "x",
+        "owner": "PRU",
+        "cores": ["PRU"],
+        "land": True,
+    }
+    assert d["colors"]["PRU"] == [10, 20, 30]

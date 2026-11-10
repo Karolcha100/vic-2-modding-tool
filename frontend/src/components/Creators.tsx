@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNav } from "../nav";
 import { api } from "../api";
 import { TemplateUse } from "./Templates";
+import { ProvinceMap } from "./ProvinceMap";
 
 /** Creators (K70): new reform (C), new ideology (D), parties for an ideology (K58). */
 
@@ -80,6 +81,13 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   const [cFlags, setCFlags] = useState(true);
   const [cProvinces, setCProvinces] = useState(""); // K76: ids that get add_core = TAG
   const [cExists, setCExists] = useState(false); // … and are owned from the start
+  const [cMap, setCMap] = useState(false); // @A6: choose the provinces on the map
+  const idsOf = (text: string) => text.split(/[\s,;]+/).filter(Boolean).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  const cChosen = idsOf(cProvinces);
+  const toggleProvince = (id: number) => setCProvinces((text) => {
+    const now = idsOf(text);
+    return (now.includes(id) ? now.filter((x) => x !== id) : [...now, id]).join(" ");
+  });
   const [names, setNames] = useState<Record<string, string[]>>({});
   // parties
   const [pIdeology, setPIdeology] = useState("");
@@ -261,12 +269,14 @@ export function Creators({ onStatus, files, onOpen }: Props) {
             </select></label>
             <label><input type="checkbox" checked={cFlags} onChange={(e) => setCFlags(e.target.checked)} /> copy the template's flags as placeholders</label>
             <label>Provinces (cores) <input value={cProvinces} onChange={(e) => setCProvinces(e.target.value)} placeholder="ids, e.g. 2156 2157 2160"
-              title="These provinces get add_core = TAG in history/provinces, so the country can be released there" /></label>
+              title="These provinces get add_core = TAG in history/provinces, so the country can be released there" />
+              {" "}<button type="button" className="mini" onClick={() => setCMap(!cMap)}>{cMap ? "Hide the map" : "Choose on the map…"}</button></label>
+            {cMap && <ProvinceMap selected={cChosen} onToggle={toggleProvince} />}
             <label><input type="checkbox" checked={cExists} onChange={(e) => setCExists(e.target.checked)} /> the country exists from the start: it also owns and controls these provinces (taken from their owner)</label>
             <datalist id="c-tags">{(names.country ?? []).map((t) => <option key={t} value={t.toUpperCase()} />)}</datalist>
             <datalist id="c-cultures">{(names.culture ?? []).map((t) => <option key={t} value={t} />)}</datalist>
             <datalist id="c-religions">{(names.religion ?? []).map((t) => <option key={t} value={t} />)}</datalist>
-            <div className="muted">Makes the tag in common/countries.txt, the country file (parties renamed to the new tag), the history (without dated blocks and units), the name / adjective / party localisation and placeholder flags. The country starts without provinces: release it or create it with an event or decision.</div>
+            <div className="muted">Makes the tag in common/countries.txt, the country file (parties renamed to the new tag), the history (without dated blocks and units), the name / adjective / party localisation and placeholder flags. The chosen provinces get its cores (add_core); without "exists from the start" the country appears when released or created by an event or decision.</div>
           </>
         )}
         {kind === "parties" && (

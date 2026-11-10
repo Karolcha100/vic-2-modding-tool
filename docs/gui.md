@@ -80,6 +80,9 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   released there); with **the country exists from the start** it also owns and
   controls them (`owner` / `controller`, taken from the old owner; the notes
   name the old owners and provinces whose dated blocks change the owner later).
+  **Choose on the map…** opens the province map (owners' colours at the start
+  date, borders, chosen provinces in gold): hover shows the province, its owner
+  and cores, a click adds or drops it; Ctrl + wheel zooms.
 - **Templates** (K39 = B): **Create → From a template** fills a template's
   fields (free event ids proposed, known names offered for `ref:` fields) and
   appends the code to a mod file, with its localisation; in the editor

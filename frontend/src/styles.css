@@ -279,3 +279,7 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .tester-world { padding: 4px 8px; border-bottom: 1px solid var(--border); }
 .tester-world input { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 1px 4px; }
 .tester-countries .chip { cursor: pointer; margin-right: 3px; }
+.province-map { display: flex; flex-direction: column; gap: 4px; }
+.province-map > .muted { display: flex; align-items: center; gap: 6px; }
+.province-map-box { max-height: 60vh; overflow: auto; border: 1px solid var(--border); }
+.province-map canvas { display: block; cursor: pointer; image-rendering: pixelated; }

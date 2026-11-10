@@ -200,3 +200,13 @@ going to another version of the list. `files(id)` lists what a version
 changed, `compare(id)` what differs now.
 API: `versions`, `versions/files`, `versions/save`, `versions/restore`.
 
+## Province map (`analysis.provmap`, K75 A)
+
+`read_bmp` reads `map/provinces.bmp` (uncompressed 24-bit; Paradox keeps north
+in the first stored row, as `map/positions.txt` confirms). `id_image(ws,
+scale)` gives it as PNG with every `scale`-th pixel, so province colours stay
+exact; `info(ws, world)` the colours, names, owners and cores of the provinces
+(`map/definition.csv`, `World`) and the countries' map colours. The browser
+paints the map and finds the province under the mouse by its colour. API:
+`map/image`, `map/info`.
+
