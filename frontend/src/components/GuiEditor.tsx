@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, type GuiElement, type GuiWindow } from "../api";
-import { GuiNode, placeOf, sizeOf, useZoom, type DrawContext } from "./GuiDraw";
+import { api, type GuiElement, type GuiWindow, type ReformLayout } from "../api";
+import { contentExtent, GuiNode, NineSlice, placeOf, sizeOf, useZoom, type DrawContext } from "./GuiDraw";
 import { SidePanel, useStored } from "./Layout";
-import { isBackground, placeInside, stretchFrame, type Placement } from "./guiResize";
+import { isBackground, placeInside, type Placement } from "./guiResize";
 import { useNavStored, useUndoable, useUndoTarget } from "../nav";
 
 /**
@@ -14,7 +14,14 @@ import { useNavStored, useUndoable, useUndoTarget } from "../nav";
 
 type Change = { x?: number; y?: number; w?: number; h?: number };
 
-interface Placed { el: GuiElement; x: number; y: number; w: number; h: number; depth: number }
+/** w, h: the size in the file (children are placed in it); vw, vh: what is really drawn (T015). */
+interface Placed { el: GuiElement; x: number; y: number; w: number; h: number; vw: number; vh: number; depth: number }
+
+/** A background stretched with the window (T017): drawn so at once, written as a new picture on Save. */
+type StretchItem = { line: number; name: string; sprite: string; from: [number, number]; to: [number, number]; frame: number[] };
+
+/** Issues of the reform window: their names and option rows are drawn into the boxes (T015). */
+type Issues = Pick<ReformLayout, "file" | "issues" | "option_row">;
 
 interface Props {
   files: string[];
@@ -32,12 +39,28 @@ function applied(e: GuiElement, changes: Record<number, Change>): GuiElement {
   };
 }
 
+/** Visible size: a windowType without a picture shows only its children (an issue box declared
+ *  686 wide is about 150 wide); an issue box of the reform window also has its option rows. */
+function visibleSize(e: GuiElement, ctx: DrawContext, issues: Issues | null): [number, number] {
+  let [w, h] = sizeOf(e, ctx);
+  if (e.kind === "windowtype" && !e.sprite && e.children.length) [w, h] = contentExtent(e, ctx);
+  const row = issues?.option_row;
+  const n = issues?.issues[e.name]?.options.length ?? 0;
+  if (row && n && e.kind === "windowtype") {
+    const [rw, rh] = contentExtent(row, ctx);
+    w = Math.max(w, rw);
+    h = Math.max(h, rh + (n - 1) * (row.h || 14));
+  }
+  return [w, h];
+}
+
 /** Every element with its place on the canvas (the window's corner at 0, 0). */
-function flatten(root: GuiElement, ctx: DrawContext): Placed[] {
+function flatten(root: GuiElement, ctx: DrawContext, issues: Issues | null): Placed[] {
   const out: Placed[] = [];
   const walk = (e: GuiElement, x: number, y: number, depth: number) => {
     const [w, h] = sizeOf(e, ctx);
-    out.push({ el: e, x, y, w, h, depth });
+    const [vw, vh] = depth ? visibleSize(e, ctx, issues) : [w, h];
+    out.push({ el: e, x, y, w, h, vw, vh, depth });
     for (const c of e.children) {
       const [cx, cy] = placeOf(c, w, h);
       walk(c, x + cx, y + cy, depth + 1);
@@ -56,18 +79,19 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
   // Elements hidden from the drawing, per window (T015): e.g. tab panels that cover each other.
   const [hiddenAll, setHiddenAll] = useStored<Record<string, number[]>>("vic2.gui.hidden", {});
   const hiddenKey = `${rel}#${name}`;
-  const hidden = useMemo(() => new Set(hiddenAll[hiddenKey] ?? []), [hiddenAll, hiddenKey]);
   const hiddenRef = useRef(hiddenAll); // the latest value, also for clicks in quick succession
   hiddenRef.current = hiddenAll;
   const toggleHidden = (line: number) => {
-    const next = new Set(hiddenRef.current[hiddenKey] ?? []);
+    const next = new Set(hiddenRef.current[hiddenKey] ?? defaultHidden);
     if (next.has(line)) next.delete(line); else next.add(line);
     hiddenRef.current = { ...hiddenRef.current, [hiddenKey]: [...next] };
     setHiddenAll(hiddenRef.current);
   };
   const zoom = useZoom();
   // K94: a bigger window - its new size (keeping its centre) and pictures stretched to fit
-  const [resize, setResize] = useState<null | { w: string; h: string; centre: boolean; place: Placement }>(null);
+  // bgs: per background line - stretched with the window? its frame ("auto" or "left top right bottom")
+  const [resize, setResize] = useState<null | { w: string; h: string; centre: boolean; place: Placement; bgs: Record<number, { on: boolean; frame: string }> }>(null);
+  const [stretchPlan, setStretchPlan] = useState<null | { w: number; h: number; items: StretchItem[] }>(null);
   // border: px kept as they are at the left, top, right and bottom edge
   const [stretchOf, setStretchOf] = useState<null | { sprite: string; line: number; w: string; h: string; border: string[]; preview?: string; note?: string }>(null);
   const [windows, setWindows] = useState<{ name: string; line: number; depth: number }[]>([]);
@@ -90,7 +114,7 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
     if (!rel || !name) return;
     try {
       setData(await api.guiWindow(rel, name));
-      history.reset({}); setSel(null); setDiff(null); setError("");
+      history.reset({}); setSel(null); setDiff(null); setError(""); setStretchPlan(null);
     } catch (e) {
       setData(null);
       setError((e as Error).message);
@@ -100,7 +124,33 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
 
   const ctx: DrawContext | null = useMemo(() => (data ? { real, sprites: data.sprites, texts: data.texts } : null), [data, real]);
   const root = useMemo(() => (data ? applied(data.tree, changes) : null), [data, changes]);
-  const allPlaced = useMemo(() => (root && ctx ? flatten(root, ctx) : []), [root, ctx]);
+  // the reform window's issues, when this file holds it
+  const [reformInfo, setReformInfo] = useState<Issues | null>(null);
+  useEffect(() => {
+    if (!/country_politics\.gui$/i.test(rel)) { setReformInfo(null); return; }
+    api.reformWindow().then((r) => setReformInfo({ file: r.file, issues: r.issues, option_row: r.option_row })).catch(() => setReformInfo(null));
+  }, [rel]);
+  const issues = reformInfo && reformInfo.file === rel ? reformInfo : null;
+  const allPlaced = useMemo(() => (root && ctx ? flatten(root, ctx, issues) : []), [root, ctx, issues]);
+  // Sub-windows lying on each other (tab panels; the game shows one at a time). Until the author
+  // chooses, only the one with the most sub-windows (the reforms page) is drawn (T015).
+  const overlapping = (subs: Placed[]) => {
+    const overlap = (a: Placed, b: Placed) => {
+      const w = Math.min(a.x + a.vw, b.x + b.vw) - Math.max(a.x, b.x);
+      const h = Math.min(a.y + a.vh, b.y + b.vh) - Math.max(a.y, b.y);
+      return w > 0 && h > 0 && w * h > 0.5 * Math.min(a.vw * a.vh, b.vw * b.vh);
+    };
+    return subs.filter((a) => subs.some((b) => b !== a && overlap(a, b)));
+  };
+  const panels = (all: Placed[]) => all.filter((p) => p.depth === 1 && p.el.kind === "windowtype" && p.vw > 0 && p.vh > 0);
+  const defaultHidden = useMemo(() => {
+    const st = overlapping(panels(allPlaced));
+    if (st.length < 2) return [] as number[];
+    const subs = (p: Placed) => p.el.children.filter((c) => c.kind === "windowtype").length;
+    const keep = st.reduce((a, b) => (subs(b) > subs(a) ? b : a));
+    return st.filter((p) => p !== keep).map((p) => p.el.line);
+  }, [allPlaced]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hidden = useMemo(() => new Set(hiddenAll[hiddenKey] ?? defaultHidden), [hiddenAll, hiddenKey, defaultHidden]);
   // an element is hidden with everything inside it
   const hiddenLines = useMemo(() => {
     const out = new Set<number>();
@@ -114,16 +164,13 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
   }, [root, hidden]);
   const placed = useMemo(() => allPlaced.filter((p) => !hiddenLines.has(p.el.line)), [allPlaced, hiddenLines]);
   // Sub-windows of the window that lie on top of each other (tab panels: the game shows one at a time).
-  const stacked = useMemo(() => {
-    const subs = allPlaced.filter((p) => p.depth === 1 && p.el.kind === "windowtype" && p.w > 0 && p.h > 0 && !hiddenLines.has(p.el.line));
-    const overlap = (a: (typeof subs)[0], b: (typeof subs)[0]) => {
-      const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-      const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-      return w > 0 && h > 0 && w * h > 0.5 * Math.min(a.w * a.h, b.w * b.h);
-    };
-    return subs.filter((a) => subs.some((b) => b !== a && overlap(a, b)));
-  }, [allPlaced, hiddenLines]);
+  const stacked = useMemo(() => overlapping(panels(allPlaced).filter((p) => !hiddenLines.has(p.el.line))), [allPlaced, hiddenLines]); // eslint-disable-line react-hooks/exhaustive-deps
   const selected = placed.find((p) => p.el.line === sel) ?? null;
+  // the backgrounds to stretch, while the window has the size they were planned for (Ctrl+Z turns them off)
+  const stretching = stretchPlan && root && data && root.w === stretchPlan.w && root.h === stretchPlan.h
+    && (data.tree.w !== root.w || data.tree.h !== root.h) ? stretchPlan : null;
+  const stretchedLines = new Set(stretching?.items.map((i) => i.line) ?? []);
+  const isIssue = (e: GuiElement) => !!issues?.issues[e.name] && e.kind === "windowtype";
   const original = useMemo(() => {
     const m = new Map<number, GuiElement>();
     const walk = (e: GuiElement) => { m.set(e.line, e); e.children.forEach(walk); };
@@ -144,19 +191,29 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
   if (!guiFiles.length) return <div className="muted pad">No interface/*.gui files in this project.</div>;
   const pending = Object.keys(changes).length;
   const bounds = placed.concat(
-    (real && data ? data.backdrop : []).map((e) => ({ el: e, x: e.x, y: e.y, w: sizeOf(e, ctx!)[0], h: sizeOf(e, ctx!)[1], depth: 0 })),
+    (real && data ? data.backdrop : []).map((e) => {
+      const [w, h] = sizeOf(e, ctx!);
+      return { el: e, x: e.x, y: e.y, w, h, vw: w, vh: h, depth: 0 };
+    }),
   );
   const minX = Math.min(0, ...bounds.map((p) => p.x)) - 20;
   const minY = Math.min(0, ...bounds.map((p) => p.y)) - 20;
-  const maxX = Math.max(root ? sizeOf(root, ctx!)[0] : 100, ...bounds.map((p) => p.x + p.w)) + 20;
-  const maxY = Math.max(root ? sizeOf(root, ctx!)[1] : 100, ...bounds.map((p) => p.y + p.h)) + 20;
+  const maxX = Math.max(root ? sizeOf(root, ctx!)[0] : 100, ...bounds.map((p) => p.x + p.vw)) + 20;
+  const maxY = Math.max(root ? sizeOf(root, ctx!)[1] : 100, ...bounds.map((p) => p.y + p.vh)) + 20;
 
   const plan = async (write: boolean) => {
     if (!data) return;
     try {
+      const pictures = (stretching?.items ?? []).map((i) => `${i.name}: ${i.sprite} ${i.from.join("×")} → ${i.to.join("×")} (frame kept: ${i.frame.join(" ")})`);
+      if (write) {
+        // the stretched backgrounds first: new pictures and sprites, the elements pointed at them
+        for (const i of stretching?.items ?? []) {
+          await api.stretchPicture({ sprite: i.sprite, width: i.to[0], height: i.to[1], border: i.frame, write: true, rel: data.file, line: i.line });
+        }
+      }
       const r = await api.guiPlan(data.file, changes, write);
-      if (write) { onStatus(`Saved ${data.file}${r.backup ? ` (backup: ${r.backup})` : ""}`); load(); }
-      else setDiff(r.diff || "(no changes)");
+      if (write) { onStatus(`Saved ${data.file}${pictures.length ? ` and ${pictures.length} stretched picture(s)` : ""}${r.backup ? ` (backup: ${r.backup})` : ""}`); load(); }
+      else setDiff((r.diff || "(no changes)") + (pictures.length ? `\n\nOn Save also new pictures (new files and sprites; only these elements point at them):\n${pictures.join("\n")}` : ""));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -177,7 +234,7 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
         <span className="spacer" />
         <label><input type="checkbox" checked={real} onChange={(e) => setReal(e.target.checked)} /> Real graphics</label>
         {zoom.controls}
-        <button disabled={!data} onClick={() => root && setResize({ w: String(Math.max(root.w, 1600)), h: String(Math.max(root.h, 900)), centre: true, place: "edges" })}
+        <button disabled={!data} onClick={() => root && setResize({ w: String(Math.max(root.w, 1600)), h: String(Math.max(root.h, 900)), centre: true, place: "none", bgs: {} })}
           title="Give the window a new size (K94); its backgrounds can then be stretched to fit">Resize window…</button>
         <button onClick={() => setPanel(!panel)} title="Show or hide the panel with the elements">{panel ? "Hide panel" : "Show panel"}</button>
         <button onClick={() => plan(false)} disabled={!pending}>Preview changes</button>
@@ -194,8 +251,8 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
               const [x, y] = toSvg(e);
               // the smallest element under the pointer (the deepest on ties)
               const hit = placed
-                .filter((p) => p.w > 0 && p.h > 0 && x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h)
-                .sort((a, b) => a.w * a.h - b.w * b.h || b.depth - a.depth)[0];
+                .filter((p) => p.vw > 0 && p.vh > 0 && x >= p.x && x <= p.x + p.vw && y >= p.y && y <= p.y + p.vh)
+                .sort((a, b) => a.vw * a.vh - b.vw * b.vh || b.depth - a.depth)[0];
               if (!hit) { setSel(null); return; }
               setSel(hit.el.line);
               if (hit.depth === 0) return; // the window itself is not moved here
@@ -216,15 +273,36 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
             onDoubleClick={() => sel && onOpen(data.file, sel)}
           >
             {real && data.backdrop.map((e, i) => <GuiNode key={`bg-${i}`} e={e} x={e.x} y={e.y} ctx={ctx} />)}
-            <GuiNode e={{ ...root, x: 0, y: 0 }} x={0} y={0} ctx={ctx} skip={(c) => hiddenLines.has(c.line)} />
+            {/* backgrounds stretched with the window, as they will be written (T017) */}
+            {stretching?.items.map((i) => {
+              const p = allPlaced.find((q) => q.el.line === i.line);
+              if (!p || hiddenLines.has(i.line)) return null;
+              return real
+                ? <NineSlice key={`s-${i.line}`} sprite={i.sprite} sw={i.from[0]} sh={i.from[1]} x={p.x} y={p.y} w={i.to[0]} h={i.to[1]} frame={i.frame} />
+                : <rect key={`s-${i.line}`} x={p.x} y={p.y} width={i.to[0]} height={i.to[1]} className="gui-outline icontype" />;
+            })}
+            <GuiNode e={{ ...root, x: 0, y: 0 }} x={0} y={0} ctx={ctx} skip={(c) => hiddenLines.has(c.line) || isIssue(c) || stretchedLines.has(c.line)} />
+            {/* issue boxes with their names and option rows, as in the game (T015) */}
+            {issues && placed.filter((p) => isIssue(p.el)).map((p) => {
+              const issue = issues.issues[p.el.name], row = issues.option_row;
+              return (
+                <g key={`i-${p.el.line}`}>
+                  <GuiNode e={{ ...p.el, x: 0, y: 0 }} x={p.x} y={p.y} ctx={{ ...ctx, replace: { REFORM_NAME: issue.text } }} skip={(c) => hiddenLines.has(c.line)} />
+                  {row && issue.options.map((o, n) => (
+                    <GuiNode key={o.key} e={{ ...row, x: 0, y: 0 }} x={p.x} y={p.y + n * (row.h || 14)}
+                      ctx={{ ...ctx, replace: { REFORM_OPTION_NAME: o.text } }} skip={(c) => c.name === "selected" && n > 0} />
+                  ))}
+                </g>
+              );
+            })}
             {placed.filter((p) => changes[p.el.line]).map((p) => (
-              <rect key={`c-${p.el.line}`} x={p.x} y={p.y} width={Math.max(p.w, 4)} height={Math.max(p.h, 4)} className="gui-changed" />
+              <rect key={`c-${p.el.line}`} x={p.x} y={p.y} width={Math.max(p.vw, 4)} height={Math.max(p.vh, 4)} className="gui-changed" />
             ))}
             {selected && (
               <g>
-                <rect x={selected.x} y={selected.y} width={Math.max(selected.w, 4)} height={Math.max(selected.h, 4)} className="gui-selected" />
+                <rect x={selected.x} y={selected.y} width={Math.max(selected.vw, 4)} height={Math.max(selected.vh, 4)} className="gui-selected" />
                 {selected.depth > 0 && (selected.el.kind === "windowtype" || selected.el.w > 0 || selected.el.h > 0) && (
-                  <rect x={selected.x + selected.w - 5} y={selected.y + selected.h - 5} width={10} height={10} className="gui-handle"
+                  <rect x={selected.x + selected.vw - 5} y={selected.y + selected.vh - 5} width={10} height={10} className="gui-handle"
                     onPointerDown={(e) => {
                       e.stopPropagation();
                       const [x, y] = toSvg(e);
@@ -265,6 +343,9 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
             </>
           )}
           <div className="panel-title">Elements {pending ? <span className="muted">· {pending} changed</span> : null}</div>
+          {!hiddenAll[hiddenKey] && defaultHidden.length > 0 && (
+            <div className="muted small pad">Tab panels of this window lie on top of each other (the game shows one at a time): only {allPlaced.find((p) => p.depth === 1 && overlapping(panels(allPlaced)).includes(p) && !defaultHidden.includes(p.el.line))?.el.name ?? "one"} is drawn. Tick another one below to see it.</div>
+          )}
           {stacked.length > 1 && (
             <div className="muted small pad">These panels lie on top of each other (tabs: the game shows one at a time): {stacked.map((p) => p.el.name).join(", ")}. Untick the ones you do not want to see.</div>
           )}
@@ -283,9 +364,41 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
         const was = original.get(root.line) ?? root; // the size in the file, before any change here
         const w = Number(resize.w) || root.w, h = Number(resize.h) || root.h;
         const dw = w - was.w, dh = h - was.h;
-        // backgrounds: pictures of the window's own elements nearly as big as the window
-        const backs = root.children.filter((c) => isBackground(c, was.w, was.h, ctx!));
-        const { split } = placeInside(data.tree, dw, dh, ctx!, resize.place);
+        // backgrounds: pictures of the window's own elements nearly as big as the window (as in the file)
+        const backs = data.tree.children.filter((c) => isBackground(c, was.w, was.h, ctx!));
+        const bg = (line: number) => resize.bgs[line] ?? { on: true, frame: "auto" };
+        const setBg = (line: number, v: { on: boolean; frame: string }) => setResize({ ...resize, bgs: { ...resize.bgs, [line]: v } });
+        const apply = async () => {
+          setError("");
+          // the frame of each stretched background ("auto": the server picks the most even column / row)
+          const items: StretchItem[] = [];
+          for (const c of backs) {
+            const b = bg(c.line), sp = data.sprites[c.sprite]!;
+            if (!b.on || (!dw && !dh)) continue;
+            const to: [number, number] = [sp.w + dw, sp.h + dh];
+            let frame = b.frame.trim().split(/\s+/).map(Number);
+            if (b.frame.trim() === "auto" || frame.length !== 4 || frame.some(Number.isNaN)) {
+              try {
+                // the part of the picture inside the window (a frame like main_bg has a shadow around it)
+                const [px, py] = placeOf(c, was.w, was.h);
+                const inside = [-px, -py, was.w - px, was.h - py];
+                frame = (await api.stretchPicture({ sprite: c.sprite, width: to[0], height: to[1], border: "auto", inside, write: false })).border;
+              } catch (e) { setError(`${c.name}: ${(e as Error).message}`); return; }
+            }
+            items.push({ line: c.line, name: c.name, sprite: c.sprite, from: [sp.w, sp.h], to, frame });
+          }
+          // one step of Ctrl+Z: the window and its elements (placed from the file's positions)
+          const inside = placeInside(data.tree, dw, dh, ctx!, resize.place);
+          history.set((all) => {
+            const next = { ...all };
+            for (const [line, c] of Object.entries(inside)) next[Number(line)] = { ...next[Number(line)], ...c };
+            next[root.line] = { ...next[root.line], w, h, ...(resize.centre ? { x: was.x - Math.round(dw / 2), y: was.y - Math.round(dh / 2) } : {}) };
+            return next;
+          });
+          setStretchPlan(items.length ? { w, h, items } : null);
+          onStatus(`Window ${root.name}: ${w}×${h}${Object.keys(inside).length ? `, ${Object.keys(inside).length} elements moved` : ""}${items.length ? `, ${items.length} background(s) stretched` : ""} - not saved yet (Preview changes / Save)`);
+          setResize(null);
+        };
         return (
           <div className="preview-backdrop" onClick={() => setResize(null)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -296,38 +409,34 @@ export function GuiEditor({ files, onOpen, onStatus }: Props) {
                 <label>Height <input value={resize.h} onChange={(e) => setResize({ ...resize, h: e.target.value })} /></label>
                 <label><input type="checkbox" checked={resize.centre} onChange={(e) => setResize({ ...resize, centre: e.target.checked })} /> keep the centre where it is (moves the window by {-Math.round(dw / 2)}, {-Math.round(dh / 2)})</label>
                 <label>Elements inside <select value={resize.place} onChange={(e) => setResize({ ...resize, place: e.target.value as Placement })}>
+                  <option value="none">keep them where they are (from the top-left corner)</option>
                   <option value="edges">move to the nearest edge (columns and rows move as one piece)</option>
                   <option value="middle">keep them in the middle</option>
-                  <option value="none">leave them (only the window changes)</option>
                 </select></label>
-                <div className="muted">{resize.place === "edges"
-                  ? "Elements that overlap from left to right form a column (e.g. the tabs, the panels and the reform boxes under them), and those that overlap from top to bottom a row. A column near the left edge stays, near the right edge moves with it, in the middle moves by half; rows the same with the top and bottom. Panels as big as the window grow with it. Elements the game already ties to an edge (close button) and the backgrounds are not moved. Ctrl+Z undoes."
-                  : resize.place === "middle" ? "Every element moves by half the growth: on the screen it stays where it was." : "Only elements tied to the right / bottom edge or the centre move (the game does that); the rest stay at the top-left corner."}</div>
+                <div className="muted">{resize.place === "none"
+                  ? "Every element keeps its place from the window's top-left corner (only elements the game ties to the right / bottom edge, like the close button, move with it). The new room is at the right and at the bottom."
+                  : resize.place === "edges"
+                    ? "Elements that overlap from left to right form a column (e.g. the tabs, the panels and the reform boxes under them), and those that overlap from top to bottom a row. A column near the left edge stays, near the right edge moves with it, in the middle moves by half; rows the same with the top and bottom. Panels as big as the window grow with it."
+                    : "Every element moves by half the growth: on the screen it stays where it was."}</div>
+                {backs.length > 0 && (dw !== 0 || dh !== 0) && (
+                  <div className="resize-bgs">
+                    <b>Pictures of the window, stretched with it</b> ({dw >= 0 ? "+" : ""}{dw}, {dh >= 0 ? "+" : ""}{dh}):
+                    {backs.map((c) => {
+                      const sp = data.sprites[c.sprite]!, b = bg(c.line);
+                      return (
+                        <label key={c.line} className="row"><input type="checkbox" checked={b.on} onChange={(e) => setBg(c.line, { ...b, on: e.target.checked })} />
+                          {c.name} <span className="muted">{c.sprite} {sp.w}×{sp.h} → {sp.w + dw}×{sp.h + dh}</span>
+                          {" "}frame <input value={b.frame} onChange={(e) => setBg(c.line, { ...b, frame: e.target.value })}
+                            title='"auto": one even column and row just before the right / bottom edge of the window are repeated, so the panels drawn there get longer and everything left of / above them keeps its place; or four numbers: px kept at the left, top, right and bottom' /></label>
+                      );
+                    })}
+                    <div className="muted">The pictures are drawn stretched at once; on Save each becomes a new file and a new sprite (in interface/vic2toolmod_stretched.gfx) and only this element points at it - textures such as main_bg are shared by many windows.</div>
+                  </div>
+                )}
                 <div className="creator-buttons">
-                  <button onClick={() => {
-                    // one step of Ctrl+Z: the window and its elements (placed from the file's positions)
-                    const inside = placeInside(data.tree, dw, dh, ctx!, resize.place).changes;
-                    history.set((all) => {
-                      const next = { ...all };
-                      for (const [line, c] of Object.entries(inside)) next[Number(line)] = { ...next[Number(line)], ...c };
-                      next[root.line] = { ...next[root.line], w, h, ...(resize.centre ? { x: was.x - Math.round(dw / 2), y: was.y - Math.round(dh / 2) } : {}) };
-                      return next;
-                    });
-                    onStatus(`Window ${root.name}: ${w}×${h}, ${Object.keys(inside).length} elements placed - not saved yet (Preview changes / Save)`);
-                  }}>Apply the size</button>
+                  <button onClick={apply}>Apply the size</button>
                   <button onClick={() => setResize(null)}>Close</button>
                 </div>
-                {backs.length > 0 && <div><b>Backgrounds to stretch by the same amount</b> ({dw >= 0 ? "+" : ""}{dw}, {dh >= 0 ? "+" : ""}{dh}):</div>}
-                {backs.map((c) => {
-                  const sp = data.sprites[c.sprite]!;
-                  return (
-                    <div key={c.line} className="row">{c.name} <span className="muted">{c.sprite} {sp.w}×{sp.h}</span>{" "}
-                      <button className="mini" onClick={() => setStretchOf({ sprite: c.sprite, line: c.line, w: String(sp.w + dw), h: String(sp.h + dh),
-                        border: stretchFrame({ x: c.x, y: c.y, w: sp.w, h: sp.h }, split, resize.place === "middle").map(String) })}>
-                        stretch to {sp.w + dw}×{sp.h + dh}…</button>
-                    </div>
-                  );
-                })}
               </div>
             </div>
           </div>

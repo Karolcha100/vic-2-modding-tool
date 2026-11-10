@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import struct
 import zlib
+from collections.abc import Callable
 
 
 class ImageError(ValueError):
@@ -283,6 +284,55 @@ def _axis(size: int, new: int, before: int, after: int) -> list[tuple[int, int, 
             j1 = min(j0 + 1, inner - 1)
             out.append((b0 + j0, b0 + j1, f - j0))
     return out
+
+
+def quiet_frame(
+    width: int,
+    height: int,
+    rgba: bytes,
+    inside: tuple[int, int, int, int] | None = None,
+    near: int = 120,
+    edge: int = 12,
+) -> tuple[int, int, int, int]:
+    """A frame that stretches only one even column and row just before the right / bottom edge.
+
+    ``inside`` is the part of the picture that the window shows (``x0, y0, x1,
+    y1``; a frame picture such as ``main_bg`` has a shadow around the window).
+    Among the ``near`` columns (rows) before its right (bottom) end, without the
+    last ``edge`` (the border line), the one that differs least from the next is
+    repeated: the panel ends drawn there get longer, everything left of / above
+    it keeps its place (T017: elements that stay at the window's top-left
+    corner still match the picture). Returns ``(left, top, right, bottom)``.
+    """
+    x0, y0, x1, y1 = inside or (0, 0, width, height)
+    x0, x1 = max(0, min(x0, width - 2)), max(2, min(x1, width))
+    y0, y1 = max(0, min(y0, height - 2)), max(2, min(y1, height))
+
+    def best(lo: int, hi: int, across: range, at: Callable[[int, int], int]) -> int:
+        lo, hi = max(0, lo), max(lo + 1, hi)
+        step = max(1, len(across) // 400)
+        scores = []
+        for i in range(lo, hi):
+            d = 0
+            for j in across[::step]:
+                a, b = at(i, j), at(i + 1, j)
+                d += sum(abs(rgba[a + c] - rgba[b + c]) for c in range(4))
+            scores.append((d, -i))  # the most even; on ties the one nearest the end
+        return -min(scores)[1]
+
+    col = best(
+        max(x0, x1 - near),
+        min(x1 - edge, width - 1) - 1,
+        range(y0, y1),
+        lambda x, y: (y * width + x) * 4,
+    )
+    row = best(
+        max(y0, y1 - near),
+        min(y1 - edge, height - 1) - 1,
+        range(x0, x1),
+        lambda y, x: (y * width + x) * 4,
+    )
+    return col, row, width - col - 1, height - row - 1
 
 
 Border = int | tuple[int, int, int, int]

@@ -152,3 +152,28 @@ export function useZoom() {
   );
   return { zoom, box, style, controls };
 }
+
+/**
+ * A picture drawn bigger with its frame kept, like the tool writes it (T017): the parts outside
+ * `frame` ([left, top, right, bottom] px of the source) keep their size, the middle stretches.
+ */
+export function NineSlice({ sprite, sw, sh, x, y, w, h, frame }: {
+  sprite: string; sw: number; sh: number; x: number; y: number; w: number; h: number; frame: number[];
+}) {
+  const [l, t, r, b] = frame;
+  const sx = [0, l, sw - r, sw], dx = [0, l, w - r, w];
+  const sy = [0, t, sh - b, sh], dy = [0, t, h - b, h];
+  const parts = [];
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      const sW = sx[i + 1] - sx[i], sH = sy[j + 1] - sy[j], dW = dx[i + 1] - dx[i], dH = dy[j + 1] - dy[j];
+      if (sW <= 0 || sH <= 0 || dW <= 0 || dH <= 0) continue;
+      parts.push(
+        <svg key={`${i}${j}`} x={x + dx[i]} y={y + dy[j]} width={dW} height={dH} viewBox={`${sx[i]} ${sy[j]} ${sW} ${sH}`} preserveAspectRatio="none">
+          <image href={spriteUrl(sprite, 1)} width={sw} height={sh} preserveAspectRatio="none" />
+        </svg>,
+      );
+    }
+  }
+  return <g>{parts}</g>;
+}

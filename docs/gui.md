@@ -114,30 +114,35 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   has unsaved text in the editor, is left out. Commit the mod before, and the
   formatting on its own.
 - **Window views** (T015): containers (`windowType` without a picture) are
-  outlined as big as what they hold, not their declared size; **Ctrl + mouse
-  wheel** (or − / + / Fit) zooms the Reform window and Interface drawings;
-  **Hide panel** hides the side panel; in Interface every element has a
-  "shown" tick (remembered per window) - tab panels of one window lie on top
-  of each other (the game shows one at a time) and the panel says which;
-  texts on real pictures get an outline so they stay readable.
-- **Bigger windows** (K94): **Resize window…** in Interface gives the window a
-  new size (keeping its centre; elements placed from the right / bottom edge
-  move with it) and lists its backgrounds; **stretch picture…** (also for any
-  selected element with a picture) makes the picture bigger with its frame
-  kept sharp (corners as they are, edges and middle stretched; preview
-  first). The stretched picture becomes a new file
-  (`gfx/interface/vic2toolmod/<name>_<w>x<h>.dds`) and a new sprite
-  (`interface/vic2toolmod_stretched.gfx`), and only that element points at
-  it: textures such as `main_bg.dds` are shared by many windows.
-  **Elements inside** (T017) chooses where the window's elements go:
-  *nearest edge* (default) - elements whose spans overlap along an axis form a
-  band (the left column; the tabs with the panels and reform boxes under
-  them) and a band moves as one piece to its nearest edge (left / top stays,
-  right / bottom moves by the growth, the middle by half); panels as big as
-  the window grow with it and their elements join the window's bands;
-  elements the game ties to an edge (close button) and backgrounds stay;
-  *middle* - everything moves by half the growth; *leave them*. One Ctrl+Z
-  undoes the size and the moves together.
+  outlined, selected and hit as big as what they hold, not their declared
+  size; **Ctrl + mouse wheel** (or − / + / Fit) zooms the Reform window and
+  Interface drawings; **Hide panel** hides the side panel; in Interface every
+  element has a "shown" tick (remembered per window). Tab panels of one window
+  lie on top of each other (the game shows one at a time): until you choose,
+  only the one with the most sub-windows (in `country_politics`: the reforms
+  page) is drawn. In `country_politics.gui` the issue boxes show the issue's
+  name and its option rows, as in the Reform window view; texts on real
+  pictures get an outline so they stay readable.
+- **Bigger windows** (K94, T017): **Resize window…** in Interface gives the
+  window a new size (keeping its centre) and stretches its pictures with it.
+  **Elements inside**: *keep them where they are* (default: the same place
+  from the window's top-left corner; the new room is at the right and the
+  bottom), *nearest edge* (elements whose spans overlap along an axis form a
+  band that moves as one piece to its nearest edge; panels as big as the
+  window grow with it) or *middle* (everything moves by half the growth).
+  Elements the game ties to an edge (close button) move by themselves.
+  **Pictures of the window** (backgrounds nearly as big as it) are stretched
+  by the same amount with their frame kept: by default (`auto`) one even
+  column and row just before the window's right / bottom edge are repeated,
+  so the panels drawn there get longer and everything left of / above them
+  keeps its place; four numbers (px kept at the left, top, right, bottom)
+  choose the frame by hand. The drawing shows the stretched pictures at once;
+  **Save** writes each as a new file (`gfx/interface/vic2toolmod/<name>_<w>x<h>.dds`)
+  and a new sprite (`interface/vic2toolmod_stretched.gfx`) and points only
+  that element at it (textures such as `main_bg.dds` are shared by many
+  windows), then the window's new size. One Ctrl+Z undoes the size, the moves
+  and the stretching. **stretch picture…** does the same for any selected
+  element with a picture, with a preview.
 - **Panels** (T019): side lists (Modifier groups, Meta relations, Pop promotion,
   Event chains, Vs vanilla, Git, Interface / Reform window panels, Format)
   are widened by dragging their inner border; the width is remembered.

@@ -19,6 +19,8 @@ import { ANCHORS, contentExtent, extentOf, placeOf, type DrawContext } from "./G
  * - "middle": everything moves by half the growth (stays where it was on the screen
  *   when the window keeps its centre).
  *
+ * - "none" (the default, T017): the elements keep their places from the window's top-left corner.
+ *
  * Backgrounds (pictures nearly as big as the window) are not moved: they are stretched.
  */
 
@@ -27,18 +29,6 @@ type Change = { x?: number; y?: number; w?: number; h?: number };
 
 /** A share of the window (70 %) above which a picture is a background and a panel fills the window. */
 const BIG = 0.7;
-/**
- * The frame to keep when a background of the window is stretched ([left, top, right, bottom] px):
- * the picture grows just after the first column / row that moves (split), so what lies under the
- * elements that stay looks the same; without a split, just before its right / bottom edge.
- */
-export function stretchFrame(pic: { x: number; y: number; w: number; h: number }, split: Placed["split"], spread: boolean): [number, number, number, number] {
-  if (spread) return [40, 40, 40, 40];
-  const at = (s: number | null, start: number, size: number) =>
-    Math.max(40, Math.min(size - 41, s === null ? size - 80 : s - start + 20));
-  return [at(split.x, pic.x, pic.w), at(split.y, pic.y, pic.h), 40, 40];
-}
-
 /** Elements closer than this (px) along an axis belong to one band. */
 const TOUCH = 4;
 /** A text box without a width (maxWidth is only a limit): its start counts, a guess would join neighbours. */
@@ -66,19 +56,10 @@ function anchor(a: number, b: number, size: number): number {
 
 interface Unit { e: GuiElement; x0: number; y0: number; x1: number; y1: number }
 
-export interface Placed {
-  /** Changes by element line. */
-  changes: Record<number, Change>;
-  /** Where (in the window) the first column / row that moves begins, or null: a background is best
-   *  stretched just after it, so the part under the elements that stay keeps its look. */
-  split: { x: number | null; y: number | null };
-}
-
-/** Changes that place the elements of `root` (as in the file) in a window bigger by dw × dh. */
-export function placeInside(root: GuiElement, dw: number, dh: number, ctx: DrawContext, mode: Placement): Placed {
+/** Changes (by element line) that place the elements of `root` (as in the file) in a window bigger by dw × dh. */
+export function placeInside(root: GuiElement, dw: number, dh: number, ctx: DrawContext, mode: Placement): Record<number, Change> {
   const out: Record<number, Change> = {};
-  const split: Placed["split"] = { x: null, y: null };
-  if (mode === "none" || (!dw && !dh)) return { changes: out, split };
+  if (mode === "none" || (!dw && !dh)) return out;
   const W = root.w, H = root.h;
   const units: Unit[] = [];
   // ox, oy: where the children's parent is in the window (panels that fill the window share its frame)
@@ -106,7 +87,7 @@ export function placeInside(root: GuiElement, dw: number, dh: number, ctx: DrawC
   collect(root.children, W, H, 0, 0);
   if (mode === "edges") {
     // bands: elements whose spans along an axis overlap (or nearly touch) move along it as one piece
-    const bands = (lo: (u: Unit) => number, hi: (u: Unit) => number, size: number, grow: number, axis: "x" | "y") => {
+    const bands = (lo: (u: Unit) => number, hi: (u: Unit) => number, size: number, grow: number) => {
       const shift = new Map<Unit, number>();
       const sorted = [...units].sort((p, q) => lo(p) - lo(q));
       for (let i = 0; i < sorted.length;) {
@@ -114,16 +95,15 @@ export function placeInside(root: GuiElement, dw: number, dh: number, ctx: DrawC
         while (j < sorted.length && lo(sorted[j]) <= end + TOUCH) end = Math.max(end, hi(sorted[j++]));
         const m = Math.round(anchor(lo(sorted[i]), end, size) * grow);
         for (const u of sorted.slice(i, j)) shift.set(u, m);
-        if (m && split[axis] === null) split[axis] = lo(sorted[i]);
         i = j;
       }
       return shift;
     };
-    const sx = bands((u) => u.x0, (u) => u.x1, W, dw, "x"), sy = bands((u) => u.y0, (u) => u.y1, H, dh, "y");
+    const sx = bands((u) => u.x0, (u) => u.x1, W, dw), sy = bands((u) => u.y0, (u) => u.y1, H, dh);
     for (const u of units) {
       const mx = sx.get(u) ?? 0, my = sy.get(u) ?? 0;
       if (mx || my) out[u.e.line] = { x: u.e.x + mx, y: u.e.y + my };
     }
   }
-  return { changes: out, split };
+  return out;
 }

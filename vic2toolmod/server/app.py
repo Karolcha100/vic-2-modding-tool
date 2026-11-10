@@ -49,8 +49,9 @@ API (all under ``/api/``, JSON in and out):
 ``modgroups/text``  POST    ``{text, block, target?}`` -> groups in a rule's modifiers
 ``modgroups/text-edit`` POST ``{text, id, steps}`` -> the modifiers' text with new steps
 ``picture/stretch`` POST    ``{sprite, width, height, border, write?}`` -> a sprite's picture at a
-                            new size, frame kept (K94; border: n or [left, top, right,
-                            bottom], T017): preview; ``write`` into the mod
+                            new size, frame kept (K94; border: n, [left, top, right,
+                            bottom] or "auto" with ``inside``: x0, y0, x1, y1 of the
+                            picture in the window, T017): preview; ``write`` into the mod
 ``format/text``     POST    ``{text}`` -> the text formatted (T011)
 ``format/plan``     POST    format the mod's files: files that change, lines, skipped
 ``format/diff``     GET     ``rel`` -> diff of one file of the last plan
@@ -1260,7 +1261,16 @@ class Engine:
 
         from vic2toolmod.analysis.gui_tree import _SPRITE_KEYS
         from vic2toolmod.edit import apply_edits, replace_token_text
-        from vic2toolmod.images import ImageError, dds, image_to_rgba, png, shrink, stretch, tga
+        from vic2toolmod.images import (
+            ImageError,
+            dds,
+            image_to_rgba,
+            png,
+            quiet_frame,
+            shrink,
+            stretch,
+            tga,
+        )
 
         name = str(body["sprite"])
         s = self.ws.registries().sprites.get(name.lower())
@@ -1278,15 +1288,24 @@ class Engine:
         try:
             w, h, px = image_to_rgba(f.path.read_bytes())
             raw = body.get("border", 40)
-            border: int | tuple[int, int, int, int] = (
-                (int(raw[0]), int(raw[1]), int(raw[2]), int(raw[3]))
-                if isinstance(raw, list)
-                else int(raw)
-            )
+            border: int | tuple[int, int, int, int]
+            if raw == "auto":  # repeat one even column / row before the right / bottom edge
+                box = body.get("inside")  # the part of the picture the window shows
+                inside = (int(box[0]), int(box[1]), int(box[2]), int(box[3])) if box else None
+                border = quiet_frame(w, h, px, inside)
+            elif isinstance(raw, list):
+                border = (int(raw[0]), int(raw[1]), int(raw[2]), int(raw[3]))
+            else:
+                border = int(raw)
             out = stretch(w, h, px, width, height, border)
         except ImageError as exc:
             raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
-        result: dict[str, Any] = {"file": f.rel, "from": [w, h], "to": [width, height]}
+        result: dict[str, Any] = {
+            "file": f.rel,
+            "from": [w, h],
+            "to": [width, height],
+            "border": list(border) if isinstance(border, tuple) else [border] * 4,
+        }
         if not body.get("write"):
             pw, ph, small = shrink(width, height, out, 480)
             result["preview"] = base64.b64encode(png(pw, ph, small)).decode()
