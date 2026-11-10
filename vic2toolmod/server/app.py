@@ -45,6 +45,8 @@ API (all under ``/api/``, JSON in and out):
 ``picture``         GET     ``name`` -> event picture (``gfx/pictures/events``) as PNG
 ``image``           GET     ``rel`` -> a ``.tga`` / ``.dds`` file under ``gfx/`` as PNG (T006)
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
+``trigger/world``   POST    ``{rel, offset, tag, date?, player?}`` -> answers from history (K75 B)
+``trigger/countries`` POST  ``{rel, offset, date?, player?}`` -> countries that meet it
 ``ping``            GET     ``{stamp, stale, pid}``: is the server there, is its code current
 ``bye``             POST    ``client`` (query): a browser tab was closed (`lifecycle`)
 ``quit``            POST    stop the server; ``restart``: stop and start again (same address)
@@ -182,6 +184,7 @@ class Engine:
         self._stale: tuple[float, bool] = (0.0, False)
         self._format_plan: Any = None  # format.ModPlan of the last "format the whole mod"
         self._groups: dict[str, Any] = {}  # modifier_groups.GroupCache
+        self._worlds: dict[str, Any] = {}  # the world at a date (K75 B), see _world
         self._vanilla: tuple[dict[str, tuple[int, int]], list[dict[str, Any]]] | None = None
         self.lock = threading.Lock()
         self._sprites: dict[tuple[str, int, int, int, int], bytes] = {}
@@ -711,9 +714,8 @@ class Engine:
             self.ws.refresh()
         return result
 
-    def trigger(self, rel: str, offset: int, answers: dict[str, Any]) -> dict[str, Any]:
-        """Facts of the trigger block around an offset and, with answers, the result (K53)."""
-        from vic2toolmod.analysis.trigger_tester import TriggerTester
+    def _trigger_block(self, rel: str, offset: int) -> tuple[Document, Block]:
+        """The innermost trigger block around an offset of a file."""
         from vic2toolmod.schema.model import Context
 
         doc, validator = self.services._analyse(self._file_or_404(rel))
@@ -726,6 +728,77 @@ class Engine:
                     best = node
         if best is None:
             raise ApiError(HTTPStatus.NOT_FOUND, "no trigger block at this position")
+        return doc, best
+
+    def _world(self, date: str) -> Any:
+        """The world at a date from the history files (K75 B), read again when they change."""
+        from vic2toolmod.analysis.world import World
+
+        stamp = 0
+        for low, f in self.ws.project.files().items():
+            if low.startswith(("history/", "map/continent", "map/region", "common/countries")):
+                try:
+                    st = f.path.stat()
+                except OSError:
+                    continue
+                stamp = hash((stamp, low, st.st_mtime_ns, st.st_size))
+        key = (date, stamp, self.ws.names_version)
+        if self._worlds.get("key") != key:
+            try:
+                self._worlds = {"key": key, "world": World.read(self.ws, date)}
+            except ValueError as exc:
+                raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, str(exc)) from exc
+        return self._worlds["world"]
+
+    def trigger_world(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Answers from the history for a country at a date, and the result (K75 B)."""
+        from vic2toolmod.analysis.trigger_tester import TriggerTester
+        from vic2toolmod.analysis.world import Scope
+
+        doc, block = self._trigger_block(str(body["rel"]), int(body["offset"]))
+        world = self._world(str(body.get("date") or "1836.1.1"))
+        world.player = str(body.get("player") or "").upper()
+        tag = str(body["tag"]).upper()
+        if tag not in world.countries:
+            raise ApiError(HTTPStatus.NOT_FOUND, f"no history for the country {tag}")
+        tester = TriggerTester(self.ws.schema, doc)
+        answers = world.answers(tester, block, tag)
+        verdict = world.check(block, Scope("country", tag, tag, 0))
+        result = tester.evaluate(block, answers)
+        return {
+            "answers": answers,
+            "result": asdict(result),
+            "value": verdict.value,
+            "reasons": verdict.reasons[:20],
+        }
+
+    def trigger_countries(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Which countries (existing at the date) meet a trigger block, from the history."""
+        from vic2toolmod.analysis.world import Scope
+
+        _, block = self._trigger_block(str(body["rel"]), int(body["offset"]))
+        world = self._world(str(body.get("date") or "1836.1.1"))
+        world.player = str(body.get("player") or "").upper()
+        true: list[str] = []
+        unknown: list[dict[str, Any]] = []
+        false = 0
+        for tag in sorted(world.countries):
+            if not world.owned(tag):
+                continue
+            v = world.check(block, Scope("country", tag, tag, 0))
+            if v.value is True:
+                true.append(tag)
+            elif v.value is None:
+                unknown.append({"tag": tag, "reasons": v.reasons[:3]})
+            else:
+                false += 1
+        return {"true": true, "unknown": unknown, "false": false}
+
+    def trigger(self, rel: str, offset: int, answers: dict[str, Any]) -> dict[str, Any]:
+        """Facts of the trigger block around an offset and, with answers, the result (K53)."""
+        from vic2toolmod.analysis.trigger_tester import TriggerTester
+
+        doc, best = self._trigger_block(rel, offset)
         tester = TriggerTester(self.ws.schema, doc)
         facts = tester.facts(best)
         result = tester.evaluate(best, answers) if answers else None
@@ -1952,6 +2025,10 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.script_delete(str(body["id"]))
                 case ("POST", "trigger"):
                     return e.trigger(body["rel"], int(body["offset"]), body.get("answers") or {})
+                case ("POST", "trigger/world"):
+                    return e.trigger_world(body)
+                case ("POST", "trigger/countries"):
+                    return e.trigger_countries(body)
             return None
 
         def _static(self, path: str) -> None:

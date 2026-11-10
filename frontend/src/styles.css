@@ -276,3 +276,6 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .versions-save { padding: 8px; border-bottom: 1px solid var(--border); }
 .versions-files .row { cursor: pointer; }
 .chip.status-A { color: var(--info); } .chip.status-D { color: var(--error); } .chip.status-M { color: var(--warning); }
+.tester-world { padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.tester-world input { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 1px 4px; }
+.tester-countries .chip { cursor: pointer; margin-right: 3px; }

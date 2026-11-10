@@ -149,6 +149,11 @@ export const api = {
   outline: (rel: string) => call<{ items: OutlineNode[] }>(`outline?${q({ rel })}`),
   trigger: (rel: string, offset: number, answers?: Record<string, string | boolean>) =>
     call<{ start: number; facts: Fact[]; result: TriggerResult | null }>("trigger", { rel, offset, answers }),
+  // K75 B: answers from the history at a date; which countries meet a trigger
+  triggerWorld: (rel: string, offset: number, tag: string, date: string, player: string) =>
+    call<{ answers: Record<string, boolean>; result: TriggerResult; value: boolean | null; reasons: string[] }>("trigger/world", { rel, offset, tag, date, player }),
+  triggerCountries: (rel: string, offset: number, date: string, player: string) =>
+    call<{ true: string[]; unknown: { tag: string; reasons: string[] }[]; false: number }>("trigger/countries", { rel, offset, date, player }),
   blocks: (rel: string) => call<{ items: BlockNode[]; root_rule: string | null }>(`blocks?${q({ rel })}`),
   edit: (body: Record<string, unknown>) => call<{ edits: TextEdit[] }>("edit", body),
   localisation: (key: string, english: string, write: boolean) =>

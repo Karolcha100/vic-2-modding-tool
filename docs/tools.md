@@ -29,6 +29,27 @@ answers)` computes MTTH / `ai_chance` / pop weights: base value times the
 factors of the modifiers whose conditions hold. Exposed in the API as
 `POST /api/trigger`.
 
+## The world from history (`analysis.world`, K75 B)
+
+`World.read(ws, "1836.1.1")` reads what the history gives at a date:
+countries (`history/countries`, dated blocks up to the date applied in order:
+capital, cultures, religion, government, civilisation, prestige, literacy,
+plurality, national value, school, ruling party and its ideology, upper house,
+technologies and inventions, reform settings, flags, decisions), provinces
+(owner, controller, cores, trade goods, life rating, terrain), alliances /
+vassals / substates / unions of `history/diplomacy` active at the date, wars of
+`history/wars` going on, continents, regions and culture groups.
+`World.check(block, Scope(...))` evaluates a trigger block in a country or
+province scope with three values: `True`, `False` or `None` with the reasons
+(pops, money, relations, great power rank, modifiers … are not in the history;
+there are no spheres or truces at the start of the game). Scopes: `TAG = { }`,
+province ids, `owner`, `controller`, `capital_scope`, `any_owned_province`,
+`any_core`, `all_core`, `overlord`, `any_country`, `war_countries`.
+`World.answers(tester, block, tag)` gives the tester's facts that history
+decides. API: `trigger/world` (answers for one country) and
+`trigger/countries` (every country existing at the date: meets / unknown /
+not); the GUI's trigger tester has "Fill from history" and "Which countries?".
+
 ## Party generator (`generators.parties`, K58)
 
 ```
