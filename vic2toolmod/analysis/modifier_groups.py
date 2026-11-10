@@ -296,12 +296,29 @@ def _base(parent: Assignment) -> tuple[str | None, str | None]:
     return None, None
 
 
-def scan(ws: Workspace, only_mod: bool = True) -> list[Group]:
-    """Groups in every script file (``.txt``) of the mod (or of the game with it)."""
+GroupCache = dict[str, tuple[Document, list[Group]]]
+"""File -> its parsed document and groups; a file is searched again only when its text changed."""
+
+
+def scan(ws: Workspace, only_mod: bool = True, cache: GroupCache | None = None) -> list[Group]:
+    """Groups in every script file (``.txt``) of the mod (or of the game with it).
+
+    With ``cache`` (kept by the caller between calls) only files whose text
+    changed are searched again (RPM: 4 s the first time, 0.05 s afterwards).
+    """
     out: list[Group] = []
     for f in ws.script_files(only_mod):
-        if f.rel.lower().endswith(".txt"):
-            out += find_groups(ws.document(f.rel), f.rel, ws.schema)
+        if not f.rel.lower().endswith(".txt"):
+            continue
+        doc = ws.document(f.rel)
+        known = cache.get(f.rel) if cache is not None else None
+        if known is not None and known[0] is doc:
+            groups = known[1]
+        else:
+            groups = find_groups(doc, f.rel, ws.schema)
+            if cache is not None:
+                cache[f.rel] = (doc, groups)
+        out += groups
     return out
 
 

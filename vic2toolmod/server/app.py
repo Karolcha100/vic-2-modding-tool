@@ -165,6 +165,8 @@ class Engine:
         """Fingerprint of the tool's code when the server started."""
         self._stale: tuple[float, bool] = (0.0, False)
         self._format_plan: Any = None  # format.ModPlan of the last "format the whole mod"
+        self._groups: dict[str, Any] = {}  # modifier_groups.GroupCache
+        self._vanilla: tuple[dict[str, tuple[int, int]], list[dict[str, Any]]] | None = None
         self.lock = threading.Lock()
         self._sprites: dict[tuple[str, int, int, int, int], bytes] = {}
         self._stamps = self._snapshot()
@@ -229,6 +231,8 @@ class Engine:
         self.services = LanguageService(ws)
         self._stamps = self._snapshot()
         self._sprites.clear()
+        self._groups.clear()
+        self._vanilla = None
         if mod_dir is not None:
             _remember(mod_dir)
         threading.Thread(target=self.warm_up, name="warm-up", daemon=True).start()
@@ -662,7 +666,12 @@ class Engine:
 
         if rel:
             return {"diff": vanilla_diff(self.ws.project, rel)}
-        return {"files": [asdict(d) for d in compare_with_vanilla(self.ws.project)]}
+        # Comparing every mod file takes seconds: done again only when a mod file changed.
+        now = self._snapshot()
+        if self._vanilla is None or self._vanilla[0] != now:
+            files = [asdict(d) for d in compare_with_vanilla(self.ws.project)]
+            self._vanilla = (now, files)
+        return {"files": self._vanilla[1]}
 
     def stats(self) -> dict[str, Any]:
         """Pops at the start (K6 I)."""
@@ -1075,7 +1084,7 @@ class Engine:
             name = self._file_or_404(rel)
             groups = find_groups(self.ws.document(name), name, self.ws.schema)
         else:
-            groups = scan(self.ws)
+            groups = scan(self.ws, cache=self._groups)
         return {"groups": [{**asdict(g), "signature": g.signature} for g in groups]}
 
     def modgroup_edits(self, body: dict[str, Any]) -> dict[str, Any]:

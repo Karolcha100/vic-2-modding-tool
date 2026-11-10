@@ -170,9 +170,13 @@ def test_combine_rule():
 
 def test_copies_are_the_same_place_not_the_same_parent_key():
     """T014: migration and emigration groups of one file are not copies of each other."""
-    block = "group = {\n" + "".join(
-        f"modifier = {{ factor = -0.1 not = {{ literacy = {v} }} }}\n" for v in (0.4, 0.3)
-    ) + "}\n"
+    block = (
+        "group = {\n"
+        + "".join(
+            f"modifier = {{ factor = -0.1 not = {{ literacy = {v} }} }}\n" for v in (0.4, 0.3)
+        )
+        + "}\n"
+    )
     text = f"migration_chance = {{\n{block}}}\nemigration_chance = {{\n{block}}}\n"
     a, b = groups(text, "common/pop_types.txt")
     assert a.signature != b.signature
@@ -180,3 +184,16 @@ def test_copies_are_the_same_place_not_the_same_parent_key():
     one = groups(EVENT, "events/a.txt")[0]
     two = groups(EVENT.replace("id = 7", "id = 9"), "events/b.txt")[0]
     assert one.signature == two.signature
+
+
+def test_scan_cache_follows_the_text(tmp_path):
+    from vic2toolmod.analysis.modifier_groups import scan
+
+    ws = make(tmp_path)
+    cache = {}
+    first = scan(ws, cache=cache)
+    assert len(first) == 4 and set(cache) == {"events/a.txt", "events/b.txt"}
+    again = scan(ws, cache=cache)
+    assert [g is h for g, h in zip(first, again, strict=True)] == [True] * 4  # not searched again
+    ws.set_text("events/a.txt", "x = 1\n")
+    assert len(scan(ws, cache=cache)) == 2
