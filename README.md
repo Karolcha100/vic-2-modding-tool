@@ -43,6 +43,9 @@ mod_dirs = ["/home/me/Victoria 2 mods/MyMod"]
 .venv/bin/python -m vic2toolmod gui            # or: install-desktop for a menu shortcut
 ```
 
+The server stops when the GUI's browser window is closed, and starting it again
+reuses a running server (`--stay` keeps it running; see `docs/gui.md`).
+
 ## Command line
 
 ```sh

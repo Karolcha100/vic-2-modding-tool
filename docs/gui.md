@@ -116,8 +116,22 @@ cd ..
 .venv/bin/python -m vic2toolmod install-desktop   # menu shortcut (K72 = B)
 ```
 
+**One server, gone with the window** (T009, `vic2toolmod/server/lifecycle.py`):
+
+- the server stops a few seconds after the last browser tab of the GUI is
+  closed (a reload is fine), or after 3 minutes without any request when the
+  browser was killed; `gui --stay` keeps it running;
+- a second plain `gui` (the menu shortcut) does not start another server: it
+  opens a tab on the running one (`gui-server.json` next to the settings file
+  says where it is). If the tool's code changed meanwhile, it stops the old
+  server and starts a new one;
+- when the tool's code changes while the GUI is open, a bar offers
+  **Restart now**: the server starts again on its new code at the same
+  address and the page reloads (unsaved text is lost - you are asked first);
+- the footer shows the server's memory (Linux).
+
 Development with live reload: start `python -m vic2toolmod gui --port 8799
---no-browser`, then `npm run dev` in `frontend/` and open
+--no-browser --stay`, then `npm run dev` in `frontend/` and open
 `http://localhost:5173/?token=<token printed by the server>` (Vite proxies
 `/api` to port 8799).
 

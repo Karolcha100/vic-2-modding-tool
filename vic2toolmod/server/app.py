@@ -62,6 +62,7 @@ import gc
 import json
 import os
 import secrets
+import sys
 import threading
 import time
 from dataclasses import asdict
@@ -120,11 +121,14 @@ def _diag(doc: Document, d: Diagnostic) -> dict[str, Any]:
 
 def memory_mb() -> int | None:
     """Memory the server holds now, in MB (Linux only; elsewhere ``None``)."""
+    if sys.platform != "linux":
+        return None
     try:
         with open("/proc/self/statm") as f:
-            return int(f.read().split()[1]) * os.sysconf("SC_PAGE_SIZE") // 2**20
-    except (OSError, ValueError, AttributeError):
+            pages = int(f.read().split()[1])
+    except (OSError, ValueError, IndexError):
         return None
+    return pages * os.sysconf("SC_PAGE_SIZE") // 2**20
 
 
 def _steps(body: dict[str, Any]) -> list[tuple[str, str]]:
