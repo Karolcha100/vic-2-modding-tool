@@ -154,6 +154,9 @@ export const api = {
     call<{ answers: Record<string, boolean>; result: TriggerResult; value: boolean | null; reasons: string[] }>("trigger/world", { rel, offset, tag, ...w }),
   triggerPowers: (date: string) => call<{ great: string[]; secondary: string[] }>(`trigger/powers?${q({ date })}`),
   mapInfo: (date: string) => call<MapInfo>(`map/info?${q({ date })}`),
+  mapProvince: (id: number, date: string) => call<ProvinceDetail>(`map/province?${q({ id, date })}`),
+  mapTrigger: (text: string, scope: "province" | "owner", w: WorldOptions) =>
+    call<{ results: Record<string, boolean | null>; true: number; false: number; unknown: number }>("map/trigger", { text, scope, ...w }),
   triggerCountries: (rel: string, offset: number, w: WorldOptions) =>
     call<{ true: string[]; unknown: { tag: string; reasons: string[] }[]; false: number }>("trigger/countries", { rel, offset, ...w }),
   blocks: (rel: string) => call<{ items: BlockNode[]; root_rule: string | null }>(`blocks?${q({ rel })}`),
@@ -234,9 +237,18 @@ export const spriteUrl = (name: string, frame: number) => `/api/sprite?${q({ nam
 export interface WorldOptions { date: string; player: string; great: string; secondary: string }
 /** map/provinces.bmp as PNG, every `scale`-th pixel (province colours, K75 A). */
 export const mapUrl = (scale: number) => `/api/map/image?${q({ scale, token })}`;
+export type RGB = [number, number, number];
+export interface MapProvince {
+  rgb: RGB; name: string; owner: string; controller: string; cores: string[]; land: boolean;
+  culture: string; religion: string; trade_goods: string; terrain: string; continent: string; pops: number;
+}
 export interface MapInfo {
-  provinces: Record<string, { rgb: [number, number, number]; name: string; owner: string; cores: string[]; land: boolean }>;
-  colors: Record<string, [number, number, number]>;
+  provinces: Record<string, MapProvince>;
+  colors: Record<string, RGB>; culture_colors: Record<string, RGB>; religion_colors: Record<string, RGB>;
+}
+export interface ProvinceDetail {
+  id: number; file: string | null; owner: string; controller: string; cores: string[]; values: Record<string, string>;
+  pops: { type: string; culture: string; religion: string; size: number; militancy: number }[]; neighbours: number[];
 }
 /** A picture file under gfx/ (.tga / .dds) as PNG (T006). */
 export const imageUrl = (rel: string) => `/api/image?${q({ rel, token })}`;

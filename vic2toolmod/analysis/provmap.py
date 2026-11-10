@@ -18,7 +18,7 @@ from typing import Any
 
 from vic2toolmod.analysis.world import World
 from vic2toolmod.images import ImageError, png
-from vic2toolmod.script.cst import Block, Scalar
+from vic2toolmod.script.cst import Assignment, Block, Scalar
 from vic2toolmod.workspace import Workspace
 
 
@@ -180,8 +180,46 @@ def country_colors(ws: Workspace) -> dict[str, list[int]]:
     return out
 
 
+def _second_level_colors(ws: Workspace, rel: str) -> dict[str, list[int]]:
+    """``group = { name = { color = { r g b } } }`` -> name -> colour (0..1 become 0..255)."""
+    out: dict[str, list[int]] = {}
+    f = ws.file(rel)
+    if f is None:
+        return out
+    for group in ws.document(f.rel).items:
+        if not (isinstance(group, Assignment) and isinstance(group.value, Block)):
+            continue
+        for item in group.value.items:
+            if not (isinstance(item, Assignment) and isinstance(item.value, Block)):
+                continue
+            color = item.value.find("color")
+            if color is None or not isinstance(color.value, Block):
+                continue
+            try:
+                nums = [float(i.value) for i in color.value.items if isinstance(i, Scalar)][:3]
+            except ValueError:
+                continue
+            if len(nums) == 3:
+                floats = all(n <= 1 for n in nums) and any("." in str(n) for n in nums)
+                out[item.key_text.lower()] = [
+                    max(0, min(255, round(n * 255 if floats else n))) for n in nums
+                ]
+    return out
+
+
+def _main(pops: list[Any], attr: str) -> str:
+    sizes: dict[str, float] = {}
+    for p in pops:
+        sizes[getattr(p, attr)] = sizes.get(getattr(p, attr), 0) + p.size
+    return max(sizes, key=lambda k: sizes[k]) if sizes else ""
+
+
 def info(ws: Workspace, world: World) -> dict[str, Any]:
-    """Province colours, names, owners and cores, and the countries' colours."""
+    """Provinces and the colours of countries, cultures and religions.
+
+    Each province: colour, name, owner, controller, cores, main culture and
+    religion of its pops, trade goods, terrain, continent and pop count.
+    """
     provinces: dict[int, dict[str, Any]] = {}
     f = ws.file("map/definition.csv")
     if f is not None:
@@ -195,11 +233,57 @@ def info(ws: Workspace, world: World) -> dict[str, Any]:
                 continue
             pid = int(parts[0])
             p = world.provinces.get(pid)
+            pops = world.pops.get(pid, [])
             provinces[pid] = {
                 "rgb": rgb,
                 "name": parts[4].strip() if len(parts) > 4 else "",
                 "owner": p.owner if p else "",
+                "controller": (p.controller or p.owner) if p else "",
                 "cores": sorted(p.cores) if p else [],
                 "land": p is not None,  # has a history file (sea and lakes have none)
+                "culture": _main(pops, "culture"),
+                "religion": _main(pops, "religion"),
+                "trade_goods": p.values.get("trade_goods", "") if p else "",
+                "terrain": p.values.get("terrain", "") if p else "",
+                "continent": world.continent.get(pid, ""),
+                "pops": round(sum(x.size for x in pops)),
             }
-    return {"provinces": provinces, "colors": country_colors(ws)}
+    return {
+        "provinces": provinces,
+        "colors": country_colors(ws),
+        "culture_colors": _second_level_colors(ws, "common/cultures.txt"),
+        "religion_colors": _second_level_colors(ws, "common/religion.txt"),
+    }
+
+
+def province(ws: Workspace, world: World, pid: int) -> dict[str, Any]:
+    """One province at the date: its history values, cores, pops and history file."""
+    p = world.provinces.get(pid)
+    rel = next(
+        (
+            f.rel
+            for low, f in sorted(ws.project.files().items())
+            if re.match(rf"history/provinces/[^/]+/{pid}(?!\d)", low)
+        ),
+        None,
+    )
+    pops = world.pops.get(pid, [])
+    return {
+        "id": pid,
+        "file": rel,
+        "owner": p.owner if p else "",
+        "controller": (p.controller or p.owner) if p else "",
+        "cores": sorted(p.cores) if p else [],
+        "values": dict(sorted(p.values.items())) if p else {},
+        "pops": [
+            {
+                "type": x.type,
+                "culture": x.culture,
+                "religion": x.religion,
+                "size": x.size,
+                "militancy": x.militancy,
+            }
+            for x in sorted(pops, key=lambda x: -x.size)
+        ],
+        "neighbours": sorted((world.neighbours or {}).get(pid, set())),
+    }

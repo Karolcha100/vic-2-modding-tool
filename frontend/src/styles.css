@@ -283,3 +283,10 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .province-map > .muted { display: flex; align-items: center; gap: 6px; }
 .province-map-box { max-height: 60vh; overflow: auto; border: 1px solid var(--border); }
 .province-map canvas { display: block; cursor: pointer; image-rendering: pixelated; }
+.map-main { display: flex; flex-direction: column; gap: 6px; padding: 6px; }
+.map-tools, .map-trigger { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.map-trigger textarea { flex: 1; min-width: 300px; font-family: monospace; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
+.map-province table { border-collapse: collapse; font-size: 12px; margin: 4px 0; }
+.map-province td { padding: 1px 6px 1px 0; }
+.map-province .chip { cursor: pointer; margin: 1px; }

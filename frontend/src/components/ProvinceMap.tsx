@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, mapUrl, type MapInfo } from "../api";
+import { api, mapUrl, type MapInfo, type MapProvince, type RGB } from "../api";
 import { useZoom } from "./GuiDraw";
 
 /**
@@ -15,17 +15,26 @@ const GOLD: [number, number, number] = [255, 204, 0];
 
 interface Pixels { w: number; h: number; ids: Int32Array; border: Uint8Array }
 
-export function ProvinceMap({ date = "1836.1.1", selected, onToggle }: {
+export function ProvinceMap({ date = "1836.1.1", selected, onToggle, info: given, paint, hint }: {
   date?: string; selected: number[]; onToggle: (id: number) => void;
+  /** The provinces' data when the caller has it already (the Map view). */
+  info?: MapInfo | null;
+  /** The colour of a land province (default: its owner's). */
+  paint?: (id: number, p: MapProvince) => RGB;
+  hint?: string;
 }) {
-  const [info, setInfo] = useState<MapInfo | null>(null);
+  const [own, setInfo] = useState<MapInfo | null>(null);
+  const info = given ?? own;
   const [pixels, setPixels] = useState<Pixels | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [error, setError] = useState("");
   const canvas = useRef<HTMLCanvasElement>(null);
   const zoom = useZoom();
 
-  useEffect(() => { api.mapInfo(date).then(setInfo).catch((e) => setError((e as Error).message)); }, [date]);
+  useEffect(() => {
+    if (given !== undefined) return;
+    api.mapInfo(date).then(setInfo).catch((e) => setError((e as Error).message));
+  }, [date, given]);
   // which province each pixel is (by its colour), and where provinces meet
   useEffect(() => {
     if (!info) return;
@@ -52,7 +61,7 @@ export function ProvinceMap({ date = "1836.1.1", selected, onToggle }: {
     };
     img.onerror = () => setError("the map picture could not be loaded");
     img.src = mapUrl(2);
-  }, [info]);
+  }, [info !== null]); // eslint-disable-line react-hooks/exhaustive-deps -- the picture does not change with the date
   // paint: owners' colours, sea, chosen provinces, borders
   useEffect(() => {
     if (!info || !pixels || !canvas.current) return;
@@ -65,7 +74,7 @@ export function ProvinceMap({ date = "1836.1.1", selected, onToggle }: {
     const colorOf = new Map<number, [number, number, number]>();
     for (const [id, p] of Object.entries(info.provinces)) {
       const n = Number(id);
-      const c = chosen.has(n) ? GOLD : !p.land ? SEA : p.owner ? ((info.colors[p.owner] ?? EMPTY) as [number, number, number]) : EMPTY;
+      const c = chosen.has(n) ? GOLD : !p.land ? SEA : paint ? paint(n, p) : p.owner ? ((info.colors[p.owner] ?? EMPTY) as RGB) : EMPTY;
       colorOf.set(n, n === hover && p.land ? [Math.min(255, c[0] + 50), Math.min(255, c[1] + 50), Math.min(255, c[2] + 50)] : c);
     }
     for (let i = 0; i < w * h; i++) {
@@ -74,7 +83,7 @@ export function ProvinceMap({ date = "1836.1.1", selected, onToggle }: {
       out.data[i * 4] = c[0] * dark; out.data[i * 4 + 1] = c[1] * dark; out.data[i * 4 + 2] = c[2] * dark; out.data[i * 4 + 3] = 255;
     }
     g.putImageData(out, 0, 0);
-  }, [info, pixels, selected, hover]);
+  }, [info, pixels, selected, hover, paint]);
 
   const at = (e: React.MouseEvent<HTMLCanvasElement>): number => {
     if (!pixels) return 0;
@@ -89,7 +98,7 @@ export function ProvinceMap({ date = "1836.1.1", selected, onToggle }: {
   return (
     <div className="province-map">
       <div className="muted">
-        {p ? <>#{hover} <b>{p.name}</b> · {p.land ? `owner ${p.owner || "none"}${p.cores.length ? ` · cores ${p.cores.join(" ")}` : ""}` : "sea"}</> : "Click a province to choose it (again to drop it); Ctrl + wheel zooms."}
+        {p ? <>#{hover} <b>{p.name}</b> · {p.land ? `owner ${p.owner || "none"}${p.cores.length ? ` · cores ${p.cores.join(" ")}` : ""}` : "sea"}</> : hint ?? "Click a province to choose it (again to drop it); Ctrl + wheel zooms."}
         <span className="spacer" /> {zoom.controls}
       </div>
       <div className="province-map-box" ref={zoom.box}>

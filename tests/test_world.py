@@ -172,12 +172,14 @@ def test_province_map(tmp_path):
     assert (im.width, im.height) == (1, 1) and im.png.startswith(b"\x89PNG")
     write(tmp_path / "game/common/countries/Prussia.txt", "color = { 10 20 30 }\n")
     d = info(ws, World.read(ws))
-    assert d["provinces"][549] == {
+    berlin = d["provinces"][549]
+    assert {k: berlin[k] for k in ("rgb", "name", "owner", "cores", "land", "continent")} == {
         "rgb": [1, 2, 3],
         "name": "x",
         "owner": "PRU",
         "cores": ["PRU"],
         "land": True,
+        "continent": "europe",
     }
     assert d["colors"]["PRU"] == [10, 20, 30]
 
@@ -235,3 +237,27 @@ def test_neighbours(tmp_path):
     write(tmp_path / "game/map/adjacencies.csv", "From;To;Type\n549;550;impassable\n")
     ws.project._files = None  # a new file: scan the folders again
     assert adjacency(ws) == {549: set(), 550: set()}
+
+
+def test_map_endpoints(tmp_path):
+    """K97 A: where a trigger holds on the map; one province's details."""
+    from vic2toolmod.server.app import ApiError, Engine
+
+    engine = Engine(make(tmp_path))
+    r = engine.map_trigger({"text": "is_core = PRU", "scope": "province"})
+    assert r["results"] == {549: True, 550: True} and r["true"] == 2
+    r = engine.map_trigger({"text": "tag = PRU", "scope": "owner"})
+    assert r["results"] == {549: True, 550: False}
+    r = engine.map_trigger({"text": "money = 5", "scope": "owner"})
+    assert r["unknown"] == 2
+    with pytest.raises(ApiError, match="the trigger"):
+        engine.map_trigger({"text": "a = { b"})
+    d = engine.map_province(550, "1836.1.1")
+    assert d["file"] == "history/provinces/germany/550 - Dresden.txt"
+    assert (
+        d["owner"] == "SAX"
+        and d["cores"] == ["PRU", "SAX"]
+        and d["values"]["trade_goods"] == "coal"
+    )
+    info = engine.map_info("1836.1.1")
+    assert info["provinces"][550]["trade_goods"] == "coal" and "culture_colors" in info

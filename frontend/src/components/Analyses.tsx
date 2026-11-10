@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, type MetaRule } from "../api";
 import { Graph, type GEdge, type GNode } from "./Graph";
 import { SidePanel } from "./Layout";
+import { MapView } from "./MapView";
 import { MetaRelations } from "./MetaRelations";
 import { ModGroupsTab } from "./ModGroups";
 import { useNav } from "../nav";
@@ -9,7 +10,7 @@ import { useNav } from "../nav";
 /** Analyses of the mod: pop promotion graph (K59), event chains (K6 C), vs vanilla (K6 H),
  *  statistics (K6 I), localisation editor (K6 E), git changes (K37 = B). */
 
-type Tab = "promotion" | "meta" | "events" | "groups" | "vanilla" | "stats" | "localisation" | "git";
+type Tab = "promotion" | "meta" | "events" | "groups" | "map" | "vanilla" | "stats" | "localisation" | "git";
 
 interface Props {
   onOpen: (rel: string, line?: number) => void;
@@ -20,7 +21,7 @@ export function Analyses({ onOpen, onStatus }: Props) {
   const [tab, setTab] = useNav<Tab>("analyses.tab", "promotion");
   const [rule, setRule] = useState<string | null>(null); // a rule clicked in the promotion graph
   const tabs: [Tab, string][] = [
-    ["promotion", "Pop promotion"], ["meta", "Meta relations"], ["events", "Event chains"], ["groups", "Modifier groups"], ["vanilla", "Vs vanilla"],
+    ["promotion", "Pop promotion"], ["meta", "Meta relations"], ["events", "Event chains"], ["groups", "Modifier groups"], ["map", "Map"], ["vanilla", "Vs vanilla"],
     ["stats", "Statistics"], ["localisation", "Localisation"], ["git", "Git changes"],
   ];
   return (
@@ -34,6 +35,7 @@ export function Analyses({ onOpen, onStatus }: Props) {
         {tab === "meta" && <MetaRelations onStatus={onStatus} focus={rule} />}
         {tab === "events" && <Events onOpen={onOpen} />}
         {tab === "groups" && <ModGroupsTab onOpen={onOpen} onStatus={onStatus} />}
+        {tab === "map" && <MapView onOpen={onOpen} />}
         {tab === "vanilla" && <Vanilla />}
         {tab === "stats" && <Stats />}
         {tab === "localisation" && <Localisation onStatus={onStatus} onOpen={onOpen} />}

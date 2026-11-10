@@ -220,6 +220,8 @@ in the first stored row, as `map/positions.txt` confirms). `id_image(ws,
 scale)` gives it as PNG with every `scale`-th pixel, so province colours stay
 exact; `info(ws, world)` the colours, names, owners and cores of the provinces
 (`map/definition.csv`, `World`) and the countries' map colours. The browser
-paints the map and finds the province under the mouse by its colour. API:
-`map/image`, `map/info`.
+paints the map and finds the province under the mouse by its colour.
+`province(ws, world, id)` gives one province (history values, cores, pops,
+neighbours, its file). API: `map/image`, `map/info`, `map/province`,
+`map/trigger` (a trigger checked in every land province or in its owner).
 

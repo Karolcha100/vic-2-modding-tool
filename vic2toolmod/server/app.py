@@ -47,6 +47,8 @@ API (all under ``/api/``, JSON in and out):
 ``trigger``         POST    ``{rel, offset, answers?}`` -> trigger facts and result (K53)
 ``map/image``       GET     ``scale`` -> map/provinces.bmp as PNG (province colours)
 ``map/info``        GET     ``date`` -> province colours, names, owners, cores; country colours
+``map/province``    GET     ``id, date`` -> one province: history, pops, neighbours, file
+``map/trigger``     POST    ``{text, scope?, date?, …}`` -> where a trigger holds (province / owner)
 ``trigger/world``   POST    ``{rel, offset, tag, date?, player?}`` -> answers from history (K75 B)
 ``trigger/countries`` POST  ``{rel, offset, date?, player?}`` -> countries that meet it
                             (both also take ``great`` / ``secondary``: the powers, tags)
@@ -744,6 +746,43 @@ class Engine:
         from vic2toolmod.analysis.provmap import info
 
         return info(self.ws, self._world(date or "1836.1.1"))
+
+    def map_province(self, pid: int, date: str) -> dict[str, Any]:
+        """One province at a date: history values, cores, pops, neighbours, its file."""
+        from vic2toolmod.analysis.provmap import province
+
+        return province(self.ws, self._world(date or "1836.1.1"), pid)
+
+    def map_trigger(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Where a trigger holds: every land province (``scope: province``) or its owner."""
+        from vic2toolmod.analysis.world import Scope
+        from vic2toolmod.script.parser import parse_text
+
+        text = str(body.get("text", ""))
+        doc = parse_text("t = {\n" + text + "\n}\n")
+        if doc.has_errors:
+            first = next(d for d in doc.diagnostics if d.severity == "error")
+            raise ApiError(HTTPStatus.UNPROCESSABLE_ENTITY, f"the trigger: {first.message}")
+        node = doc.items[0]
+        assert isinstance(node, Assignment) and isinstance(node.value, Block)
+        world = self._world_for(body)
+        owner_scope = body.get("scope") == "owner"
+        results: dict[int, bool | None] = {}
+        for pid, p in world.provinces.items():
+            if owner_scope:
+                if not p.owner:
+                    continue
+                v = world.check(node.value, Scope("country", p.owner, p.owner, 0))
+            else:
+                v = world.check(node.value, Scope("province", p.owner, "", pid))
+            results[pid] = v.value
+        values = list(results.values())
+        return {
+            "results": results,
+            "true": values.count(True),
+            "false": values.count(False),
+            "unknown": values.count(None),
+        }
 
     def _trigger_block(self, rel: str, offset: int) -> tuple[Document, Block]:
         """The innermost trigger block around an offset of a file."""
@@ -2103,6 +2142,10 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.trigger(body["rel"], int(body["offset"]), body.get("answers") or {})
                 case ("GET", "trigger/powers"):
                     return e.trigger_powers(q("date"))
+                case ("GET", "map/province"):
+                    return e.map_province(int(q("id")), q("date"))
+                case ("POST", "map/trigger"):
+                    return e.map_trigger(body)
                 case ("GET", "map/info"):
                     return e.map_info(q("date"))
                 case ("POST", "trigger/world"):
