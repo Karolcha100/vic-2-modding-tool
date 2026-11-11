@@ -1248,10 +1248,19 @@ class Engine:
                     IdeologySpec(
                         name=str(s["name"]),
                         english=str(s["english"]),
-                        template=str(s["template"]),
+                        template=str(s["template"]) if s.get("template") else None,
                         group=s.get("group") or None,
                         color=(int(color[0]), int(color[1]), int(color[2])) if color else None,
                         date=s.get("date") or None,
+                        new_group=s.get("new_group") or None,
+                        new_group_english=str(s.get("new_group_english") or ""),
+                        uncivilized=bool(s.get("uncivilized", True)),
+                        can_reduce_militancy=bool(s.get("can_reduce_militancy", False)),
+                        reform_weights={
+                            str(k): float(v) for k, v in (s.get("reform_weights") or {}).items()
+                        },
+                        support={str(k): float(v) for k, v in (s.get("support") or {}).items()},
+                        governments=[str(g) for g in s.get("governments") or []],
                     ),
                 )
                 changes, notes = plan2.changes, plan2.notes

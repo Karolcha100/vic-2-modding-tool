@@ -57,6 +57,16 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   const [group, setGroup] = useState("");
   const [color, setColor] = useState("#5060c8");
   const [date, setDate] = useState("");
+  // T031: an ideology without a template, and a new group
+  const [scratch, setScratch] = useState(false);
+  const [newGroup, setNewGroup] = useState(""); // a key = make this group
+  const [newGroupEnglish, setNewGroupEnglish] = useState("");
+  const [uncivilized, setUncivilized] = useState(true);
+  const [reduceMil, setReduceMil] = useState(false);
+  const [weights, setWeights] = useState<Record<string, string>>({ add_political_reform: "1", remove_political_reform: "1", add_social_reform: "1", remove_social_reform: "1" });
+  const [support, setSupport] = useState<Record<string, string>>({ rich: "1", middle: "1", poor: "1" });
+  const [govs, setGovs] = useState<string[]>([]);
+  const [governments, setGovernments] = useState<string[]>([]);
   // event / decision
   const [eFile, setEFile] = useState("");
   const [eTitle, setETitle] = useState("");
@@ -108,6 +118,7 @@ export function Creators({ onStatus, files, onOpen }: Props) {
     api.issueOptions().then((r) => setIssueTree(r.categories)).catch(() => undefined);
     api.countryList().then((r) => setCountries(r.countries)).catch(() => undefined);
     api.names("culture_group").then((r) => setCultureGroupNames(r.names)).catch(() => undefined);
+    api.names("government").then((r) => setGovernments(r.names)).catch(() => undefined);
   }, []);
   useEffect(() => {
     if (kind !== "country" || names.country) return;
@@ -128,7 +139,13 @@ export function Creators({ onStatus, files, onOpen }: Props) {
         if (write) onStatus(`Reform ${rName} created`);
       } else if (kind === "ideology") {
         const c = [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16));
-        const spec = { name: iName, english: iEnglish, template, group: group || null, color: c, date: date || null };
+        const spec = {
+          name: iName, english: iEnglish, template: scratch ? null : template, group: group === "+new" ? null : group || null,
+          color: c, date: date || null, new_group: group === "+new" ? newGroup : null, new_group_english: newGroupEnglish,
+          uncivilized, can_reduce_militancy: reduceMil,
+          reform_weights: Object.fromEntries(Object.entries(weights).map(([k, v]) => [k, Number(v) || 0])),
+          support: Object.fromEntries(Object.entries(support).map(([k, v]) => [k, Number(v) || 0])), governments: govs,
+        };
         const r = await api.createIdeology(spec, write);
         setResult({ diff: r.diff, lines: [...r.notes, `files: ${r.files.length}`, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
         if (write) { onStatus(`Ideology ${iName} created`); setPIdeology(iName); }
@@ -218,16 +235,42 @@ export function Creators({ onStatus, files, onOpen }: Props) {
           <>
             <label title="The name in the files (lower case, no spaces)">Key <input value={iName} onChange={(e) => setIName(e.target.value)} placeholder="christian_democrat" /></label>
             <label>English name <input value={iEnglish} onChange={(e) => setIEnglish(e.target.value)} placeholder="Christian Democrat" /></label>
-            <label title="The new ideology starts with this one's reform preferences, support in every pop type and the governments that allow it">Copy behaviour from <select value={template} onChange={(e) => setTemplate(e.target.value)}>
+            <label title="Copy an existing ideology's behaviour, or set everything here (T031)"><input type="checkbox" checked={scratch} onChange={(e) => setScratch(e.target.checked)} /> without a template (fill the fields below)</label>
+            {!scratch && <label title="The new ideology starts with this one's reform preferences, support in every pop type and the governments that allow it">Copy behaviour from <select value={template} onChange={(e) => setTemplate(e.target.value)}>
               {ideologies.map((i) => <option key={i}>{i}</option>)}
-            </select></label>
+            </select></label>}
             <label title="The ideology group in common/ideologies.txt (conservative, liberal, socialist …); pops move between ideologies of a group more easily">Group <select value={group} onChange={(e) => setGroup(e.target.value)}>
-              <option value="">(same as the template)</option>
+              <option value="">{scratch ? "(choose)" : "(same as the template)"}</option>
               {groups.map((g) => <option key={g}>{g}</option>)}
+              <option value="+new">+ a new group…</option>
             </select></label>
+            {group === "+new" && (
+              <>
+                <label title="The new group's name in the files (lower case, ends with _group by custom)">New group key <input value={newGroup} onChange={(e) => setNewGroup(e.target.value)} placeholder="agrarian_group" /></label>
+                <label title="The group's name players see">New group English name <input value={newGroupEnglish} onChange={(e) => setNewGroupEnglish(e.target.value)} placeholder="Agrarians" /></label>
+              </>
+            )}
+            {scratch && (
+              <>
+                <label title="uncivilized = no keeps the ideology out of uncivilised countries"><input type="checkbox" checked={uncivilized} onChange={(e) => setUncivilized(e.target.checked)} /> also in uncivilised countries</label>
+                <label title="can_reduce_militancy = yes: a ruling party of this ideology lowers militancy (vanilla: conservative, liberal)"><input type="checkbox" checked={reduceMil} onChange={(e) => setReduceMil(e.target.checked)} /> can reduce militancy</label>
+                <div title="How much pops of this ideology want to pass / repeal reforms (base of add_ / remove_ political / social reform; 0 = never, 1 = as much as others). Modifiers can be added later in the code.">Reform wishes (base):
+                  <div className="policy-grid">{Object.keys(weights).map((k) => (
+                    <label key={k} style={{ display: "contents" }}><span>{k}</span><input value={weights[k]} onChange={(e) => setWeights({ ...weights, [k]: e.target.value })} size={5} /></label>
+                  ))}</div></div>
+                <div title="The factor in every pop type's ideologies block, by the pop type's strata (more = more pops support it)">Support in pop types (factor):
+                  <div className="policy-grid">{["rich", "middle", "poor"].map((k) => (
+                    <label key={k} style={{ display: "contents" }}><span>{k} pops</span><input value={support[k]} onChange={(e) => setSupport({ ...support, [k]: e.target.value })} size={5} /></label>
+                  ))}</div></div>
+                <div title="common/governments.txt: under these governments a party of this ideology can rule">Governments that allow it:
+                  <div className="gov-list">{governments.map((g) => (
+                    <label key={g}><input type="checkbox" checked={govs.includes(g)} onChange={(e) => setGovs(e.target.checked ? [...govs, g] : govs.filter((x) => x !== g))} /> {g}</label>
+                  ))}</div></div>
+              </>
+            )}
             <label>Colour <input type="color" value={color} onChange={(e) => setColor(e.target.value)} /></label>
             <label title="date = …: before it no pop supports the ideology (e.g. fascism from 1905)">Available from <input value={date} onChange={(e) => setDate(e.target.value)} placeholder="1870.1.1 (optional)" /></label>
-            <div className="muted">Copies the template's reform preferences, its support in every pop type and the governments that allow it. Parties come next ("Parties for an ideology").</div>
+            <div className="muted">{scratch ? "Writes the ideology, its support in every pop type and the chosen governments." : "Copies the template's reform preferences, its support in every pop type and the governments that allow it."} Parties come next ("Parties for an ideology").</div>
           </>
         )}
         {kind === "event" && (

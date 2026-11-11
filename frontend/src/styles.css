@@ -298,3 +298,4 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .chip-list .row { display: block; padding: 2px 6px; cursor: pointer; }
 .chip-list .row:hover { background: var(--hover); }
 .policy-grid { display: grid; grid-template-columns: max-content max-content; gap: 3px 8px; align-items: center; }
+.gov-list { display: flex; flex-wrap: wrap; gap: 2px 12px; }

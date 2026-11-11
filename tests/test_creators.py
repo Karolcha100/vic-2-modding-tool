@@ -168,3 +168,48 @@ def test_new_event_and_decision(tmp_path):
         "ai_will_do",
     ]
     assert "build_homes_title;Build Homes;" in files["localisation/00_vic2toolmod.csv"]
+
+
+def test_new_ideology_from_scratch_in_a_new_group(tmp_path):
+    """T031: no template; a new group; pop support by strata; chosen governments."""
+    ws = make(tmp_path)
+    plan = plan_ideology(
+        ws,
+        IdeologySpec(
+            "agrarian",
+            "Agrarian",
+            None,
+            color=(1, 2, 3),
+            date="1850.1.1",
+            new_group="agrarian_group",
+            new_group_english="Agrarians",
+            uncivilized=False,
+            reform_weights={"add_social_reform": 1, "remove_political_reform": 0.5},
+            support={"poor": 2, "": 0.5},
+            governments=["democracy"],
+        ),
+    )
+    files = by_rel(plan.changes)
+    ide = parse_text(files["common/ideologies.txt"])
+    new = ide.find("agrarian_group").value.find("agrarian").value
+    assert new.find("color").value.to_text().strip() == "{ 1 2 3 }"
+    assert new.find("uncivilized").value.text == "no"
+    assert new.find("add_social_reform").value.find("base").value.text == "1"
+    assert new.find("remove_political_reform").value.find("base").value.text == "0.5"
+    farmers = parse_text(files["poptypes/farmers.txt"]).find("ideologies").value.find("agrarian")
+    assert farmers is not None and farmers.value.find("factor").value.text in ("2", "0.5")
+    gov = parse_text(files["common/governments.txt"])
+    assert gov.find("democracy").value.find("agrarian").value.text == "yes"
+    loc = files["localisation/00_vic2toolmod.csv"]
+    assert "agrarian;Agrarian;" in loc and "agrarian_group;Agrarians;" in loc
+    with pytest.raises(ValueError, match="already exists"):
+        plan_ideology(ws, IdeologySpec("x", "X", None, color=(1, 1, 1), new_group="liberal_group"))
+    with pytest.raises(ValueError, match="needs a colour"):
+        plan_ideology(ws, IdeologySpec("x", "X", None, group="liberal_group"))
+
+
+def test_copied_ideology_in_a_new_group(tmp_path):
+    ws = make(tmp_path)
+    plan = plan_ideology(ws, IdeologySpec("x_dem", "X", "conservative", new_group="new_group"))
+    ide = parse_text(by_rel(plan.changes)["common/ideologies.txt"])
+    assert ide.find("new_group").value.find("x_dem") is not None

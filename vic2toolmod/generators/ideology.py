@@ -9,14 +9,18 @@ A new ideology needs more than its entry in ``common/ideologies.txt``:
 * **localisation** - the ideology's name.
 
 `plan_ideology` copies all of these from an existing ideology (the template),
-so the new one starts with the same behaviour and can be tuned afterwards.
+so the new one starts with the same behaviour and can be tuned afterwards -
+or, without a template (T031), writes them from the given values: reform
+preferences (``base`` of add / remove political / social reform), support in
+each pop type by strata, the governments that allow it. The ideology can go
+into a new group (``new_group``).
 Parties for the countries come from the party generator (K58).
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from vic2toolmod.changes import FileChange
 from vic2toolmod.edit import TextEdit, apply_edits, clone_after, insert, set_value
@@ -42,10 +46,22 @@ class IdeologySpec:
 
     name: str
     english: str
-    template: str
+    template: str | None
     group: str | None = None
     color: tuple[int, int, int] | None = None
     date: str | None = None
+    #: A new ideology group (T031): created at the end of the file; its English name.
+    new_group: str | None = None
+    new_group_english: str = ""
+    #: Without a template (T031):
+    uncivilized: bool = True
+    can_reduce_militancy: bool = False
+    #: ``base`` of add_political_reform, remove_political_reform, add_social_reform, …
+    reform_weights: dict[str, float] = field(default_factory=dict)
+    #: Support in the pop types: strata (``rich`` / ``middle`` / ``poor``) -> factor.
+    support: dict[str, float] = field(default_factory=dict)
+    #: Governments that allow its parties to rule.
+    governments: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -78,6 +94,13 @@ def plan_ideology(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
     regs = ws.registries()
     if regs.has("ideology", spec.name):
         raise ValueError(f"ideology {spec.name!r} already exists")
+    if spec.new_group is not None:
+        if not _NAME.fullmatch(spec.new_group):
+            raise ValueError(f"bad group name {spec.new_group!r} (use a-z, 0-9 and _)")
+        if ws.document("common/ideologies.txt").find(spec.new_group) is not None:
+            raise ValueError(f"group {spec.new_group!r} already exists")
+    if not spec.template:
+        return _from_scratch(ws, spec)
     rel = "common/ideologies.txt"
     doc = ws.document(rel)
     found = _find_ideology(doc, spec.template)
@@ -90,12 +113,22 @@ def plan_ideology(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
     # 1. ideologies.txt: a copy of the template, in the chosen group.
     body = template.to_text().strip()[len(template.key.text) :]
     target_group = group
-    if spec.group and spec.group.lower() != group.key_text.lower():
+    if spec.new_group:
+        target_group = None  # type: ignore[assignment]
+    elif spec.group and spec.group.lower() != group.key_text.lower():
         other = doc.find(spec.group)
         if other is None or not isinstance(other.value, Block):
             raise ValueError(f"no ideology group {spec.group!r}")
         target_group = other
-    if target_group is group:
+    if target_group is None:  # a new group at the end of the file
+        nl = "\r\n" if "\r\n" in doc.text else "\n"
+        sep = "" if doc.text.endswith(("\n", "\r")) else nl
+        edit = TextEdit(
+            len(doc.text),
+            len(doc.text),
+            f"{sep}{nl}{spec.new_group} = {{{nl}\t{spec.name}{body}{nl}}}{nl}",
+        )
+    elif target_group is group:
         edit = clone_after(doc, template, spec.name)
     else:
         assert isinstance(target_group.value, Block)
@@ -161,10 +194,97 @@ def plan_ideology(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
             changes.append(_change(ws, grel, gdoc.text, apply_edits(gdoc.text, gedits)))
 
     # 4. localisation.
-    changes += set_entries(ws.project, [(spec.name, spec.english, {})])
+    changes += set_entries(ws.project, _names(spec))
     notes.append(f"pop support copied from {spec.template} in {copied} pop types")
     notes.append("parties: use the party generator for the countries that should have one")
     return IdeologyPlan(changes, notes)
+
+
+def _names(spec: IdeologySpec) -> list[tuple[str, str, dict[str, str]]]:
+    out: list[tuple[str, str, dict[str, str]]] = [(spec.name, spec.english, {})]
+    if spec.new_group:
+        out.append((spec.new_group, spec.new_group_english or spec.new_group, {}))
+    return out
+
+
+def _from_scratch(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
+    """A new ideology from the given values (T031), without copying another."""
+    from vic2toolmod.edit import Items, Value
+
+    if spec.color is None:
+        raise ValueError("a new ideology without a template needs a colour")
+    rel = "common/ideologies.txt"
+    doc = ws.document(rel)
+    regs = ws.registries()
+    for gov in spec.governments:
+        if not regs.has("government", gov):
+            raise ValueError(f"unknown government {gov!r}")
+    items: list[tuple[str, Value]] = [("color", [str(c) for c in spec.color])]
+    if spec.date:
+        items.append(("date", spec.date))
+    if not spec.uncivilized:
+        items.append(("uncivilized", "no"))
+    if spec.can_reduce_militancy:
+        items.append(("can_reduce_militancy", "yes"))
+    for key in (
+        "add_political_reform",
+        "remove_political_reform",
+        "add_social_reform",
+        "remove_social_reform",
+    ):
+        base: Items = [("base", _num(spec.reform_weights.get(key, 0)))]
+        items.append((key, base))
+    if spec.new_group:
+        group_items: Items = [(spec.name, items)]
+        edit = insert(doc, doc, [(spec.new_group, group_items)])
+    else:
+        target = doc.find(spec.group or "")
+        if target is None or not isinstance(target.value, Block):
+            raise ValueError(f"no ideology group {spec.group!r}: choose one or make a new one")
+        edit = insert(doc, target.value, [(spec.name, items)])
+    changes = [_change(ws, rel, doc.text, apply_edits(doc.text, [edit]))]
+    notes: list[str] = []
+
+    # pop support: a factor per pop type by its strata
+    count = 0
+    for f in ws.project.glob("poptypes/*.txt"):
+        pdoc = ws.document(f.rel)
+        block = pdoc.find("ideologies")
+        if block is None or not isinstance(block.value, Block):
+            continue
+        strata = pdoc.find("strata")
+        level = strata.value.to_text().strip().lower() if strata and strata.value else ""
+        factor = spec.support.get(level, spec.support.get("", 1.0))
+        pop_items: Items = [("factor", _num(factor))]
+        pedit = insert(pdoc, block.value, [(spec.name, pop_items)])
+        changes.append(_change(ws, f.rel, pdoc.text, apply_edits(pdoc.text, [pedit])))
+        count += 1
+    notes.append(f"pop support written in {count} pop types (factor by strata)")
+
+    # governments that allow it
+    if spec.governments:
+        grel = "common/governments.txt"
+        gdoc = ws.document(grel)
+        wanted = {g.lower() for g in spec.governments}
+        gedits: list[TextEdit] = []
+        for node in gdoc.items:
+            if (
+                isinstance(node, Assignment)
+                and isinstance(node.value, Block)
+                and node.key_text.lower() in wanted
+            ):
+                gedits.append(insert(gdoc, node.value, [(spec.name, "yes")], 0))
+        changes.append(_change(ws, grel, gdoc.text, apply_edits(gdoc.text, gedits)))
+    else:
+        notes.append("no government allows it yet: its parties can be in parliament but not rule")
+    changes += set_entries(ws.project, _names(spec))
+    notes.append("parties: use the party generator for the countries that should have one")
+    return IdeologyPlan(changes, notes)
+
+
+def _num(value: float) -> str:
+    text = f"{value:.3f}".rstrip("0").rstrip(".")
+    return text or "0"
 
 
 def _change(ws: Workspace, rel: str, old: str, new: str) -> FileChange:
