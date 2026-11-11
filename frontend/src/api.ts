@@ -165,6 +165,8 @@ export const api = {
   localisation: (key: string, english: string, write: boolean) =>
     call<{ diff: string }>("localisation", { key, english, write }),
   names: (registry: string) => call<{ names: string[] }>(`names?${q({ registry })}`),
+  issueOptions: () => call<{ categories: Record<string, Record<string, string[]>> }>("issues"),
+  countryList: () => call<{ countries: { tag: string; name: string }[] }>("countries"),
   createReform: (spec: unknown, write: boolean) =>
     call<{ diff: string; files: string[]; notes: string[]; backup?: string | null }>("create/reform", { spec, write }),
   createIdeology: (spec: unknown, write: boolean) =>

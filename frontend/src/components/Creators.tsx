@@ -3,6 +3,7 @@ import { useNav } from "../nav";
 import { api } from "../api";
 import { TemplateUse } from "./Templates";
 import { ProvinceMap } from "./ProvinceMap";
+import { ChipPicker } from "./ChipPicker";
 
 /** Creators (K70): new reform (C), new ideology (D), parties for an ideology (K58). */
 
@@ -35,7 +36,9 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   const [error, setError] = useState("");
   const [ideologies, setIdeologies] = useState<string[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
-  const [issues, setIssues] = useState<string[]>([]);
+  const [issueTree, setIssueTree] = useState<Record<string, Record<string, string[]>>>({});
+  const [countries, setCountries] = useState<{ tag: string; name: string }[]>([]);
+  const [cultureGroupNames, setCultureGroupNames] = useState<string[]>([]);
 
   // reform
   const [category, setCategory] = useState("political_reforms");
@@ -92,7 +95,8 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   // parties
   const [pIdeology, setPIdeology] = useState("");
   const [copyFrom, setCopyFrom] = useState("conservative");
-  const [policies, setPolicies] = useState("");
+  // T032: one choice per party policy (common/issues.txt party_issues); "" = copy / leave
+  const [policies, setPolicies] = useState<Record<string, string>>({});
   const [tags, setTags] = useState("");
   const [cultureGroups, setCultureGroups] = useState("");
   const [civilized, setCivilized] = useState<"" | "yes" | "no">("");
@@ -101,7 +105,9 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   useEffect(() => {
     api.names("ideology").then((r) => setIdeologies(r.names)).catch(() => undefined);
     api.names("ideology_group").then((r) => setGroups(r.names)).catch(() => undefined);
-    api.names("issue").then((r) => setIssues(r.names)).catch(() => undefined);
+    api.issueOptions().then((r) => setIssueTree(r.categories)).catch(() => undefined);
+    api.countryList().then((r) => setCountries(r.countries)).catch(() => undefined);
+    api.names("culture_group").then((r) => setCultureGroupNames(r.names)).catch(() => undefined);
   }, []);
   useEffect(() => {
     if (kind !== "country" || names.country) return;
@@ -153,7 +159,7 @@ export function Creators({ onStatus, files, onOpen }: Props) {
       } else {
         const body = {
           ideology: pIdeology, copy_from: copyFrom ? [copyFrom] : [],
-          policies: parseModifiers(policies),
+          policies: Object.fromEntries(Object.entries(policies).filter(([, v]) => v)),
           tags: tags ? tags.split(/[ ,]+/).filter(Boolean) : null,
           culture_groups: cultureGroups ? cultureGroups.split(/[ ,]+/).filter(Boolean) : null,
           civilized: civilized === "" ? null : civilized === "yes",
@@ -187,13 +193,13 @@ export function Creators({ onStatus, files, onOpen }: Props) {
       {kind !== "template" && <><div className="creator-form">
         {kind === "reform" && (
           <>
-            <label>Category <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            <label title="The list in common/issues.txt: political and social reforms are in the reform window (and change with votes); economic and military ones are for uncivilised countries; party_issues are party policies">Category <select value={category} onChange={(e) => setCategory(e.target.value)}>
               {["political_reforms", "social_reforms", "economic_reforms", "military_reforms", "party_issues"].map((c) => <option key={c}>{c}</option>)}
             </select></label>
-            <label>Key <input value={rName} onChange={(e) => setRName(e.target.value)} placeholder="press_rights" /></label>
-            <label>English name <input value={rEnglish} onChange={(e) => setREnglish(e.target.value)} placeholder="Press Rights" /></label>
-            <label><input type="checkbox" checked={nextStep} onChange={(e) => setNextStep(e.target.checked)} /> next step only</label>
-            <label><input type="checkbox" checked={admin} onChange={(e) => setAdmin(e.target.checked)} /> administrative</label>
+            <label title="The name in the files (lower case, no spaces); the reform window's box gets the same name">Key <input value={rName} onChange={(e) => setRName(e.target.value)} placeholder="press_rights" /></label>
+            <label title="The name players see (localisation)">English name <input value={rEnglish} onChange={(e) => setREnglish(e.target.value)} placeholder="Press Rights" /></label>
+            <label title="next_step_only = yes: the reform can only move one option at a time (like suffrage: no jumping from the first to the last option)"><input type="checkbox" checked={nextStep} onChange={(e) => setNextStep(e.target.checked)} /> next step only</label>
+            <label title="administrative = yes (social reforms in vanilla): each option's administrative_multiplier raises the share of bureaucrats a country needs for full administrative efficiency - the more of such reforms, the more bureaucrats needed"><input type="checkbox" checked={admin} onChange={(e) => setAdmin(e.target.checked)} /> administrative</label>
             <div className="muted">Options (the first is the default). Modifiers: one <code>key = value</code> per line.</div>
             {options.map((o, i) => (
               <div key={i} className="option-row">
@@ -210,32 +216,32 @@ export function Creators({ onStatus, files, onOpen }: Props) {
         )}
         {kind === "ideology" && (
           <>
-            <label>Key <input value={iName} onChange={(e) => setIName(e.target.value)} placeholder="christian_democrat" /></label>
+            <label title="The name in the files (lower case, no spaces)">Key <input value={iName} onChange={(e) => setIName(e.target.value)} placeholder="christian_democrat" /></label>
             <label>English name <input value={iEnglish} onChange={(e) => setIEnglish(e.target.value)} placeholder="Christian Democrat" /></label>
-            <label>Copy behaviour from <select value={template} onChange={(e) => setTemplate(e.target.value)}>
+            <label title="The new ideology starts with this one's reform preferences, support in every pop type and the governments that allow it">Copy behaviour from <select value={template} onChange={(e) => setTemplate(e.target.value)}>
               {ideologies.map((i) => <option key={i}>{i}</option>)}
             </select></label>
-            <label>Group <select value={group} onChange={(e) => setGroup(e.target.value)}>
+            <label title="The ideology group in common/ideologies.txt (conservative, liberal, socialist …); pops move between ideologies of a group more easily">Group <select value={group} onChange={(e) => setGroup(e.target.value)}>
               <option value="">(same as the template)</option>
               {groups.map((g) => <option key={g}>{g}</option>)}
             </select></label>
             <label>Colour <input type="color" value={color} onChange={(e) => setColor(e.target.value)} /></label>
-            <label>Available from <input value={date} onChange={(e) => setDate(e.target.value)} placeholder="1870.1.1 (optional)" /></label>
+            <label title="date = …: before it no pop supports the ideology (e.g. fascism from 1905)">Available from <input value={date} onChange={(e) => setDate(e.target.value)} placeholder="1870.1.1 (optional)" /></label>
             <div className="muted">Copies the template's reform preferences, its support in every pop type and the governments that allow it. Parties come next ("Parties for an ideology").</div>
           </>
         )}
         {kind === "event" && (
           <>
-            <label>File in events/ <input list="event-files" value={eFile} onChange={(e) => setEFile(e.target.value)} placeholder="MyEvents.txt (new or existing)" /></label>
+            <label title="An existing file of events/ or a new name; a new file gets the 'Events N-M' header">File in events/ <input list="event-files" value={eFile} onChange={(e) => setEFile(e.target.value)} placeholder="MyEvents.txt (new or existing)" /></label>
             <datalist id="event-files">{files.filter((f) => f.startsWith("events/")).map((f) => <option key={f} value={f.slice(7)} />)}</datalist>
-            <label>Kind <select value={eKind} onChange={(e) => setEKind(e.target.value)}>
+            <label title="country_event: happens to a country (scope: the country); province_event: to a province (scope: the province)">Kind <select value={eKind} onChange={(e) => setEKind(e.target.value)}>
               <option>country_event</option><option>province_event</option>
             </select></label>
             <label>Title <input value={eTitle} onChange={(e) => setETitle(e.target.value)} /></label>
             <label>Description <textarea value={eDesc} onChange={(e) => setEDesc(e.target.value)} rows={3} /></label>
             <label>Options (one per line) <textarea value={eOptions} onChange={(e) => setEOptions(e.target.value)} rows={3} /></label>
-            <label><input type="checkbox" checked={eTriggered} onChange={(e) => setETriggered(e.target.checked)} /> only fired by other events / decisions</label>
-            {!eTriggered && <label>Mean time to happen (months) <input type="number" value={eMonths} onChange={(e) => setEMonths(Number(e.target.value) || 1)} /></label>}
+            <label title="is_triggered_only = yes: the event never happens by itself; other events or decisions fire it (country_event = id)"><input type="checkbox" checked={eTriggered} onChange={(e) => setETriggered(e.target.checked)} /> only fired by other events / decisions</label>
+            {!eTriggered && <label title="mean_time_to_happen: the average waiting time once the trigger holds (modifiers can change it later)">Mean time to happen (months) <input type="number" value={eMonths} onChange={(e) => setEMonths(Number(e.target.value) || 1)} /></label>}
             <div className="muted">Gets a free id (from the file's "Events N-M" header if it has one) and EVTNAME / EVTDESC / EVTOPT localisation. Fill the trigger and effects in the block view.</div>
           </>
         )}
@@ -243,19 +249,19 @@ export function Creators({ onStatus, files, onOpen }: Props) {
           <>
             <label>File in decisions/ <input list="decision-files" value={dFile} onChange={(e) => setDFile(e.target.value)} placeholder="MyDecisions.txt (new or existing)" /></label>
             <datalist id="decision-files">{files.filter((f) => f.startsWith("decisions/")).map((f) => <option key={f} value={f.slice(10)} />)}</datalist>
-            <label>Key <input value={dName} onChange={(e) => setDName(e.target.value)} placeholder="build_homes" /></label>
+            <label title="The decision's name in the files (lower case, no spaces)">Key <input value={dName} onChange={(e) => setDName(e.target.value)} placeholder="build_homes" /></label>
             <label>Title <input value={dTitle} onChange={(e) => setDTitle(e.target.value)} /></label>
             <label>Description <textarea value={dDesc} onChange={(e) => setDDesc(e.target.value)} rows={3} /></label>
           </>
         )}
         {kind === "country" && (
           <>
-            <label>Tag <input value={cTag} onChange={(e) => setCTag(e.target.value.toUpperCase())} maxLength={3} placeholder="BOE" /></label>
+            <label title="Three letters or digits, the first a letter; must be new">Tag <input value={cTag} onChange={(e) => setCTag(e.target.value.toUpperCase())} maxLength={3} placeholder="BOE" /></label>
             <label>English name <input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Boer Republic (also the file names)" /></label>
             <label>Adjective <input value={cAdj} onChange={(e) => setCAdj(e.target.value)} placeholder="Boer" /></label>
-            <label>Copy from <input list="c-tags" value={cTemplate} onChange={(e) => setCTemplate(e.target.value.toUpperCase())} placeholder="SAF (tag of an existing country)" /></label>
+            <label title="An existing country to copy: its parties, history (without dates and units), flags as placeholders">Copy from <input list="c-tags" value={cTemplate} onChange={(e) => setCTemplate(e.target.value.toUpperCase())} placeholder="SAF (tag of an existing country)" /></label>
             <label>Colour <input type="color" value={cColor} onChange={(e) => setCColor(e.target.value)} /></label>
-            <label>Capital province <input value={cCapital} onChange={(e) => setCCapital(e.target.value)} placeholder="(the template's)" /></label>
+            <label title="A province id; hover a number in the code or use the map to find one">Capital province <input value={cCapital} onChange={(e) => setCCapital(e.target.value)} placeholder="(the template's)" /></label>
             <label>Primary culture <input list="c-cultures" value={cCulture} onChange={(e) => setCCulture(e.target.value)} placeholder="(the template's)" /></label>
             <label><input type="checkbox" checked={cCultures === null} onChange={(e) => setCCultures(e.target.checked ? null : "")} /> keep the template's accepted cultures</label>
             {cCultures !== null && <label>Accepted cultures <input value={cCultures} onChange={(e) => setCCultures(e.target.value)} placeholder="afrikaner, british (empty = none)" /></label>}
@@ -283,22 +289,34 @@ export function Creators({ onStatus, files, onOpen }: Props) {
         )}
         {kind === "parties" && (
           <>
-            <label>Ideology <select value={pIdeology} onChange={(e) => setPIdeology(e.target.value)}>
+            <label title="The ideology the new parties have (one party per chosen country)">Ideology <select value={pIdeology} onChange={(e) => setPIdeology(e.target.value)}>
               <option value="">(choose)</option>
               {ideologies.map((i) => <option key={i}>{i}</option>)}
             </select></label>
-            <label>Copy policies from the country's party of <select value={copyFrom} onChange={(e) => setCopyFrom(e.target.value)}>
+            <label title="Each country's new party starts with the policies of its existing party of this ideology (if it has one); the choices below override them">Copy policies from the country's party of <select value={copyFrom} onChange={(e) => setCopyFrom(e.target.value)}>
               <option value="">(none)</option>
               {ideologies.map((i) => <option key={i}>{i}</option>)}
             </select></label>
-            <label>Fixed policies <textarea value={policies} onChange={(e) => setPolicies(e.target.value)} rows={3}
-              placeholder={`religious_policy = moralism\n(party issues: ${issues.slice(0, 5).join(", ")})`} /></label>
-            <label>Only tags <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="PRU, AUS (empty = all)" /></label>
-            <label>Only culture groups <input value={cultureGroups} onChange={(e) => setCultureGroups(e.target.value)} placeholder="germanic (empty = all)" /></label>
-            <label>Civilized <select value={civilized} onChange={(e) => setCivilized(e.target.value as "" | "yes" | "no")}>
+            <div title="A party's policies: the party issues of common/issues.txt (party_issues). A choice here is the same for every new party; '(copy)' keeps what the copied party has.">
+              <div>Policies of the new parties</div>
+              <div className="policy-grid">{Object.entries(issueTree.party_issues ?? {}).map(([issue, opts]) => (
+                <label key={issue} style={{ display: "contents" }}>
+                  <span>{issue}</span>
+                  <select value={policies[issue] ?? ""} onChange={(e) => setPolicies({ ...policies, [issue]: e.target.value })}>
+                    <option value="">{copyFrom ? "(copy)" : "(none)"}</option>
+                    {opts.map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                </label>
+              ))}</div>
+            </div>
+            <label title="Only these countries get the party (empty = every country that passes the other filters); search by tag or name">Only countries <ChipPicker value={tags} onChange={setTags}
+              items={countries.map((c) => ({ name: c.tag, label: c.name }))} placeholder="search a tag or a name (empty = all)" /></label>
+            <label title="Only countries whose primary culture is in one of these groups (common/cultures.txt)">Only culture groups <ChipPicker value={cultureGroups} onChange={setCultureGroups}
+              items={cultureGroupNames.map((g) => ({ name: g }))} placeholder="search a group (empty = all)" /></label>
+            <label title="Only civilised or only uncivilised countries (their history's civilized)">Civilized <select value={civilized} onChange={(e) => setCivilized(e.target.value as "" | "yes" | "no")}>
               <option value="">any</option><option value="yes">yes</option><option value="no">no</option>
             </select></label>
-            <label>English name <input value={locText} onChange={(e) => setLocText(e.target.value)} placeholder="{adj} Christian Democrats" /></label>
+            <label title="The party's name in every country; {adj} becomes the country's adjective (e.g. Prussian)">English name <input value={locText} onChange={(e) => setLocText(e.target.value)} placeholder="{adj} Christian Democrats" /></label>
           </>
         )}
         <div className="creator-buttons">

@@ -291,3 +291,10 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .map-province td { padding: 1px 6px 1px 0; }
 .map-province .chip { cursor: pointer; margin: 1px; }
 .bottom-close { margin-left: auto; }
+.chip-picker { display: inline-flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+.chip-x { cursor: pointer; color: var(--muted); margin-left: 2px; }
+.chip-search { position: relative; display: inline-block; }
+.chip-list { position: absolute; z-index: 20; top: 100%; left: 0; min-width: 260px; max-height: 260px; overflow: auto; background: var(--bg); border: 1px solid var(--border); box-shadow: 0 3px 8px rgba(0,0,0,.2); }
+.chip-list .row { display: block; padding: 2px 6px; cursor: pointer; }
+.chip-list .row:hover { background: var(--hover); }
+.policy-grid { display: grid; grid-template-columns: max-content max-content; gap: 3px 8px; align-items: center; }

@@ -54,6 +54,8 @@ API (all under ``/api/``, JSON in and out):
                             (both also take ``great`` / ``secondary``: the powers, tags)
 ``saves``           GET     save games found on this computer (K98 A); the world endpoints
                             take ``save`` (a .v2 path) instead of ``date``
+``issues``          GET     common/issues.txt: category -> issue -> options (T032)
+``countries``       GET     every country tag with its English name (T032)
 ``trigger/powers``  GET     ``date`` -> great / secondary powers guessed from prestige
 ``ping``            GET     ``{stamp, stale, pid}``: is the server there, is its code current
 ``bye``             POST    ``client`` (query): a browser tab was closed (`lifecycle`)
@@ -616,6 +618,34 @@ class Engine:
         """Names of a registry (``ideology``, ``issue``, ``country`` …), sorted."""
         defs = self.ws.registries().names.get(registry, {})
         return {"names": sorted(d.name for d in defs.values())}
+
+    def issue_options(self) -> dict[str, Any]:
+        """``common/issues.txt``: category -> issue -> its options (T032: party policies)."""
+        out: dict[str, dict[str, list[str]]] = {}
+        f = self.ws.file("common/issues.txt")
+        if f is None:
+            return {"categories": out}
+        for cat in self.ws.document(f.rel).assignments():
+            if not isinstance(cat.value, Block):
+                continue
+            issues: dict[str, list[str]] = {}
+            for issue in cat.value.assignments():
+                if isinstance(issue.value, Block):
+                    issues[issue.key_text] = [
+                        o.key_text for o in issue.value.assignments() if isinstance(o.value, Block)
+                    ]
+            out[cat.key_text] = issues
+        return {"categories": out}
+
+    def country_list(self) -> dict[str, Any]:
+        """Every country tag with its English name (for searching by tag or name)."""
+        loc = self.ws.registries().localisation
+        out = []
+        for d in self.ws.registries().names.get("country", {}).values():
+            tag = d.name.upper()
+            entry = loc.get(tag) if loc else None
+            out.append({"tag": tag, "name": entry.text() if entry else ""})
+        return {"countries": sorted(out, key=lambda c: c["tag"])}
 
     def changed(self) -> dict[str, Any]:
         """Mod files whose size / time changed (or appeared, vanished) since the last call.
@@ -2104,6 +2134,10 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.rename(body["rel"], int(body["offset"]), str(body["new_name"]))
                 case ("GET", "names"):
                     return e.names(q("registry"))
+                case ("GET", "issues"):
+                    return e.issue_options()
+                case ("GET", "countries"):
+                    return e.country_list()
                 case ("GET", "outline"):
                     return e.outline(q("rel"))
                 case ("GET", "blocks"):
