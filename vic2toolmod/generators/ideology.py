@@ -229,6 +229,27 @@ def _from_scratch(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
         items.append(("uncivilized", "no"))
     if spec.can_reduce_militancy:
         items.append(("can_reduce_militancy", "yes"))
+        holders = [
+            ide.key_text
+            for group in doc.items
+            if isinstance(group, Assignment) and isinstance(group.value, Block)
+            for ide in group.value.items
+            if isinstance(ide, Assignment)
+            and isinstance(ide.value, Block)
+            and (flag := ide.value.find("can_reduce_militancy")) is not None
+            and flag.value is not None
+            and flag.value.to_text().strip().lower() == "yes"
+        ]
+        if holders:
+            notes_first = (
+                f"can_reduce_militancy marks the game's one conservative ideology; "
+                f"{', '.join(holders)} has it already - only one of them gets the role "
+                "(Project Alice: the last one in the file)"
+            )
+        else:
+            notes_first = ""
+    else:
+        notes_first = ""
     for key in (
         "add_political_reform",
         "remove_political_reform",
@@ -249,7 +270,7 @@ def _from_scratch(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
             raise ValueError(f"no ideology group {spec.group!r}: choose one or make a new one")
         edit = insert(doc, target.value, [(spec.name, items)])
     changes = [_change(ws, rel, doc.text, apply_edits(doc.text, [edit]))]
-    notes: list[str] = []
+    notes: list[str] = [notes_first] if notes_first else []
 
     # pop support: a factor per pop type by its strata - only when given (the form leaves
     # it to the editor, T031 17:37)

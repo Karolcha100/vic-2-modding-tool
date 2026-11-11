@@ -289,7 +289,7 @@ export function Creators({ onStatus, files, onOpen }: Props) {
             {scratch && (
               <>
                 <label title="uncivilized = no keeps the ideology out of uncivilised countries"><input type="checkbox" checked={uncivilized} onChange={(e) => setUncivilized(e.target.checked)} /> also in uncivilised countries</label>
-                <label title="can_reduce_militancy = yes: a ruling party of this ideology lowers militancy (vanilla: conservative, liberal)"><input type="checkbox" checked={reduceMil} onChange={(e) => setReduceMil(e.target.checked)} /> can reduce militancy</label>
+                <label title="can_reduce_militancy = yes marks THE conservative ideology of the game (one only; vanilla and RPM: conservative): pops' support for it lowers their militancy (define MIL_IDEOLOGY) and after every reform its share of the upper house grows (CONSERVATIVE_INCREASE_AFTER_REFORM). Ticking it here takes that role from the current one (see @T034)."><input type="checkbox" checked={reduceMil} onChange={(e) => setReduceMil(e.target.checked)} /> can reduce militancy</label>
                 <div className="muted">Reform wishes (<code>add_ / remove_ political / social reform</code>) are written with <code>base = 0</code>: set them and their modifiers in <code>common/ideologies.txt</code> in the editor. Pop support goes into the <code>ideologies</code> block of each <code>poptypes/*.txt</code> (<code>{iName || "name"} = {"{"} factor = … {"}"}</code>) - add it in the editor too, or no pop supports the ideology.</div>
                 <div title="common/governments.txt: under these governments a party of this ideology can rule">Governments that allow it:
                   <div className="gov-list">{governments.map((g) => (

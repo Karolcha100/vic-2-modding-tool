@@ -386,3 +386,22 @@ def test_scratch_ideology_leaves_pop_support_to_the_editor(tmp_path):
     assert any("pop support: add x_ide" in n for n in plan.notes)
     new = parse_text(files["common/ideologies.txt"]).find("liberal_group").value.find("x_ide").value
     assert new.find("add_political_reform").value.find("base").value.text == "0"
+
+
+def test_can_reduce_militancy_warns_about_the_current_holder(tmp_path):
+    """T034: the flag marks the one conservative ideology; a second one gets a note."""
+    ws = make(tmp_path)
+    text = (
+        (tmp_path / "game/common/ideologies.txt")
+        .read_text()
+        .replace(
+            "\t\tcolor = { 1 2 3 }\n", "\t\tcolor = { 1 2 3 }\n\t\tcan_reduce_militancy = yes\n"
+        )
+    )
+    (tmp_path / "game/common/ideologies.txt").write_text(text)
+    ws = Workspace.open(tmp_path / "game", tmp_path / "mod")
+    spec = IdeologySpec(
+        "x_ide", "X", None, group="liberal_group", color=(1, 2, 3), can_reduce_militancy=True
+    )
+    notes = plan_ideology(ws, spec).notes
+    assert any("conservative has it already" in n for n in notes)
