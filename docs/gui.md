@@ -81,10 +81,10 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   one list per party policy (`party_issues` of `common/issues.txt`), countries
   and culture groups chosen by search. New event: a new file can claim an id
   range (its `### Events N-M used` header), a chosen id, the trigger as code,
-  the options' names (their effects and `ai_chance` go in the editor). New decision:
-  picture, `potential`, `allow`, `effect` and `ai_will_do` as code. Every code
-  box has a search of triggers, effects or modifiers with a filter (scope, or a
-  modifier's subject); reform options pick their modifiers the same way.
+  the options' names (their effects and `ai_chance` go in the editor). New
+  decision: file, key, title, description and picture (the blocks are filled
+  in the editor). The event trigger and the reform options' modifiers have a
+  search of triggers / modifiers with a filter (scope, or a modifier's subject).
 - **New country** (K70 E): copies an existing country (the template) - tag in
   `common/countries.txt` (before `dynamic_tags = yes`), country file with the
   new colour and the parties renamed to the new tag, history without dated

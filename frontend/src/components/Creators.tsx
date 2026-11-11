@@ -87,12 +87,7 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   const [dName, setDName] = useState("");
   const [dTitle, setDTitle] = useState("");
   const [dDesc, setDDesc] = useState("");
-  // T033 for decisions: picture and the blocks as code
   const [dPicture, setDPicture] = useState("");
-  const [dPotential, setDPotential] = useState("");
-  const [dAllow, setDAllow] = useState("");
-  const [dEffect, setDEffect] = useState("");
-  const [dAi, setDAi] = useState("factor = 1");
   // country
   const [cTag, setCTag] = useState("");
   const [cName, setCName] = useState("");
@@ -189,8 +184,7 @@ export function Creators({ onStatus, files, onOpen }: Props) {
         setResult({ diff: r.diff, lines: [...r.notes, `files: ${r.files.join(", ")}`, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
         if (write) { onStatus(`Country ${cTag} created`); onOpen(r.files.find((f) => f.startsWith("history/")) ?? r.files[0]); }
       } else if (kind === "decision") {
-        const r = await api.createDecision({ file: dFile, name: dName, title: dTitle, description: dDesc, picture: dPicture,
-          potential: dPotential, allow: dAllow, effect: dEffect, ai_will_do: dAi }, write);
+        const r = await api.createDecision({ file: dFile, name: dName, title: dTitle, description: dDesc, picture: dPicture }, write);
         setResult({ diff: r.diff, lines: [...r.notes, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
         if (write) { onStatus(`Decision ${dName} created`); onOpen(`decisions/${dFile}`); }
       } else {
@@ -346,14 +340,7 @@ export function Creators({ onStatus, files, onOpen }: Props) {
             <label title="The decision's name players see">Title <input value={dTitle} onChange={(e) => setDTitle(e.target.value)} /></label>
             <label title="The decision's text">Description <textarea value={dDesc} onChange={(e) => setDDesc(e.target.value)} rows={3} /></label>
             <label title="picture = …: a picture of gfx/pictures/decisions (optional)">Picture <input value={dPicture} onChange={(e) => setDPicture(e.target.value)} placeholder="(optional)" /></label>
-            <div title="potential = { … }: when the decision shows up in the list at all">Potential (shown when)
-              <CodeWithPicker value={dPotential} onChange={setDPotential} kinds={["trigger"]} placeholder={"tag = ENG\nNOT = { has_country_flag = built_it }"} /></div>
-            <div title="allow = { … }: when it can be taken (shown greyed out otherwise)">Allow (can be taken when)
-              <CodeWithPicker value={dAllow} onChange={setDAllow} kinds={["trigger"]} placeholder="money = 1000" /></div>
-            <div title="effect = { … }: what taking it does">Effect
-              <CodeWithPicker value={dEffect} onChange={setDEffect} kinds={["effect", "trigger"]} placeholder={"set_country_flag = built_it\nprestige = 5"} /></div>
-            <div title="ai_will_do = { factor … modifier = { factor … conditions } }: how willing the AI is to take it (factor 0 = never)">AI will do
-              <CodeWithPicker value={dAi} onChange={setDAi} kinds={["trigger"]} rows={2} placeholder={"factor = 1\nmodifier = { factor = 0 war = yes }"} /></div>
+            <div className="muted">Writes the decision with empty <code>potential</code>, <code>allow</code> and <code>effect</code> blocks and <code>ai_will_do = {"{"} factor = 1 {"}"}</code>, and its title / description localisation: fill the blocks in the editor.</div>
           </>
         )}
         {kind === "country" && (
