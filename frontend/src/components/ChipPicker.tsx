@@ -13,7 +13,13 @@ export function ChipPicker({ value, onChange, items, placeholder, title }: {
   const [query, setQuery] = useState("");
   const chosen = value.split(/[\s,]+/).filter(Boolean);
   const q = query.trim().toLowerCase();
-  const found = q ? items.filter((i) => !chosen.includes(i.name) && (i.name.toLowerCase().includes(q) || (i.label ?? "").toLowerCase().includes(q))).slice(0, 12) : [];
+  // best first: the exact name, then names / labels starting with the text, then the rest
+  const score = (i: { name: string; label?: string }) => {
+    const n = i.name.toLowerCase(), l = (i.label ?? "").toLowerCase();
+    return n === q ? 0 : n.startsWith(q) ? 1 : l.startsWith(q) || l.includes(` ${q}`) ? 2 : 3;
+  };
+  const found = q ? items.filter((i) => !chosen.includes(i.name) && (i.name.toLowerCase().includes(q) || (i.label ?? "").toLowerCase().includes(q)))
+    .sort((a, b) => score(a) - score(b) || a.name.localeCompare(b.name)).slice(0, 12) : [];
   const add = (name: string) => { onChange([...chosen, name].join(" ")); setQuery(""); };
   return (
     <span className="chip-picker" title={title}>

@@ -70,6 +70,17 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
 - **Create** view (K70): new reform, new ideology (with pop support and
   governments copied from a template), parties for an ideology (K58), new
   event (free id, EVTNAME / EVTDESC / EVTOPT localisation), new decision.
+- **Create forms** (T029–T033): every field explains itself on hover. New
+  reform: its box goes to the first free place of the category's grid in the
+  reform window (or a given x, y); the option every country starts with and
+  exceptions by country (search by tag or name) go into `history/countries`.
+  New ideology: copied from another, or without a template (reform wishes,
+  support by strata, governments that allow it), also in a new group. Parties:
+  one list per party policy (`party_issues` of `common/issues.txt`), countries
+  and culture groups chosen by search. New event: a new file can claim an id
+  range (its `### Events N-M used` header), a chosen id, the trigger as code
+  with a search of the triggers, options with effects (a search of the
+  effects) and the AI's factor.
 - **New country** (K70 E): copies an existing country (the template) - tag in
   `common/countries.txt` (before `dynamic_tags = yes`), country file with the
   new colour and the parties renamed to the new tag, history without dated

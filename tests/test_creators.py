@@ -268,3 +268,47 @@ def test_reform_country_options_and_free_spot(tmp_path):
         ],
     )
     assert free_spot(layout, "political_reforms") == (100, 220)
+
+
+def test_new_event_with_id_range_trigger_and_options(tmp_path):
+    """T033: a new file claims an id range; a chosen id; trigger; options with effects and AI."""
+    from vic2toolmod.generators.event_decision import EventOption, EventSpec, plan_event
+
+    ws = make(tmp_path)
+    spec = EventSpec(
+        "New.txt",
+        "Title",
+        "Desc",
+        [
+            EventOption(
+                "Yes",
+                "prestige = 5\nadd_country_modifier = {\n    name = x\n    duration = 365\n}",
+                "2",
+            ),
+            "No",
+        ],
+        triggered_only=False,
+        months=6,
+        id_range=(5000, 5099),
+        trigger="tag = ENG\nwar = no",
+    )
+    plan = plan_event(ws, spec)
+    text = by_rel(plan.changes)["events/New.txt"]
+    assert text.startswith("### Events 5000-5099 used")
+    doc = parse_text(text)
+    ev = doc.find("country_event").value
+    assert ev.find("id").value.text == "5000"
+    assert [a.key_text for a in ev.find("trigger").value.assignments()] == ["tag", "war"]
+    first = next(ev.assignments("option")).value
+    assert (
+        first.find("prestige").value.text == "5"
+        and first.find("ai_chance").value.find("factor").value.text == "2"
+    )
+    assert "\t\tadd_country_modifier = {\r\n\t\t\tname = x" in text
+    assert doc.diagnostics == []
+    plan = plan_event(ws, EventSpec("New2.txt", "T", "D", event_id=777))
+    assert "id = 777" in by_rel(plan.changes)["events/New2.txt"]
+    with pytest.raises(ValueError, match="the code has errors"):
+        plan_event(ws, EventSpec("New3.txt", "T", "D", triggered_only=False, trigger="a = {"))
+    with pytest.raises(ValueError, match="not a number"):
+        plan_event(ws, EventSpec("New3.txt", "T", "D", [EventOption("A", "", "x")]))

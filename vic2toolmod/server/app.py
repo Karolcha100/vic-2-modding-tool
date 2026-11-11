@@ -54,6 +54,7 @@ API (all under ``/api/``, JSON in and out):
                             (both also take ``great`` / ``secondary``: the powers, tags)
 ``saves``           GET     save games found on this computer (K98 A); the world endpoints
                             take ``save`` (a .v2 path) instead of ``date``
+``commands``        GET     ``context`` (trigger / effect) -> names and short descriptions
 ``issues``          GET     common/issues.txt: category -> issue -> options (T032)
 ``countries``       GET     every country tag with its English name (T032)
 ``trigger/powers``  GET     ``date`` -> great / secondary powers guessed from prestige
@@ -618,6 +619,19 @@ class Engine:
         """Names of a registry (``ideology``, ``issue``, ``country`` …), sorted."""
         defs = self.ws.registries().names.get(registry, {})
         return {"names": sorted(d.name for d in defs.values())}
+
+    def command_list(self, context: str) -> dict[str, Any]:
+        """Triggers or effects of the schema with a short description (T033: pickers)."""
+        from vic2toolmod.schema.model import Context
+
+        ctx = Context.TRIGGER if context == "trigger" else Context.EFFECT
+        out = []
+        for (c, name), alts in sorted(self.ws.schema.commands.items(), key=lambda kv: kv[0][1]):
+            if c is not ctx:
+                continue
+            doc = next((a.doc for a in alts if a.doc), "")
+            out.append({"name": name, "doc": doc.split("\n")[0][:160]})
+        return {"commands": out}
 
     def issue_options(self) -> dict[str, Any]:
         """``common/issues.txt``: category -> issue -> its options (T032: party policies)."""
@@ -1193,7 +1207,11 @@ class Engine:
                 )
                 changes, notes = plan.changes, plan.notes
             elif kind == "event":
-                from vic2toolmod.generators.event_decision import EventSpec, plan_event
+                from vic2toolmod.generators.event_decision import (
+                    EventOption,
+                    EventSpec,
+                    plan_event,
+                )
 
                 plan3 = plan_event(
                     self.ws,
@@ -1201,11 +1219,27 @@ class Engine:
                         file=str(s["file"]),
                         title=str(s["title"]),
                         description=str(s["description"]),
-                        options=[str(o) for o in s.get("options") or ["OK"]],
+                        options=[
+                            EventOption(
+                                str(o.get("name", "")),
+                                str(o.get("effects", "")),
+                                str(o.get("ai_factor", "")),
+                            )
+                            if isinstance(o, dict)
+                            else str(o)
+                            for o in s.get("options") or ["OK"]
+                        ],
                         kind=str(s.get("kind", "country_event")),
                         triggered_only=bool(s.get("triggered_only", True)),
                         months=int(s.get("months", 12)),
                         picture=str(s.get("picture", "")),
+                        event_id=int(s["event_id"]) if s.get("event_id") else None,
+                        id_range=(
+                            (int(s["id_range"][0]), int(s["id_range"][1]))
+                            if s.get("id_range")
+                            else None
+                        ),
+                        trigger=str(s.get("trigger", "")),
                     ),
                 )
                 changes, notes = plan3.changes, plan3.notes
@@ -2153,6 +2187,8 @@ def make_handler(engine: Engine, token: str) -> type[BaseHTTPRequestHandler]:
                     return e.rename(body["rel"], int(body["offset"]), str(body["new_name"]))
                 case ("GET", "names"):
                     return e.names(q("registry"))
+                case ("GET", "commands"):
+                    return e.command_list(q("context"))
                 case ("GET", "issues"):
                     return e.issue_options()
                 case ("GET", "countries"):

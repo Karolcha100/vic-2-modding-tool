@@ -5,7 +5,9 @@ localisation keys of the game: ``EVTNAME<id>``, ``EVTDESC<id>`` and
 ``EVTOPTA<id>``, ``EVTOPTB<id>`` … for the options. Decisions go into a
 ``political_decisions`` block with ``<name>_title`` / ``<name>_desc`` keys.
 The new content is inserted at the end of an existing file or written as a
-new file; the trigger and effects stay empty for the author (or the block view).
+new file. T033: a new file can claim an id range (its ``### Events N-M used``
+header), the event can have a chosen id, its trigger and each option's effects
+and ``ai_chance`` factor are written from the code given.
 """
 
 from __future__ import annotations
@@ -17,13 +19,29 @@ from typing import Any
 
 from vic2toolmod.changes import FileChange
 from vic2toolmod.edit import apply_edits, insert, render_items
-from vic2toolmod.project.events import next_free_id
+from vic2toolmod.project.events import next_free_id, used_ids
 from vic2toolmod.project.localisation import set_entries
 from vic2toolmod.script.cst import Block
+from vic2toolmod.script.parser import parse_text
 from vic2toolmod.workspace import Workspace
 
 _NAME = re.compile(r"[a-z][a-z0-9_]*")
 _FILE = re.compile(r"[A-Za-z0-9_\- ]+\.txt")
+
+
+@dataclass
+class EventOption:
+    """One option of a new event (T033).
+
+    Attributes:
+        name: English name.
+        effects: Script code of its effects (may be empty).
+        ai_factor: ``ai_chance = { factor = … }`` (empty = none).
+    """
+
+    name: str
+    effects: str = ""
+    ai_factor: str = ""
 
 
 @dataclass
@@ -39,16 +57,22 @@ class EventSpec:
         triggered_only: Fired only by other events / decisions (no MTTH).
         months: Mean time to happen in months (when not triggered only).
         picture: Event picture name.
+        event_id: A chosen id (``None`` = a free one).
+        id_range: The ids a new file claims (``### Events N-M used`` header).
+        trigger: Script code of the trigger (when not triggered only).
     """
 
     file: str
     title: str
     description: str
-    options: list[str] = field(default_factory=lambda: ["OK"])
+    options: list[str | EventOption] = field(default_factory=lambda: ["OK"])
     kind: str = "country_event"
     triggered_only: bool = True
     months: int = 12
     picture: str = ""
+    event_id: int | None = None
+    id_range: tuple[int, int] | None = None
+    trigger: str = ""
 
 
 @dataclass
@@ -103,30 +127,80 @@ def plan_event(ws: Workspace, spec: EventSpec) -> CreatePlan:
     if len(spec.options) > len(string.ascii_uppercase):
         raise ValueError("too many options")
     rel, old = _target(ws, "events", spec.file)
-    eid = next_free_id(ws.registries(), old)
-    items: list[tuple[str, Any]] = [
-        ("id", str(eid)),
-        ("title", f'"EVTNAME{eid}"'),
-        ("desc", f'"EVTDESC{eid}"'),
+    options = [o if isinstance(o, EventOption) else EventOption(o) for o in spec.options]
+    for code, what in [(spec.trigger, "the trigger")] + [
+        (o.effects, f"option {o.name!r}") for o in options
+    ]:
+        if code.strip() and parse_text(code).has_errors:
+            raise ValueError(f"{what}: the code has errors (check the braces)")
+    for o in options:
+        if o.ai_factor.strip() and not re.fullmatch(r"-?\d+(\.\d+)?", o.ai_factor.strip()):
+            raise ValueError(f"option {o.name!r}: ai factor {o.ai_factor!r} is not a number")
+    notes: list[str] = []
+    used = used_ids(ws.registries())
+    header = ""
+    if spec.id_range is not None:
+        lo, hi = spec.id_range
+        if old is not None:
+            raise ValueError(
+                "an id range is set only for a new file (an existing file has its header)"
+            )
+        if not 0 < lo <= hi:
+            raise ValueError(f"bad id range {lo}-{hi}")
+        clash = sorted(i for i in used if lo <= i <= hi)
+        if clash:
+            notes.append(f"ids {clash[0]}…{clash[-1]} of the range are already used ({len(clash)})")
+        header = f"### Events {lo}-{hi} used"
+    if spec.event_id is not None:
+        if spec.event_id in used:
+            raise ValueError(f"event id {spec.event_id} is already used")
+        eid = spec.event_id
+    else:
+        eid = next_free_id(ws.registries(), old if old is not None else header or None)
+    nl = "\r\n" if old is None or "\r\n" in old else "\n"
+    lines = [
+        f"{spec.kind} = {{",
+        f"\tid = {eid}",
+        f'\ttitle = "EVTNAME{eid}"',
+        f'\tdesc = "EVTDESC{eid}"',
     ]
     if spec.picture:
-        items.append(("picture", f'"{spec.picture}"'))
+        lines.append(f'\tpicture = "{spec.picture}"')
     if spec.triggered_only:
-        items.append(("is_triggered_only", "yes"))
+        lines.append("\tis_triggered_only = yes")
     else:
-        items.append(("trigger", []))
-        items.append(("mean_time_to_happen", [("months", str(spec.months))]))
-    for n, _ in enumerate(spec.options):
-        items.append(("option", [("name", f'"EVTOPT{string.ascii_uppercase[n]}{eid}"')]))
-    new = _append(ws, rel, old, [(spec.kind, items)])
+        lines += ["\ttrigger = {", *_indent(spec.trigger, 2), "\t}"]
+        lines += [f"\tmean_time_to_happen = {{ months = {spec.months} }}"]
+    for n, o in enumerate(options):
+        lines += ["\toption = {", f'\t\tname = "EVTOPT{string.ascii_uppercase[n]}{eid}"']
+        lines += _indent(o.effects, 2)
+        if o.ai_factor.strip():
+            lines.append(f"\t\tai_chance = {{ factor = {o.ai_factor.strip()} }}")
+        lines.append("\t}")
+    lines.append("}")
+    block = nl.join(lines) + nl
+    if old is None:
+        new = (header + nl + nl if header else "") + block
+    else:
+        sep = "" if not old or old.endswith(("\n", "\r")) else nl
+        new = old + sep + nl + block
     changes = [_write(ws, rel, old, new)]
     loc: list[tuple[str, str, dict[str, str]]] = [
         (f"EVTNAME{eid}", spec.title, {}),
         (f"EVTDESC{eid}", spec.description, {}),
     ]
-    loc += [(f"EVTOPT{string.ascii_uppercase[n]}{eid}", o, {}) for n, o in enumerate(spec.options)]
+    loc += [(f"EVTOPT{string.ascii_uppercase[n]}{eid}", o.name, {}) for n, o in enumerate(options)]
     changes += set_entries(ws.project, loc)
-    return CreatePlan(changes, [f"event id {eid}"])
+    return CreatePlan(changes, [f"event id {eid}", *notes])
+
+
+def _indent(code: str, depth: int) -> list[str]:
+    """Lines of script code, re-indented with tabs at ``depth`` (empty lines dropped)."""
+    lines = [line.rstrip() for line in code.replace("\r\n", "\n").split("\n") if line.strip()]
+    if not lines:
+        return []
+    cut = min(len(line) - len(line.lstrip()) for line in lines)
+    return ["\t" * depth + line[cut:].replace("    ", "\t") for line in lines]
 
 
 def plan_decision(ws: Workspace, spec: DecisionSpec) -> CreatePlan:

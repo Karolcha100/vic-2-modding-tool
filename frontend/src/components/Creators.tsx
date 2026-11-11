@@ -4,6 +4,7 @@ import { api } from "../api";
 import { TemplateUse } from "./Templates";
 import { ProvinceMap } from "./ProvinceMap";
 import { ChipPicker } from "./ChipPicker";
+import { CodeWithPicker } from "./CodeWithPicker";
 
 /** Creators (K70): new reform (C), new ideology (D), parties for an ideology (K58). */
 
@@ -76,7 +77,11 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   const [eFile, setEFile] = useState("");
   const [eTitle, setETitle] = useState("");
   const [eDesc, setEDesc] = useState("");
-  const [eOptions, setEOptions] = useState("OK");
+  // T033: chosen id, an id range for a new file, the trigger, options with effects and AI factor
+  const [eOptions, setEOptions] = useState<{ name: string; effects: string; ai_factor: string }[]>([{ name: "OK", effects: "", ai_factor: "" }]);
+  const [eId, setEId] = useState("");
+  const [eRange, setERange] = useState(["", ""]);
+  const [eTrigger, setETrigger] = useState("");
   const [eKind, setEKind] = useState("country_event");
   const [eTriggered, setETriggered] = useState(true);
   const [eMonths, setEMonths] = useState(12);
@@ -158,8 +163,11 @@ export function Creators({ onStatus, files, onOpen }: Props) {
         setResult({ diff: r.diff, lines: [...r.notes, `files: ${r.files.length}`, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
         if (write) { onStatus(`Ideology ${iName} created`); setPIdeology(iName); }
       } else if (kind === "event") {
-        const spec = { file: eFile, title: eTitle, description: eDesc, options: eOptions.split("\n").map((o) => o.trim()).filter(Boolean),
-          kind: eKind, triggered_only: eTriggered, months: eMonths };
+        const newFile = !files.includes(`events/${eFile}`);
+        const spec = { file: eFile, title: eTitle, description: eDesc, options: eOptions.filter((o) => o.name.trim()),
+          kind: eKind, triggered_only: eTriggered, months: eMonths, trigger: eTrigger,
+          event_id: eId.trim() ? Number(eId) : null,
+          id_range: newFile && eRange[0] && eRange[1] ? [Number(eRange[0]), Number(eRange[1])] : null };
         const r = await api.createEvent(spec, write);
         setResult({ diff: r.diff, lines: [...r.notes, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
         if (write) { onStatus(`Event created (${r.notes.join(", ")})`); onOpen(`events/${eFile}`); }
@@ -310,10 +318,30 @@ export function Creators({ onStatus, files, onOpen }: Props) {
             </select></label>
             <label>Title <input value={eTitle} onChange={(e) => setETitle(e.target.value)} /></label>
             <label>Description <textarea value={eDesc} onChange={(e) => setEDesc(e.target.value)} rows={3} /></label>
-            <label>Options (one per line) <textarea value={eOptions} onChange={(e) => setEOptions(e.target.value)} rows={3} /></label>
+            {eFile && !files.includes(`events/${eFile}`) && (
+              <label title="A new file: the event ids it claims, written in its first line (### Events N-M used) - new events of this file take free ids from there">Ids of the new file from
+                {" "}<input value={eRange[0]} onChange={(e) => setERange([e.target.value, eRange[1]])} size={8} placeholder="95000" /> to
+                {" "}<input value={eRange[1]} onChange={(e) => setERange([eRange[0], e.target.value])} size={8} placeholder="95099" /></label>
+            )}
+            <label title="Empty: the first free id (of the file's range, or after the highest id of the mod)">Event id <input value={eId} onChange={(e) => setEId(e.target.value.replace(/\D/g, ""))} placeholder="(a free id)" size={10} /></label>
             <label title="is_triggered_only = yes: the event never happens by itself; other events or decisions fire it (country_event = id)"><input type="checkbox" checked={eTriggered} onChange={(e) => setETriggered(e.target.checked)} /> only fired by other events / decisions</label>
             {!eTriggered && <label title="mean_time_to_happen: the average waiting time once the trigger holds (modifiers can change it later)">Mean time to happen (months) <input type="number" value={eMonths} onChange={(e) => setEMonths(Number(e.target.value) || 1)} /></label>}
-            <div className="muted">Gets a free id (from the file's "Events N-M" header if it has one) and EVTNAME / EVTDESC / EVTOPT localisation. Fill the trigger and effects in the block view.</div>
+            {!eTriggered && <div title="trigger = { … }: when the event can happen (all conditions must hold)">Trigger
+              <CodeWithPicker value={eTrigger} onChange={setETrigger} context="trigger" placeholder={"tag = ENG\nwar = no"} /></div>}
+            <div title="Each option: its name, its effects (code) and how much the AI likes it (ai_chance factor)">Options</div>
+            {eOptions.map((o, i) => (
+              <div key={i} className="event-option">
+                <div className="option-row">
+                  <input value={o.name} onChange={(e) => setEOptions(eOptions.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} placeholder="Option name (English)" />
+                  <input value={o.ai_factor} onChange={(e) => setEOptions(eOptions.map((x, j) => (j === i ? { ...x, ai_factor: e.target.value } : x)))}
+                    placeholder="AI factor" size={8} title="ai_chance = { factor = … }: how often the AI picks it, relative to the other options (empty = the game's default)" />
+                  <button onClick={() => setEOptions(eOptions.filter((_, j) => j !== i))} disabled={eOptions.length <= 1}>×</button>
+                </div>
+                <CodeWithPicker value={o.effects} onChange={(v) => setEOptions(eOptions.map((x, j) => (j === i ? { ...x, effects: v } : x)))} context="effect" placeholder="prestige = 5" rows={2} />
+              </div>
+            ))}
+            <button onClick={() => setEOptions([...eOptions, { name: "", effects: "", ai_factor: "" }])}>+ option</button>
+            <div className="muted">Gets the chosen id or a free one (from the file's "Events N-M" header if it has one) and EVTNAME / EVTDESC / EVTOPT localisation.</div>
           </>
         )}
         {kind === "decision" && (

@@ -299,3 +299,7 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .chip-list .row:hover { background: var(--hover); }
 .policy-grid { display: grid; grid-template-columns: max-content max-content; gap: 3px 8px; align-items: center; }
 .gov-list { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.code-picker { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.code-picker textarea { width: 100%; font-family: monospace; }
+.code-picker .chip-list { min-width: 420px; }
+.event-option { border: 1px solid var(--border); border-radius: 4px; padding: 4px; display: flex; flex-direction: column; gap: 3px; }
