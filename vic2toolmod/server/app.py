@@ -1179,6 +1179,16 @@ class Engine:
                         ],
                         next_step_only=bool(s.get("next_step_only", True)),
                         administrative=bool(s.get("administrative", False)),
+                        in_window=bool(s.get("in_window", True)),
+                        window_position=(
+                            (int(s["position"][0]), int(s["position"][1]))
+                            if s.get("position")
+                            else None
+                        ),
+                        country_default=s.get("country_default") or None,
+                        country_options={
+                            str(t): str(o) for t, o in (s.get("country_options") or {}).items()
+                        },
                     ),
                 )
                 changes, notes = plan.changes, plan.notes

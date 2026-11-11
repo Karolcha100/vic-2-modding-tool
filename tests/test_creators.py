@@ -213,3 +213,58 @@ def test_copied_ideology_in_a_new_group(tmp_path):
     plan = plan_ideology(ws, IdeologySpec("x_dem", "X", "conservative", new_group="new_group"))
     ide = parse_text(by_rel(plan.changes)["common/ideologies.txt"])
     assert ide.find("new_group").value.find("x_dem") is not None
+
+
+def test_reform_country_options_and_free_spot(tmp_path):
+    """T030: the option every country starts with, exceptions, and a free box in the window."""
+    from vic2toolmod.analysis import reform_window
+    from vic2toolmod.generators.reform import free_spot
+
+    ws = make(tmp_path)
+    write(
+        tmp_path / "game/history/countries/ENG - England.txt",
+        "capital = 300\n1861.1.1 = { x = 1 }\n",
+    )
+    write(tmp_path / "game/history/countries/FRA - France.txt", "capital = 400\n")
+    write(tmp_path / "game/history/countries/PRU - Prussia.txt", "capital = 549\n")
+    ws.project._files = None
+    options = [
+        OptionSpec("no_courts", "No"),
+        OptionSpec("some_courts", "Some"),
+        OptionSpec("courts", "Yes"),
+    ]
+    spec = ReformSpec(
+        "political_reforms",
+        "court_reform",
+        "Courts",
+        options,
+        country_default="some_courts",
+        country_options={"eng": "courts"},
+    )
+    files = by_rel(plan_reform(ws, spec).changes)
+    eng = files["history/countries/ENG - England.txt"]
+    assert eng.index("court_reform = courts") < eng.index("1861.1.1")  # before the dated blocks
+    assert "court_reform = some_courts" in files["history/countries/FRA - France.txt"]
+    # the default is the game's own (the first option): only the exceptions are written
+    spec2 = ReformSpec(
+        "political_reforms", "court_reform", "Courts", options, country_options={"FRA": "courts"}
+    )
+    files2 = by_rel(plan_reform(ws, spec2).changes)
+    assert "history/countries/PRU - Prussia.txt" not in files2
+    assert "court_reform = courts" in files2["history/countries/FRA - France.txt"]
+    with pytest.raises(ValueError, match="not an option"):
+        plan_reform(
+            ws, ReformSpec("political_reforms", "court_reform", "C", options, country_default="x")
+        )
+    # free_spot skips taken cells of the category's grid
+    layout = reform_window.Layout(
+        "f",
+        1024,
+        768,
+        [
+            reform_window.Box("a", 100, 60, 150, 70, "political_reforms", 1, False, False),
+            reform_window.Box("b", 100, 140, 150, 70, "political_reforms", 2, False, False),
+            reform_window.Box("c", 260, 60, 150, 70, "political_reforms", 3, False, False),
+        ],
+    )
+    assert free_spot(layout, "political_reforms") == (100, 220)

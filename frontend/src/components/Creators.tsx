@@ -46,6 +46,11 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   const [rEnglish, setREnglish] = useState("");
   const [nextStep, setNextStep] = useState(true);
   const [admin, setAdmin] = useState(false);
+  // T030: the box in the reform window; the option the countries start with, and exceptions
+  const [inWindow, setInWindow] = useState(true);
+  const [boxAt, setBoxAt] = useState(""); // "x, y" or "" = the first free place
+  const [countryDefault, setCountryDefault] = useState("");
+  const [exceptions, setExceptions] = useState<{ tags: string; option: string }[]>([]);
   const [options, setOptions] = useState<OptionRow[]>([
     { name: "", english: "", description: "", modifiers: "" },
     { name: "", english: "", description: "", modifiers: "" },
@@ -132,6 +137,9 @@ export function Creators({ onStatus, files, onOpen }: Props) {
       if (kind === "reform") {
         const spec = {
           category, name: rName, english: rEnglish, next_step_only: nextStep, administrative: admin,
+          in_window: inWindow, position: /^\s*-?\d+\s*[, ]\s*-?\d+\s*$/.test(boxAt) ? boxAt.split(/[, ]+/).filter(Boolean).map(Number) : null,
+          country_default: countryDefault || null,
+          country_options: Object.fromEntries(exceptions.flatMap((x) => x.option ? x.tags.split(/[\s,]+/).filter(Boolean).map((t) => [t, x.option]) : [])),
           options: options.filter((o) => o.name).map((o) => ({ ...o, modifiers: parseModifiers(o.modifiers) })),
         };
         const r = await api.createReform(spec, write);
@@ -228,7 +236,27 @@ export function Creators({ onStatus, files, onOpen }: Props) {
               </div>
             ))}
             <button onClick={() => setOptions([...options, { name: "", english: "", description: "", modifiers: "" }])}>+ option</button>
-            <div className="muted">Political and social reforms also get a box in the reform window (move it there later).</div>
+            {(category === "political_reforms" || category === "social_reforms") && (
+              <label title="Political and social reforms need a box in the reform window (interface/country_politics.gui), or players cannot see them. Automatic: the first place of the category's grid that no other box covers.">
+                <input type="checkbox" checked={inWindow} onChange={(e) => setInWindow(e.target.checked)} /> add its box to the reform window at
+                {" "}<input value={boxAt} onChange={(e) => setBoxAt(e.target.value)} placeholder="the first free place" size={18} disabled={!inWindow} /></label>
+            )}
+            <label title="The option every country starts with (written into history/countries); the game's default is the first option">Countries start with <select value={countryDefault} onChange={(e) => setCountryDefault(e.target.value)}>
+              <option value="">{options[0]?.name ? `${options[0].name} (the first: the game's default)` : "(the first option)"}</option>
+              {options.slice(1).filter((o) => o.name).map((o) => <option key={o.name}>{o.name}</option>)}
+            </select></label>
+            {exceptions.map((x, i) => (
+              <div key={i} className="option-row" title="These countries start with another option">
+                <ChipPicker value={x.tags} onChange={(v) => setExceptions(exceptions.map((y, j) => (j === i ? { ...y, tags: v } : y)))}
+                  items={countries.map((c) => ({ name: c.tag, label: c.name }))} placeholder="search a tag or a name" />
+                <select value={x.option} onChange={(e) => setExceptions(exceptions.map((y, j) => (j === i ? { ...y, option: e.target.value } : y)))}>
+                  <option value="">(option)</option>
+                  {options.filter((o) => o.name).map((o) => <option key={o.name}>{o.name}</option>)}
+                </select>
+                <button onClick={() => setExceptions(exceptions.filter((_, j) => j !== i))}>×</button>
+              </div>
+            ))}
+            <button title="Countries that start with another option than the one above" onClick={() => setExceptions([...exceptions, { tags: "", option: "" }])}>+ countries with another option</button>
           </>
         )}
         {kind === "ideology" && (
