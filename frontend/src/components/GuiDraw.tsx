@@ -142,6 +142,19 @@ export function useZoom() {
     return () => el.removeEventListener("wheel", onWheel);
   });
   const style = { width: `${zoom * 100}%`, height: `${zoom * 100}%` };
+  /** Zoom to `z` and scroll so the point (fractions of the drawing) is in the middle;
+   *  the scroll waits for the drawing's new size (an effect after the render). */
+  const [target, setTarget] = useState<null | { fx: number; fy: number; n: number }>(null);
+  const showAt = (z: number, fx: number, fy: number) => {
+    setZoom(Math.min(8, Math.max(1, z)));
+    setTarget((t) => ({ fx, fy, n: (t?.n ?? 0) + 1 }));
+  };
+  useEffect(() => {
+    const el = box.current;
+    if (!el || !target) return;
+    el.scrollLeft = target.fx * el.scrollWidth - el.clientWidth / 2;
+    el.scrollTop = target.fy * el.scrollHeight - el.clientHeight / 2;
+  }, [target, zoom]);
   const controls = (
     <span className="zoom-controls" title="Zoom: Ctrl + mouse wheel over the drawing">
       <button onClick={() => setZoom((z) => Math.max(1, z / 1.25))}>−</button>
@@ -150,7 +163,7 @@ export function useZoom() {
       <button onClick={() => setZoom(1)}>Fit</button>
     </span>
   );
-  return { zoom, box, style, controls };
+  return { showAt, zoom, box, style, controls };
 }
 
 /**

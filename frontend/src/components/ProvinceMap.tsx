@@ -15,7 +15,7 @@ const GOLD: [number, number, number] = [255, 204, 0];
 
 interface Pixels { w: number; h: number; ids: Int32Array; border: Uint8Array }
 
-export function ProvinceMap({ date = "1836.1.1", selected, onToggle, info: given, paint, hint, selectedColor }: {
+export function ProvinceMap({ date = "1836.1.1", selected, onToggle, info: given, paint, hint, selectedColor, focus }: {
   date?: string; selected: number[]; onToggle: (id: number) => void;
   /** The provinces' data when the caller has it already (the Map view). */
   info?: MapInfo | null;
@@ -24,6 +24,8 @@ export function ProvinceMap({ date = "1836.1.1", selected, onToggle, info: given
   hint?: string;
   /** The colour of the chosen provinces (default gold). */
   selectedColor?: RGB;
+  /** A province to zoom to (when it changes), e.g. from the editor's "Show on the map". */
+  focus?: number | null;
 }) {
   const [own, setInfo] = useState<MapInfo | null>(null);
   const info = given ?? own;
@@ -86,6 +88,20 @@ export function ProvinceMap({ date = "1836.1.1", selected, onToggle, info: given
     }
     g.putImageData(out, 0, 0);
   }, [info, pixels, selected, hover, paint, selectedColor]);
+
+  // zoom to a province: its pixels' box takes about a fifth of the view (K98 C, @A7 8)
+  useEffect(() => {
+    if (!focus || !pixels) return;
+    const { w, h, ids } = pixels;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let i = 0; i < w * h; i++) {
+      if (ids[i] !== focus) continue;
+      const x = i % w, y = (i - x) / w;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    if (x1 < 0) return;
+    zoom.showAt(Math.min(w / (x1 - x0 + 1), h / (y1 - y0 + 1)) / 5, (x0 + x1) / 2 / w, (y0 + y1) / 2 / h);
+  }, [focus, pixels]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const at = (e: React.MouseEvent<HTMLCanvasElement>): number => {
     if (!pixels) return 0;

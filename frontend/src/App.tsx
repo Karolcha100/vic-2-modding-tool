@@ -616,6 +616,9 @@ export function App() {
           {bottom.kind === "usages" && <span className="on">{bottom.title}</span>}
           {bottom.kind === "mod" && <span className="on">Whole mod: {bottom.files.length} files with problems</span>}
           {bottom.kind === "tester" && <span className="on">Trigger tester ({bottom.facts.length} facts)</span>}
+          {bottom.kind !== "problems" && (
+            <button className="mini bottom-close" title="Close (back to the problems of this file)" onClick={() => setBottom({ kind: "problems" })}>×</button>
+          )}
         </div>
         <div className="bottom-list">
           {bottom.kind === "problems" && shownDiagnostics.map((d, i) => (

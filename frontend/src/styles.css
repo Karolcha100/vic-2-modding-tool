@@ -290,3 +290,4 @@ textarea.code { font-family: monospace; font-size: 12px; white-space: pre; tab-s
 .map-province table { border-collapse: collapse; font-size: 12px; margin: 4px 0; }
 .map-province td { padding: 1px 6px 1px 0; }
 .map-province .chip { cursor: pointer; margin: 1px; }
+.bottom-close { margin-left: auto; }

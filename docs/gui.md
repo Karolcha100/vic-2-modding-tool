@@ -160,7 +160,8 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   owner, cores, history values, pops, neighbours (clickable) and **Open** its
   history file. In the editor, the hover on a province number (`owns = 549`,
   `549 = { }`) shows its name, owner and cores, and **Show on the map** (right
-  click) opens it there (K98 C). In Create → New country the chosen provinces
+  click) opens it there, zoomed to the province (K98 C, @A7). The bottom panel's
+  trigger tester and usage lists close with **×**. In Create → New country the chosen provinces
   are drawn in the new country's colour when it exists from the start.
 - **Versions** (T025): the whole mod saved under a name (**Save version**),
   the list of versions (what each changed, **Compare with now**) and **Go to

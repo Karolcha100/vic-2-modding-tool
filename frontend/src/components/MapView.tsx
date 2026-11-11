@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type MapInfo, type MapProvince, type ProvinceDetail, type RGB } from "../api";
 import { SidePanel, useStored } from "./Layout";
 import { useNav } from "../nav";
@@ -40,6 +40,13 @@ export function MapView({ onOpen }: { onOpen: (rel: string, line?: number) => vo
   const [results, setResults] = useState<{ results: Record<string, boolean | null>; true: number; false: number; unknown: number } | null>(null);
   // the chosen province is a navigation step; "Show on the map" in the editor sets it (K98 C)
   const [sel, setSel] = useNav<number | null>("map.sel", null);
+  // zoom to a province chosen from outside (the editor's "Show on the map"), not to map clicks
+  const clicked = useRef(false);
+  const [focus, setFocus] = useState<number | null>(null);
+  useEffect(() => {
+    if (!clicked.current && sel !== null) setFocus(sel);
+    clicked.current = false;
+  }, [sel]);
   const [detail, setDetail] = useState<ProvinceDetail | null>(null);
   const [error, setError] = useState("");
 
@@ -108,7 +115,8 @@ export function MapView({ onOpen }: { onOpen: (rel: string, line?: number) => vo
           <button onClick={runTrigger}>Show where it holds</button>
           {results && mode === "trigger" && <span className="muted"> <span style={{ color: `rgb(${YES})` }}>■</span> {results.true} yes · <span style={{ color: `rgb(${NO})` }}>■</span> {results.false} no · <span style={{ color: `rgb(${UNKNOWN})` }}>■</span> {results.unknown} not known from history</span>}
         </div>
-        {info && <ProvinceMap date={date} info={info} paint={paint} selected={sel !== null ? [sel] : []} onToggle={(id) => setSel(id === sel ? null : id)}
+        {info && <ProvinceMap date={date} info={info} paint={paint} selected={sel !== null ? [sel] : []} focus={focus}
+          onToggle={(id) => { clicked.current = true; setSel(id === sel ? null : id); }}
           hint="Click a province to see it; Ctrl + wheel zooms." />}
         {legend.length > 0 && (
           <div className="map-legend">{legend.map(([k, n]) => {
