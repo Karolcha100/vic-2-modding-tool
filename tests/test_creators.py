@@ -312,3 +312,64 @@ def test_new_event_with_id_range_trigger_and_options(tmp_path):
         plan_event(ws, EventSpec("New3.txt", "T", "D", triggered_only=False, trigger="a = {"))
     with pytest.raises(ValueError, match="not a number"):
         plan_event(ws, EventSpec("New3.txt", "T", "D", [EventOption("A", "", "x")]))
+
+
+def test_ideology_code_blocks_and_rich_decision(tmp_path):
+    """T031: reform wishes and pop support as code; T033: decision blocks from code."""
+    from vic2toolmod.generators.event_decision import DecisionSpec, plan_decision
+
+    ws = make(tmp_path)
+    plan = plan_ideology(
+        ws,
+        IdeologySpec(
+            "agrarian",
+            "Agrarian",
+            None,
+            group="liberal_group",
+            color=(1, 2, 3),
+            reform_code={
+                "add_political_reform": "base = 1\nmodifier = {\n\tfactor = -1\n"
+                "\tNOT = { ruling_party_ideology = agrarian }\n}"
+            },
+            support_code={"": "factor = 1\nmodifier = { factor = 2 literacy = 0.3 }"},
+        ),
+    )
+    files = by_rel(plan.changes)
+    new = (
+        parse_text(files["common/ideologies.txt"])
+        .find("liberal_group")
+        .value.find("agrarian")
+        .value
+    )
+    apr = new.find("add_political_reform").value
+    assert apr.find("base").value.text == "1" and apr.find("modifier").value.find("NOT") is not None
+    farm = parse_text(files["poptypes/farmers.txt"]).find("ideologies").value.find("agrarian").value
+    assert farm.find("modifier").value.find("literacy").value.text == "0.3"
+    with pytest.raises(ValueError, match="code has errors"):
+        plan_ideology(
+            ws,
+            IdeologySpec(
+                "x",
+                "X",
+                None,
+                group="liberal_group",
+                color=(1, 1, 1),
+                reform_code={"add_social_reform": "base = {"},
+            ),
+        )
+
+    d = DecisionSpec(
+        "New.txt",
+        "build_it",
+        "Build",
+        "D",
+        potential="tag = ENG",
+        allow="money = 100",
+        effect="prestige = 5\nadd_country_modifier = { name = x duration = 365 }",
+        ai_will_do="factor = 1\nmodifier = { factor = 0 war = yes }",
+    )
+    text = by_rel(plan_decision(ws, d).changes)["decisions/New.txt"]
+    dec = parse_text(text).find("political_decisions").value.find("build_it").value
+    assert dec.find("potential").value.find("tag").value.text == "ENG"
+    assert dec.find("ai_will_do").value.find("modifier") is not None
+    assert parse_text(text).diagnostics == []

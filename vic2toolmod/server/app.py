@@ -54,7 +54,7 @@ API (all under ``/api/``, JSON in and out):
                             (both also take ``great`` / ``secondary``: the powers, tags)
 ``saves``           GET     save games found on this computer (K98 A); the world endpoints
                             take ``save`` (a .v2 path) instead of ``date``
-``commands``        GET     ``context`` (trigger / effect) -> names and short descriptions
+``commands``        GET     ``context`` (trigger / effect / modifier) -> names, descriptions, groups
 ``issues``          GET     common/issues.txt: category -> issue -> options (T032)
 ``countries``       GET     every country tag with its English name (T032)
 ``trigger/powers``  GET     ``date`` -> great / secondary powers guessed from prestige
@@ -161,6 +161,103 @@ def memory_mb() -> int | None:
     except (OSError, ValueError, IndexError):
         return None
     return pages * os.sysconf("SC_PAGE_SIZE") // 2**20
+
+
+_MODIFIER_GROUPS = (
+    (
+        "pops",
+        (
+            "pop_",
+            "militancy",
+            "consciousness",
+            "literacy",
+            "promotion",
+            "assimilation",
+            "migration",
+            "growth",
+            "needs",
+        ),
+    ),
+    (
+        "military",
+        (
+            "army",
+            "navy",
+            "naval",
+            "land_",
+            "unit",
+            "combat",
+            "attack",
+            "defence",
+            "defense",
+            "morale",
+            "supply",
+            "mobili",
+            "leadership",
+            "regiment",
+            "org",
+            "reinforce",
+            "dig_in",
+            "recon",
+            "siege",
+            "war_",
+        ),
+    ),
+    (
+        "economy",
+        (
+            "tax",
+            "tariff",
+            "factory",
+            "rgo",
+            "throughput",
+            "output",
+            "input",
+            "goods",
+            "income",
+            "cost",
+            "money",
+            "loan",
+            "interest",
+            "production",
+            "farm",
+            "mine",
+            "trade",
+        ),
+    ),
+    (
+        "politics",
+        (
+            "reform",
+            "plurality",
+            "administrative",
+            "prestige",
+            "influence",
+            "badboy",
+            "infamy",
+            "ideology",
+            "party",
+            "vote",
+            "election",
+            "suppression",
+            "rebel",
+            "diplomatic",
+            "colonial",
+            "core",
+            "nationalism",
+        ),
+    ),
+    ("research", ("research", "education", "invention", "tech")),
+)
+
+
+def _modifier_group(name: str) -> str:
+    """A modifier's subject for the pickers' filter, from its name."""
+    low = name.lower()
+    for group, words in _MODIFIER_GROUPS:
+        if any(w in low for w in words):
+            return group
+    return "other"
 
 
 def _steps(body: dict[str, Any]) -> list[StepRow]:
@@ -621,16 +718,33 @@ class Engine:
         return {"names": sorted(d.name for d in defs.values())}
 
     def command_list(self, context: str) -> dict[str, Any]:
-        """Triggers or effects of the schema with a short description (T033: pickers)."""
+        """Triggers, effects or modifiers with a short description and a group (T033, T030).
+
+        The group is for the pickers' filters: the scopes a trigger / effect works in,
+        or a modifier's subject (pops, economy, military, politics, research, other)
+        guessed from its name.
+        """
         from vic2toolmod.schema.model import Context
 
+        out: list[dict[str, Any]] = []
+        if context == "modifier":
+            for name in sorted(self.ws.schema.modifiers):
+                doc = self.ws.schema.modifier_docs.get(name, "")
+                out.append(
+                    {
+                        "name": name,
+                        "doc": doc.split("\n")[0][:160],
+                        "groups": [_modifier_group(name)],
+                    }
+                )
+            return {"commands": out}
         ctx = Context.TRIGGER if context == "trigger" else Context.EFFECT
-        out = []
         for (c, name), alts in sorted(self.ws.schema.commands.items(), key=lambda kv: kv[0][1]):
             if c is not ctx:
                 continue
             doc = next((a.doc for a in alts if a.doc), "")
-            out.append({"name": name, "doc": doc.split("\n")[0][:160]})
+            scopes = sorted({sc for a in alts for sc in a.scopes}) or ["any"]
+            out.append({"name": name, "doc": doc.split("\n")[0][:160], "groups": scopes})
         return {"commands": out}
 
     def issue_options(self) -> dict[str, Any]:
@@ -1253,6 +1367,11 @@ class Engine:
                         name=str(s["name"]),
                         title=str(s["title"]),
                         description=str(s["description"]),
+                        picture=str(s.get("picture", "")),
+                        potential=str(s.get("potential", "")),
+                        allow=str(s.get("allow", "")),
+                        effect=str(s.get("effect", "")),
+                        ai_will_do=str(s.get("ai_will_do", "factor = 1")),
                     ),
                 )
                 changes, notes = plan4.changes, plan4.notes
@@ -1304,6 +1423,12 @@ class Engine:
                             str(k): float(v) for k, v in (s.get("reform_weights") or {}).items()
                         },
                         support={str(k): float(v) for k, v in (s.get("support") or {}).items()},
+                        reform_code={
+                            str(k): str(v) for k, v in (s.get("reform_code") or {}).items()
+                        },
+                        support_code={
+                            str(k): str(v) for k, v in (s.get("support_code") or {}).items()
+                        },
                         governments=[str(g) for g in s.get("governments") or []],
                     ),
                 )

@@ -23,7 +23,7 @@ import re
 from dataclasses import dataclass, field
 
 from vic2toolmod.changes import FileChange
-from vic2toolmod.edit import TextEdit, apply_edits, clone_after, insert, set_value
+from vic2toolmod.edit import Items, TextEdit, Value, apply_edits, clone_after, insert, set_value
 from vic2toolmod.project.localisation import set_entries
 from vic2toolmod.script.cst import Assignment, Block, Document
 from vic2toolmod.workspace import Workspace
@@ -58,8 +58,13 @@ class IdeologySpec:
     can_reduce_militancy: bool = False
     #: ``base`` of add_political_reform, remove_political_reform, add_social_reform, …
     reform_weights: dict[str, float] = field(default_factory=dict)
+    #: The same blocks as script code (``base = 1`` and ``modifier = { … }``), T031;
+    #: a block given here wins over `reform_weights`.
+    reform_code: dict[str, str] = field(default_factory=dict)
     #: Support in the pop types: strata (``rich`` / ``middle`` / ``poor``) -> factor.
     support: dict[str, float] = field(default_factory=dict)
+    #: The support block as code (``factor = 1`` and ``modifier = { … }``) by strata.
+    support_code: dict[str, str] = field(default_factory=dict)
     #: Governments that allow its parties to rule.
     governments: list[str] = field(default_factory=list)
 
@@ -209,8 +214,6 @@ def _names(spec: IdeologySpec) -> list[tuple[str, str, dict[str, str]]]:
 
 def _from_scratch(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
     """A new ideology from the given values (T031), without copying another."""
-    from vic2toolmod.edit import Items, Value
-
     if spec.color is None:
         raise ValueError("a new ideology without a template needs a colour")
     rel = "common/ideologies.txt"
@@ -232,6 +235,9 @@ def _from_scratch(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
         "add_social_reform",
         "remove_social_reform",
     ):
+        if spec.reform_code.get(key, "").strip():
+            items.append((key, _code_items(spec.reform_code[key], key)))
+            continue
         base: Items = [("base", _num(spec.reform_weights.get(key, 0)))]
         items.append((key, base))
     if spec.new_group:
@@ -254,8 +260,12 @@ def _from_scratch(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
             continue
         strata = pdoc.find("strata")
         level = strata.value.to_text().strip().lower() if strata and strata.value else ""
-        factor = spec.support.get(level, spec.support.get("", 1.0))
-        pop_items: Items = [("factor", _num(factor))]
+        code = spec.support_code.get(level, spec.support_code.get("", ""))
+        if code.strip():
+            pop_items: Items = _code_items(code, f"support of {level or 'pops'}")
+        else:
+            factor = spec.support.get(level, spec.support.get("", 1.0))
+            pop_items = [("factor", _num(factor))]
         pedit = insert(pdoc, block.value, [(spec.name, pop_items)])
         changes.append(_change(ws, f.rel, pdoc.text, apply_edits(pdoc.text, [pedit])))
         count += 1
@@ -280,6 +290,30 @@ def _from_scratch(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
     changes += set_entries(ws.project, _names(spec))
     notes.append("parties: use the party generator for the countries that should have one")
     return IdeologyPlan(changes, notes)
+
+
+def _code_items(code: str, what: str) -> Items:
+    """Script code as items for `insert` (blocks stay blocks; ``a < 5`` is not supported)."""
+    from vic2toolmod.script.cst import Scalar
+    from vic2toolmod.script.parser import parse_text
+
+    doc = parse_text(code)
+    if doc.has_errors:
+        raise ValueError(f"{what}: the code has errors (check the braces)")
+
+    def conv(nodes: list) -> Items:  # type: ignore[type-arg]
+        out: list[tuple[str, Value]] = []
+        for n in nodes:
+            if isinstance(n, Assignment) and n.value is not None:
+                if n.operator.text != "=":
+                    raise ValueError(f"{what}: only '=' is supported here ({n.key_text})")
+                if isinstance(n.value, Block):
+                    out.append((n.key_text, conv(n.value.items)))
+                elif isinstance(n.value, Scalar):
+                    out.append((n.key_text, n.value.value))
+        return out
+
+    return conv(doc.items)
 
 
 def _num(value: float) -> str:

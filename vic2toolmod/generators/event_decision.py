@@ -90,6 +90,12 @@ class DecisionSpec:
     name: str
     title: str
     description: str
+    picture: str = ""
+    #: Script code of the blocks (T033 for decisions); empty = an empty block.
+    potential: str = ""
+    allow: str = ""
+    effect: str = ""
+    ai_will_do: str = "factor = 1"
 
 
 @dataclass
@@ -212,21 +218,39 @@ def plan_decision(ws: Workspace, spec: DecisionSpec) -> CreatePlan:
     if ws.registries().has("decision", spec.name):
         raise ValueError(f"decision {spec.name!r} already exists")
     rel, old = _target(ws, "decisions", spec.file)
-    body: list[tuple[str, Any]] = [
-        ("potential", []),
-        ("allow", []),
-        ("effect", []),
-        ("ai_will_do", [("factor", "1")]),
+    blocks = [
+        ("potential", spec.potential),
+        ("allow", spec.allow),
+        ("effect", spec.effect),
+        ("ai_will_do", spec.ai_will_do),
     ]
+    for key, code in blocks:
+        if code.strip() and parse_text(code).has_errors:
+            raise ValueError(f"{key}: the code has errors (check the braces)")
+    nl = "\r\n" if old is None or "\r\n" in old else "\n"
+
+    def decision(depth: int) -> list[str]:
+        t = "\t" * depth
+        lines = [f"{t}{spec.name} = {{"]
+        if spec.picture:
+            lines.append(f'{t}\tpicture = "{spec.picture}"')
+        for key, code in blocks:
+            inner = _indent(code, depth + 2)
+            lines += [f"{t}\t{key} = {{", *inner, f"{t}\t}}"] if inner else [f"{t}\t{key} = {{ }}"]
+        lines.append(f"{t}}}")
+        return lines
+
     if old is not None:
         doc = ws.document(rel)
         group = doc.find("political_decisions")
-        if group is not None and isinstance(group.value, Block):
-            new = apply_edits(doc.text, [insert(doc, group.value, [(spec.name, body)])])
+        if group is not None and isinstance(group.value, Block) and group.value.rbrace is not None:
+            at = doc.text.rfind("\n", 0, group.value.rbrace.start) + 1
+            new = doc.text[:at] + nl.join(decision(1)) + nl + doc.text[at:]
         else:
-            new = _append(ws, rel, old, [("political_decisions", [(spec.name, body)])])
+            sep = "" if old.endswith(("\n", "\r")) else nl
+            new = old + sep + nl.join(["political_decisions = {", *decision(1), "}"]) + nl
     else:
-        new = _append(ws, rel, None, [("political_decisions", [(spec.name, body)])])
+        new = nl.join(["political_decisions = {", *decision(1), "}"]) + nl
     changes = [_write(ws, rel, old, new)]
     changes += set_entries(
         ws.project,
