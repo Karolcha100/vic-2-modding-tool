@@ -373,3 +373,16 @@ def test_ideology_code_blocks_and_rich_decision(tmp_path):
     assert dec.find("potential").value.find("tag").value.text == "ENG"
     assert dec.find("ai_will_do").value.find("modifier") is not None
     assert parse_text(text).diagnostics == []
+
+
+def test_scratch_ideology_leaves_pop_support_to_the_editor(tmp_path):
+    """T031 (17:37): without support values the pop files are not touched; the notes say so."""
+    ws = make(tmp_path)
+    plan = plan_ideology(
+        ws, IdeologySpec("x_ide", "X", None, group="liberal_group", color=(1, 2, 3))
+    )
+    files = by_rel(plan.changes)
+    assert not any(rel.startswith("poptypes/") for rel in files)
+    assert any("pop support: add x_ide" in n for n in plan.notes)
+    new = parse_text(files["common/ideologies.txt"]).find("liberal_group").value.find("x_ide").value
+    assert new.find("add_political_reform").value.find("base").value.text == "0"

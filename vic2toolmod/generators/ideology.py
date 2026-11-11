@@ -251,9 +251,11 @@ def _from_scratch(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
     changes = [_change(ws, rel, doc.text, apply_edits(doc.text, [edit]))]
     notes: list[str] = []
 
-    # pop support: a factor per pop type by its strata
+    # pop support: a factor per pop type by its strata - only when given (the form leaves
+    # it to the editor, T031 17:37)
     count = 0
-    for f in ws.project.glob("poptypes/*.txt"):
+    pop_files = ws.project.glob("poptypes/*.txt") if spec.support or spec.support_code else []
+    for f in pop_files:
         pdoc = ws.document(f.rel)
         block = pdoc.find("ideologies")
         if block is None or not isinstance(block.value, Block):
@@ -269,7 +271,17 @@ def _from_scratch(ws: Workspace, spec: IdeologySpec) -> IdeologyPlan:
         pedit = insert(pdoc, block.value, [(spec.name, pop_items)])
         changes.append(_change(ws, f.rel, pdoc.text, apply_edits(pdoc.text, [pedit])))
         count += 1
-    notes.append(f"pop support written in {count} pop types (factor by strata)")
+    if count:
+        notes.append(f"pop support written in {count} pop types (factor by strata)")
+    else:
+        notes.append(
+            f"pop support: add {spec.name} = {{ factor = … }} to the ideologies block of each "
+            "poptypes/*.txt in the editor - without it no pop supports the ideology"
+        )
+    notes.append(
+        "reform wishes: add_/remove_ political/social reform are written with base = 0 - "
+        "set them and their modifiers in common/ideologies.txt in the editor"
+    )
 
     # governments that allow it
     if spec.governments:

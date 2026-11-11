@@ -69,9 +69,6 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   const [newGroupEnglish, setNewGroupEnglish] = useState("");
   const [uncivilized, setUncivilized] = useState(true);
   const [reduceMil, setReduceMil] = useState(false);
-  // T031: the reform wish blocks and the pop support as code (base / factor and modifiers)
-  const [weights, setWeights] = useState<Record<string, string>>({ add_political_reform: "base = 1", remove_political_reform: "base = 1", add_social_reform: "base = 1", remove_social_reform: "base = 1" });
-  const [support, setSupport] = useState<Record<string, string>>({ rich: "factor = 1", middle: "factor = 1", poor: "factor = 1" });
   const [govs, setGovs] = useState<string[]>([]);
   const [governments, setGovernments] = useState<string[]>([]);
   // event / decision
@@ -79,8 +76,7 @@ export function Creators({ onStatus, files, onOpen }: Props) {
   const [eTitle, setETitle] = useState("");
   const [eDesc, setEDesc] = useState("");
   // T033: chosen id, an id range for a new file, the trigger, options with effects and AI factor
-  const NEW_OPTION = "ai_chance = {\n\tfactor = 1\n}";
-  const [eOptions, setEOptions] = useState<{ name: string; effects: string }[]>([{ name: "OK", effects: NEW_OPTION }]);
+  const [eOptions, setEOptions] = useState<{ name: string }[]>([{ name: "OK" }]);
   const [eId, setEId] = useState("");
   const [eRange, setERange] = useState(["", ""]);
   const [eTrigger, setETrigger] = useState("");
@@ -164,14 +160,14 @@ export function Creators({ onStatus, files, onOpen }: Props) {
           name: iName, english: iEnglish, template: scratch ? null : template, group: group === "+new" ? null : group || null,
           color: c, date: date || null, new_group: group === "+new" ? newGroup : null, new_group_english: newGroupEnglish,
           uncivilized, can_reduce_militancy: reduceMil,
-          reform_code: weights, support_code: support, governments: govs,
+          governments: govs,
         };
         const r = await api.createIdeology(spec, write);
         setResult({ diff: r.diff, lines: [...r.notes, `files: ${r.files.length}`, ...(r.backup ? [`backup: ${r.backup}`] : [])] });
         if (write) { onStatus(`Ideology ${iName} created`); setPIdeology(iName); }
       } else if (kind === "event") {
         const newFile = !files.includes(`events/${eFile}`);
-        const spec = { file: eFile, title: eTitle, description: eDesc, options: eOptions.filter((o) => o.name.trim()),
+        const spec = { file: eFile, title: eTitle, description: eDesc, options: eOptions.map((o) => o.name).filter((n) => n.trim()),
           kind: eKind, triggered_only: eTriggered, months: eMonths, trigger: eTrigger,
           event_id: eId.trim() ? Number(eId) : null,
           id_range: newFile && eRange[0] && eRange[1] ? [Number(eRange[0]), Number(eRange[1])] : null };
@@ -300,18 +296,7 @@ export function Creators({ onStatus, files, onOpen }: Props) {
               <>
                 <label title="uncivilized = no keeps the ideology out of uncivilised countries"><input type="checkbox" checked={uncivilized} onChange={(e) => setUncivilized(e.target.checked)} /> also in uncivilised countries</label>
                 <label title="can_reduce_militancy = yes: a ruling party of this ideology lowers militancy (vanilla: conservative, liberal)"><input type="checkbox" checked={reduceMil} onChange={(e) => setReduceMil(e.target.checked)} /> can reduce militancy</label>
-                <div title="How much pops of this ideology want to pass / repeal reforms: base (0 = never, 1 = as much as others) and modifier = { factor = … conditions } blocks - like in common/ideologies.txt">Reform wishes (the blocks of common/ideologies.txt):
-                  {Object.keys(weights).map((k) => (
-                    <div key={k} className="evc-option"><code>{k} = {"{"}</code>
-                      <CodeWithPicker value={weights[k]} onChange={(v) => setWeights({ ...weights, [k]: v })} kinds={["trigger"]} rows={2}
-                        placeholder={"base = 1\nmodifier = {\n\tfactor = -1\n\tNOT = { ruling_party_ideology = this_ideology }\n}"} /></div>
-                  ))}</div>
-                <div title="Pop support is not in common/ideologies.txt: each pop type's file (poptypes/*.txt) has an ideologies block with a weight per ideology - without it no pop of that type ever supports the ideology. These blocks go there, by the pop type's strata.">Support in pop types (written into each <code>poptypes/*.txt</code> → <code>ideologies</code>, by strata):
-                  {["rich", "middle", "poor"].map((k) => (
-                    <div key={k} className="evc-option"><span>{k} pops</span>
-                      <CodeWithPicker value={support[k]} onChange={(v) => setSupport({ ...support, [k]: v })} kinds={["trigger"]} rows={2}
-                        placeholder={"factor = 1\nmodifier = {\n\tfactor = 2\n\tliteracy = 0.5\n}"} /></div>
-                  ))}</div>
+                <div className="muted">Reform wishes (<code>add_ / remove_ political / social reform</code>) are written with <code>base = 0</code>: set them and their modifiers in <code>common/ideologies.txt</code> in the editor. Pop support goes into the <code>ideologies</code> block of each <code>poptypes/*.txt</code> (<code>{iName || "name"} = {"{"} factor = … {"}"}</code>) - add it in the editor too, or no pop supports the ideology.</div>
                 <div title="common/governments.txt: under these governments a party of this ideology can rule">Governments that allow it:
                   <div className="gov-list">{governments.map((g) => (
                     <label key={g}><input type="checkbox" checked={govs.includes(g)} onChange={(e) => setGovs(e.target.checked ? [...govs, g] : govs.filter((x) => x !== g))} /> {g}</label>
@@ -320,7 +305,7 @@ export function Creators({ onStatus, files, onOpen }: Props) {
             )}
             <label>Colour <input type="color" value={color} onChange={(e) => setColor(e.target.value)} /></label>
             <label title="date = …: before it no pop supports the ideology (e.g. fascism from 1905)">Available from <input value={date} onChange={(e) => setDate(e.target.value)} placeholder="1870.1.1 (optional)" /></label>
-            <div className="muted">{scratch ? "Writes the ideology, its support in every pop type and the chosen governments." : "Copies the template's reform preferences, its support in every pop type and the governments that allow it."} Parties come next ("Parties for an ideology").</div>
+            <div className="muted">{scratch ? "Writes the ideology and the chosen governments." : "Copies the template's reform preferences, its support in every pop type and the governments that allow it."} Parties come next ("Parties for an ideology").</div>
           </>
         )}
         {kind === "event" && (
@@ -342,19 +327,15 @@ export function Creators({ onStatus, files, onOpen }: Props) {
             {!eTriggered && <label title="mean_time_to_happen: the average waiting time once the trigger holds (modifiers can change it later)">Mean time to happen (months) <input type="number" value={eMonths} onChange={(e) => setEMonths(Number(e.target.value) || 1)} /></label>}
             {!eTriggered && <div title="trigger = { … }: when the event can happen (all conditions must hold)">Trigger
               <CodeWithPicker value={eTrigger} onChange={setETrigger} kinds={["trigger"]} placeholder={"tag = ENG\nwar = no"} /></div>}
-            <div title="Each option: its name (localisation) and its code: effects, and ai_chance = { factor … modifier = { factor … conditions } } for how much the AI likes it">Options</div>
+            <div title="The options' names (localisation); their effects and ai_chance go in the editor">Options</div>
             {eOptions.map((o, i) => (
-              <div key={i} className="evc-option">
-                <span className="exception-row">
-                  <input value={o.name} onChange={(e) => setEOptions(eOptions.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} placeholder="Option name (English)" />
-                  <button onClick={() => setEOptions(eOptions.filter((_, j) => j !== i))} disabled={eOptions.length <= 1} title="remove the option">×</button>
-                </span>
-                <CodeWithPicker value={o.effects} onChange={(v) => setEOptions(eOptions.map((x, j) => (j === i ? { ...x, effects: v } : x)))} kinds={["effect", "trigger", "modifier"]}
-                  placeholder={"prestige = 5\nai_chance = {\n\tfactor = 1\n\tmodifier = { factor = 0 war = yes }\n}"} rows={4} />
-              </div>
+              <span key={i} className="exception-row">
+                <input value={o.name} onChange={(e) => setEOptions(eOptions.map((x, j) => (j === i ? { name: e.target.value } : x)))} placeholder="Option name (English)" />
+                <button onClick={() => setEOptions(eOptions.filter((_, j) => j !== i))} disabled={eOptions.length <= 1} title="remove the option">×</button>
+              </span>
             ))}
-            <button onClick={() => setEOptions([...eOptions, { name: "", effects: NEW_OPTION }])}>+ option</button>
-            <div className="muted">Gets the chosen id or a free one (from the file's "Events N-M" header if it has one) and EVTNAME / EVTDESC / EVTOPT localisation.</div>
+            <button onClick={() => setEOptions([...eOptions, { name: "" }])}>+ option</button>
+            <div className="muted">Gets the chosen id or a free one (from the file's "Events N-M" header if it has one) and EVTNAME / EVTDESC / EVTOPT localisation. The options' effects and ai_chance go in the editor.</div>
           </>
         )}
         {kind === "decision" && (

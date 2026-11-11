@@ -74,13 +74,14 @@ engine's local server (`vic2toolmod/server`). Phase 5 MVP (K54 = D):
   reform: its box goes to the first free place of the category's grid in the
   reform window (or a given x, y); the option every country starts with and
   exceptions by country (search by tag or name) go into `history/countries`.
-  New ideology: copied from another, or without a template (the reform wish
-  blocks and the pop support by strata as code with modifiers; governments
-  that allow it), also in a new group. Parties:
+  New ideology: copied from another, or without a template (colour, date,
+  governments that allow it; the reform wishes are written with `base = 0` and
+  the pop support is left to the editor - the notes say where), also in a new
+  group. Parties:
   one list per party policy (`party_issues` of `common/issues.txt`), countries
   and culture groups chosen by search. New event: a new file can claim an id
   range (its `### Events N-M used` header), a chosen id, the trigger as code,
-  options as code (effects and `ai_chance` with its modifiers). New decision:
+  the options' names (their effects and `ai_chance` go in the editor). New decision:
   picture, `potential`, `allow`, `effect` and `ai_will_do` as code. Every code
   box has a search of triggers, effects or modifiers with a filter (scope, or a
   modifier's subject); reform options pick their modifiers the same way.
